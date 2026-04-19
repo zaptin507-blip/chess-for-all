@@ -3462,7 +3462,8 @@ class ChessGame {
         const allStartBtns = document.querySelectorAll('#startGameBtn');
         
         allStartBtns.forEach(btn => {
-            btn.onclick = function() {
+            btn.onclick = function(e) {
+                e.preventDefault();
                 console.log('🎮 Play button clicked!');
                 
                 const chessSidebar = document.getElementById('chessSidebar');
@@ -3470,19 +3471,253 @@ class ChessGame {
                 
                 let timeSelect, colorSelect;
                 
-                // Determine which UI is active
-                if (chessSidebar && chessSidebar.style.display !== 'none') {
-                    console.log('Using Chess.com sidebar');
-                    timeSelect = chessSidebar.querySelector('#timeSelect');
-                    colorSelect = chessSidebar.querySelector('#colorSelect');
-                } else if (playSection && playSection.style.display !== 'none') {
-                    console.log('Using Boss Battle section');
-                    timeSelect = playSection.querySelector('#timeSelect');
-                    colorSelect = document.getElementById('colorSelect');
-                } else {
-                    console.log('Using fallback');
+                // Determine which UI is active (check visibility)
+                const sidebarVisible = chessSidebar && chessSidebar.offsetParent !== null;
+                const playVisible = playSection && playSection.offsetParent !== null;
+                
+                console.log('Sidebar visible:', sidebarVisible, 'Play visible:', playVisible);
+                
+                if (sidebarVisible) {
+                    console.log('✓ Using Chess.com sidebar');
                     timeSelect = document.getElementById('timeSelect');
                     colorSelect = document.getElementById('colorSelect');
+                } else if (playVisible) {
+                    console.log('✓ Using Boss Battle section');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else {
+                    console.log('⚠️ Neither visible, using first found');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                }
+                // Determine which UI is active (check visibility)
+                const sidebarVisible = chessSidebar && chessSidebar.offsetParent !== null;
+                const playVisible = playSection && playSection.offsetParent !== null;
+                
+                console.log('Sidebar visible:', sidebarVisible, 'Play visible:', playVisible);
+                
+                if (sidebarVisible) {
+                    console.log('✓ Using Chess.com sidebar');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else if (playVisible) {
+                    console.log('✓ Using Boss Battle section');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else {
+                    console.log('⚠️ Neither visible, using first found');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                }
+                // Determine which UI is active (check visibility)
+                const sidebarVisible = chessSidebar && chessSidebar.offsetParent !== null;
+                const playVisible = playSection && playSection.offsetParent !== null;
+                
+                console.log('Sidebar visible:', sidebarVisible, 'Play visible:', playVisible);
+                
+                if (sidebarVisible) {
+                    console.log('✓ Using Chess.com sidebar');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else if (playVisible) {
+                    console.log('✓ Using Boss Battle section');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else {
+                    console.log('⚠️ Neither visible, using first found');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                }
+                // Determine which UI is active (check visibility)
+                const sidebarVisible = chessSidebar && chessSidebar.offsetParent !== null;
+                const playVisible = playSection && playSection.offsetParent !== null;
+                
+                console.log('Sidebar visible:', sidebarVisible, 'Play visible:', playVisible);
+                
+                if (sidebarVisible) {
+                    console.log('✓ Using Chess.com sidebar');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else if (playVisible) {
+                    console.log('✓ Using Boss Battle section');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else {
+                    console.log('⚠️ Neither visible, using first found');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                }
+                // Determine which UI is active (check visibility)
+                const sidebarVisible = chessSidebar && chessSidebar.offsetParent !== null;
+                const playVisible = playSection && playSection.offsetParent !== null;
+                
+                console.log('Sidebar visible:', sidebarVisible, 'Play visible:', playVisible);
+                
+                if (sidebarVisible) {
+                    console.log('✓ Using Chess.com sidebar');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else if (playVisible) {
+                    console.log('✓ Using Boss Battle section');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else {
+                    console.log('⚠️ Neither visible, using first found');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                }
+                // Determine which UI is active (check visibility)
+                const sidebarVisible = chessSidebar && chessSidebar.offsetParent !== null;
+                const playVisible = playSection && playSection.offsetParent !== null;
+                
+                console.log('Sidebar visible:', sidebarVisible, 'Play visible:', playVisible);
+                
+                if (sidebarVisible) {
+                    console.log('✓ Using Chess.com sidebar');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else if (playVisible) {
+                    console.log('✓ Using Boss Battle section');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else {
+                    console.log('⚠️ Neither visible, using first found');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                }
+                // Determine which UI is active (check visibility)
+                const sidebarVisible = chessSidebar && chessSidebar.offsetParent !== null;
+                const playVisible = playSection && playSection.offsetParent !== null;
+                
+                console.log('Sidebar visible:', sidebarVisible, 'Play visible:', playVisible);
+                
+                if (sidebarVisible) {
+                    console.log('✓ Using Chess.com sidebar');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else if (playVisible) {
+                    console.log('✓ Using Boss Battle section');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else {
+                    console.log('⚠️ Neither visible, using first found');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                }
+                // Determine which UI is active (check visibility)
+                const sidebarVisible = chessSidebar && chessSidebar.offsetParent !== null;
+                const playVisible = playSection && playSection.offsetParent !== null;
+                
+                console.log('Sidebar visible:', sidebarVisible, 'Play visible:', playVisible);
+                
+                if (sidebarVisible) {
+                    console.log('✓ Using Chess.com sidebar');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else if (playVisible) {
+                    console.log('✓ Using Boss Battle section');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else {
+                    console.log('⚠️ Neither visible, using first found');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                }
+                // Determine which UI is active (check visibility)
+                const sidebarVisible = chessSidebar && chessSidebar.offsetParent !== null;
+                const playVisible = playSection && playSection.offsetParent !== null;
+                
+                console.log('Sidebar visible:', sidebarVisible, 'Play visible:', playVisible);
+                
+                if (sidebarVisible) {
+                    console.log('✓ Using Chess.com sidebar');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else if (playVisible) {
+                    console.log('✓ Using Boss Battle section');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else {
+                    console.log('⚠️ Neither visible, using first found');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                }
+                // Determine which UI is active (check visibility)
+                const sidebarVisible = chessSidebar && chessSidebar.offsetParent !== null;
+                const playVisible = playSection && playSection.offsetParent !== null;
+                
+                console.log('Sidebar visible:', sidebarVisible, 'Play visible:', playVisible);
+                
+                if (sidebarVisible) {
+                    console.log('✓ Using Chess.com sidebar');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else if (playVisible) {
+                    console.log('✓ Using Boss Battle section');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else {
+                    console.log('⚠️ Neither visible, using first found');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                }
+                // Determine which UI is active (check visibility)
+                const sidebarVisible = chessSidebar && chessSidebar.offsetParent !== null;
+                const playVisible = playSection && playSection.offsetParent !== null;
+                
+                console.log('Sidebar visible:', sidebarVisible, 'Play visible:', playVisible);
+                
+                if (sidebarVisible) {
+                    console.log('✓ Using Chess.com sidebar');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else if (playVisible) {
+                    console.log('✓ Using Boss Battle section');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else {
+                    console.log('⚠️ Neither visible, using first found');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                }
+                // Determine which UI is active (check visibility)
+                const sidebarVisible = chessSidebar && chessSidebar.offsetParent !== null;
+                const playVisible = playSection && playSection.offsetParent !== null;
+                
+                console.log('Sidebar visible:', sidebarVisible, 'Play visible:', playVisible);
+                
+                if (sidebarVisible) {
+                    console.log('✓ Using Chess.com sidebar');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else if (playVisible) {
+                    console.log('✓ Using Boss Battle section');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else {
+                    console.log('⚠️ Neither visible, using first found');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                }
+                // Determine which UI is active (check visibility)
+                const sidebarVisible = chessSidebar && chessSidebar.offsetParent !== null;
+                const playVisible = playSection && playSection.offsetParent !== null;
+                
+                console.log('Sidebar visible:', sidebarVisible, 'Play visible:', playVisible);
+                
+                if (sidebarVisible) {
+                    console.log('✓ Using Chess.com sidebar');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else if (playVisible) {
+                    console.log('✓ Using Boss Battle section');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                } else {
+                    console.log('⚠️ Neither visible, using first found');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
+                }
                 }
                 
                 console.log('Selected bot:', window.chessGame?.selectedBot);
@@ -4376,7 +4611,7 @@ class ChessGame {
                     rating: '⭐⭐',
                     level: 'Intermediate'
                 }
-            ];
+            };
             
             const opening = openings[openingId];
             if (!opening) return;

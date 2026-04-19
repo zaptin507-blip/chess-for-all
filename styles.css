@@ -792,3 +792,103 @@ body {
     padding: 2px 5px;
     margin: -2px -5px;
 }
+
+/* ===== MOBILE RESPONSIVE STYLES ===== */
+@media (max-width: 768px) {
+    /* Hide left sidebar on mobile */
+    #sidebarMenu {
+        width: 60px !important;
+        overflow: hidden;
+    }
+    
+    #sidebarMenu .menu-item span:not(:first-child) {
+        display: none;
+    }
+    
+    /* Adjust container margin for smaller sidebar */
+    .container {
+        margin-left: 60px !important;
+    }
+    
+    /* Reduce Chess.com sidebar width on mobile */
+    #chessSidebar {
+        width: 220px !important;
+    }
+    
+    /* Make chessboard responsive */
+    #chessboard {
+        width: min(95vw, 95vh, 400px) !important;
+        height: min(95vw, 95vh, 400px) !important;
+    }
+    
+    /* Stack player info vertically on small screens */
+    .player-info {
+        flex-direction: column;
+        text-align: center;
+        padding: 8px;
+    }
+    
+    .player-info h3 {
+        font-size: 14px;
+    }
+    
+    .timer-display {
+        font-size: 16px;
+    }
+    
+    /* Adjust game wrapper */
+    .game-wrapper {
+        max-width: 100%;
+        padding: 5px;
+    }
+    
+    /* Smaller avatars on mobile */
+    .avatar {
+        width: 40px;
+        height: 40px;
+        font-size: 22px;
+    }
+    
+    /* Adjust font sizes */
+    body {
+        font-size: 13px;
+    }
+    
+    /* Make sidebar fit better on mobile */
+    .sidebar {
+        padding: 10px;
+    }
+}
+
+/* Extra small screens (phones) */
+@media (max-width: 480px) {
+    #chessSidebar {
+        width: 180px !important;
+        padding: 10px;
+    }
+    
+    #chessboard {
+        width: min(98vw, 50vh, 350px) !important;
+        height: min(98vw, 50vh, 350px) !important;
+    }
+    
+    .container {
+        margin-left: 50px !important;
+    }
+    
+    #sidebarMenu {
+        width: 50px !important;
+    }
+    
+    .player-info h3 {
+        font-size: 12px;
+    }
+    
+    .bot-option div:last-child div:first-child {
+        font-size: 13px !important;
+    }
+    
+    .bot-option div:last-child div:last-child {
+        font-size: 11px !important;
+    }
+}
