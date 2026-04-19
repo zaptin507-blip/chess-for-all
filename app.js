@@ -4373,7 +4373,8 @@ class ChessGame {
                     continuation: 'After 1...d5, play 2.Nf3 Nf6 3.e3 for a solid setup. Or 2.b3 for a fianchetto system.',
                     famous_game: 'Bird vs Blackburne, 1880',
                     famous_game_description: 'Bird demonstrated his opening\'s attacking potential in this classic Victorian-era game.',
-                    rating: '⭐⭐', level: 'Intermediate'
+                    rating: '⭐⭐',
+                    level: 'Intermediate'
                 }
             ];
             
