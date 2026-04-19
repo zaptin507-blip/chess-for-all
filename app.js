@@ -4577,16 +4577,16 @@ class ChessGame {
         document.getElementById('evalGraph').style.display = 'block';
         document.getElementById('navControls').style.display = 'flex';
         
+
         // Draw evaluation graph
         this.drawEvaluationGraph();
         this.updateNavButtons();
-        
+
         // Re-render move list with annotations
         this.updateMoveList();
-        
+
         // Display results
         this.displayAnalysis();
-        
         analyzeBtn.textContent = 'Analysis Complete';
         analyzeBtn.disabled = false;
     }
