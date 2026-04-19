@@ -237,12 +237,22 @@ body {
     overflow-x: hidden;
     overflow-y: auto;
     max-height: 100vh;
+    position: relative;
 }
 
 .sidebar > * {
     width: 100%;
     box-sizing: border-box;
     max-width: 100%;
+    flex-shrink: 0;
+}
+
+/* Allow move history to grow but respect spacing */
+.move-history {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Ensure text doesn't wrap weirdly */
@@ -353,26 +363,24 @@ body {
     max-width: 100%;
 }
 
-.move-history {
-    flex: 1;
-    min-height: 300px;
-}
-
 .move-history h3 {
     color: #fff;
     margin-bottom: 10px;
+    flex-shrink: 0;
 }
 
 .moves-list {
     background: rgba(0, 0, 0, 0.2);
     border-radius: 8px;
     padding: 15px;
-    max-height: 400px;
+    max-height: 300px;
     overflow-y: auto;
     color: #ddd;
     font-family: 'Courier New', monospace;
     font-size: 14px;
     line-height: 1.8;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 .move-row {
@@ -402,10 +410,15 @@ body {
     flex-direction: row !important;
     flex-wrap: nowrap !important;
     gap: 8px !important;
-    margin-top: 15px !important;
-    margin-bottom: 0 !important;
+    margin-top: auto !important;
+    margin-bottom: 15px !important;
     width: 100% !important;
     align-items: stretch !important;
+    flex-shrink: 0 !important;
+    position: relative !important;
+    z-index: 10 !important;
+    background: transparent !important;
+    padding: 10px 0 !important;
 }
 
 .controls .btn {
@@ -464,6 +477,10 @@ body {
     background: rgba(0, 0, 0, 0.2);
     border-radius: 8px;
     padding: 15px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 5;
+    margin-top: 15px;
 }
 
 .analysis-panel h3 {
