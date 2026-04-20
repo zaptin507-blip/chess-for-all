@@ -2384,48 +2384,229 @@ class ChessGame {
     }
     
     async analyzeAllMoves() {
-        if (this.selectedBot !== 'tester' || !this.ratingData.pendingMoves) return;
+        if (this.selectedBot !== 'tester' || !this.ratingData.pendingMoves || this.ratingData.pendingMoves.length === 0) {
+            console.log('⚠️ No moves to analyze for The Tester');
+            return;
+        }
         
-        // Simple ELO estimation based on game result and move count
+        console.log('🎯 Analyzing all moves for ELO estimation...');
+        console.log('📊 Total moves to analyze:', this.ratingData.pendingMoves.length);
+        
         const moveCount = this.ratingData.pendingMoves.length;
         
-        // Determine result based on who was checkmated
+        // Determine result
         const playerLost = this.chess.in_checkmate() && this.chess.turn() === this.playerColor;
         const playerWon = this.chess.in_checkmate() && this.chess.turn() !== this.playerColor;
         const isDraw = this.chess.in_draw() || this.chess.in_stalemate() || this.chess.in_threefold_repetition();
         
+        // Initialize metrics
+        let totalCentipawnLoss = 0;
+        let blunders = 0;
+        let mistakes = 0;
+        let inaccuracies = 0;
+        let bestMoves = 0;
+        let goodMoves = 0;
+        
+        // Analyze each move with Stockfish
+        for (let i = 0; i < this.ratingData.pendingMoves.length; i++) {
+            const moveData = this.ratingData.pendingMoves[i];
+            
+            try {
+                // Get position evaluation before the move
+                const evalBefore = await this.getPositionEvaluation(moveData.fen);
+                
+                // Get the position after the player's move
+                const tempChess = new Chess(moveData.fen);
+                tempChess.move(moveData.san);
+                const fenAfter = tempChess.fen();
+                const evalAfter = await this.getPositionEvaluation(fenAfter);
+                
+                // Calculate centipawn loss
+                // Need to account for whose turn it was
+                const isWhiteTurn = moveData.fen.split(' ')[1] === 'w';
+                const centipawnLoss = isWhiteTurn 
+                    ? Math.max(0, evalBefore - evalAfter)  // White's turn: positive eval is good
+                    : Math.max(0, evalAfter - evalBefore);  // Black's turn: negative eval is good
+                
+                totalCentipawnLoss += centipawnLoss;
+                
+                // Classify the move
+                if (centipawnLoss === 0) {
+                    bestMoves++;
+                } else if (centipawnLoss < 50) {
+                    goodMoves++;
+                } else if (centipawnLoss < 150) {
+                    inaccuracies++;
+                } else if (centipawnLoss < 300) {
+                    mistakes++;
+                } else {
+                    blunders++;
+                }
+                
+                console.log(`Move ${i + 1}: ${moveData.san} - CPL: ${centipawnLoss}`);
+            } catch (error) {
+                console.error(`Error analyzing move ${i + 1}:`, error);
+                // Assume moderate error if analysis fails
+                totalCentipawnLoss += 200;
+                mistakes++;
+            }
+        }
+        
+        // Store metrics
+        this.ratingData.totalCentipawnLoss = totalCentipawnLoss;
+        this.ratingData.blunders = blunders;
+        this.ratingData.mistakes = mistakes;
+        this.ratingData.inaccuracies = inaccuracies;
+        this.ratingData.bestMoves = bestMoves;
+        this.ratingData.goodMoves = goodMoves;
         this.ratingData.moveCount = moveCount;
-        
-        // Base ELO starts at 1200 (intermediate)
-        let baseElo = 1200;
-        
-        // Adjust based on game length (shorter games = less reliable)
-        if (moveCount < 5) {
-            baseElo = 1000; // Not enough data
-        } else if (moveCount < 10) {
-            baseElo = 1100;
-        } else if (moveCount < 20) {
-            baseElo = 1200;
-        } else if (moveCount < 30) {
-            baseElo = 1300;
-        } else {
-            baseElo = 1400;
-        }
-        
-        // Adjust based on result
-        if (playerLost) {
-            baseElo -= 150; // Lost game
-        } else if (playerWon) {
-            baseElo += 200; // Won game
-        } else if (isDraw) {
-            baseElo += 50; // Drew
-        }
-        
-        // Store simplified results
-        this.ratingData.baseElo = baseElo;
         this.ratingData.result = playerLost ? 'loss' : (playerWon ? 'win' : 'draw');
         
-        console.log('Simple ELO analysis complete:', this.ratingData);
+        console.log('📊 Analysis Complete:');
+        console.log('  - Total centipawn loss:', totalCentipawnLoss);
+        console.log('  - Average CPL:', Math.round(totalCentipawnLoss / moveCount));
+        console.log('  - Best moves:', bestMoves);
+        console.log('  - Good moves:', goodMoves);
+        console.log('  - Inaccuracies:', inaccuracies);
+        console.log('  - Mistakes:', mistakes);
+        console.log('  - Blunders:', blunders);
+        
+        // Calculate ELO based on comprehensive metrics
+        // Range: 200-3000
+        
+        // Start with base of 1500 (average player)
+        let estimatedELO = 1500;
+        
+        // Factor 1: Game result (strong impact)
+        if (playerLost) {
+            estimatedELO -= 300; // Lost game
+        } else if (playerWon) {
+            estimatedELO += 400; // Won game
+        } else if (isDraw) {
+            estimatedELO += 100; // Drew
+        }
+        
+        // Factor 2: Move quality (centipawn loss)
+        const avgCentipawnLoss = totalCentipawnLoss / moveCount;
+        console.log(' Average CPL:', avgCentipawnLoss);
+        
+        // Scale ELO based on average centipawn loss
+        // 0 CPL = 3000 ELO (perfect play)
+        // 50 CPL = 2500 ELO (master)
+        // 100 CPL = 2000 ELO (expert)
+        // 200 CPL = 1500 ELO (intermediate)
+        // 300 CPL = 1000 ELO (beginner)
+        // 500+ CPL = 400 ELO (novice)
+        
+        if (avgCentipawnLoss < 30) {
+            estimatedELO = Math.max(estimatedELO, 2700); // Grandmaster level
+        } else if (avgCentipawnLoss < 60) {
+            estimatedELO = Math.max(estimatedELO, 2300); // Master level
+        } else if (avgCentipawnLoss < 100) {
+            estimatedELO = Math.max(estimatedELO, 1900); // Expert
+        } else if (avgCentipawnLoss < 150) {
+            estimatedELO = Math.max(estimatedELO, 1500); // Intermediate
+        } else if (avgCentipawnLoss < 250) {
+            estimatedELO = Math.max(estimatedELO, 1100); // Beginner
+        } else if (avgCentipawnLoss < 400) {
+            estimatedELO = Math.max(estimatedELO, 600); // Novice
+        } else {
+            estimatedELO = Math.max(estimatedELO, 300); // Very beginner
+        }
+        
+        // Factor 3: Blunder rate
+        const blunderRate = blunders / moveCount;
+        console.log('📉 Blunder rate:', (blunderRate * 100).toFixed(1) + '%');
+        
+        if (blunderRate > 0.4) {
+            estimatedELO -= 500; // Very high blunder rate
+        } else if (blunderRate > 0.3) {
+            estimatedELO -= 400; // High blunder rate
+        } else if (blunderRate > 0.2) {
+            estimatedELO -= 250; // Moderate blunder rate
+        } else if (blunderRate > 0.1) {
+            estimatedELO -= 100; // Low blunder rate
+        }
+        
+        // Factor 4: Best move rate
+        const bestMoveRate = bestMoves / moveCount;
+        console.log('🎯 Best move rate:', (bestMoveRate * 100).toFixed(1) + '%');
+        
+        if (bestMoveRate > 0.7) {
+            estimatedELO += 400; // Exceptional accuracy
+        } else if (bestMoveRate > 0.5) {
+            estimatedELO += 250; // Very good accuracy
+        } else if (bestMoveRate > 0.3) {
+            estimatedELO += 100; // Good accuracy
+        } else if (bestMoveRate > 0.15) {
+            estimatedELO += 30; // Decent accuracy
+        }
+        
+        // Factor 5: Game length consideration
+        if (moveCount < 3) {
+            // Too few moves, can't estimate accurately
+            estimatedELO = 1200; // Default to beginner-intermediate
+            console.log('⚠️ Too few moves for accurate estimation');
+        } else if (moveCount < 8) {
+            // Short game, reduce confidence
+            estimatedELO = Math.round(estimatedELO * 0.85);
+            console.log('⚠️ Short game - reducing confidence');
+        } else if (moveCount < 15) {
+            // Medium game
+            estimatedELO = Math.round(estimatedELO * 0.95);
+        }
+        
+        // Clamp to valid range: 200-3000
+        estimatedELO = Math.max(200, Math.min(3000, estimatedELO));
+        estimatedELO = Math.round(estimatedELO);
+        
+        this.ratingData.estimatedELO = estimatedELO;
+        
+        console.log('\n🏆 FINAL ELO ESTIMATION:');
+        console.log('  - Estimated ELO:', estimatedELO);
+        console.log('  - Move count:', moveCount);
+        console.log('  - Game result:', this.ratingData.result);
+        console.log('  - Avg centipawn loss:', Math.round(avgCentipawnLoss));
+        console.log('  - Blunders:', blunders);
+        console.log('  - Best moves:', bestMoves);
+        
+        // Store the estimate
+        localStorage.setItem('testerEstimatedELO', estimatedELO.toString());
+        
+        // Apply ELO boost
+        this.calculateELOBoost(estimatedELO);
+    }
+    
+    // Helper function to get position evaluation
+    async getPositionEvaluation(fen) {
+        return new Promise((resolve) => {
+            const tempEngine = new Worker('stockfish.js');
+            
+            let evaluation = 0;
+            const listener = (event) => {
+                const cpMatch = event.data.match(/cp\s+(-?\d+)/);
+                const mateMatch = event.data.match(/mate\s+(-?\d+)/);
+                
+                if (mateMatch) {
+                    // Mate in X moves - use large number
+                    const mateIn = parseInt(mateMatch[1]);
+                    evaluation = mateIn > 0 ? 10000 : -10000;
+                } else if (cpMatch) {
+                    evaluation = parseInt(cpMatch[1]);
+                }
+                
+                if (event.data.startsWith('bestmove')) {
+                    tempEngine.removeEventListener('message', listener);
+                    tempEngine.terminate();
+                    resolve(evaluation);
+                }
+            };
+            
+            tempEngine.addEventListener('message', listener);
+            tempEngine.postMessage('uci');
+            tempEngine.postMessage(`position fen ${fen}`);
+            tempEngine.postMessage('go depth 15');
+        });
     }
     
     evaluatePosition(engine, fen, playerMoveSAN) {
