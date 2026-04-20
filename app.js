@@ -2412,8 +2412,11 @@ class ChessGame {
             const moveData = this.ratingData.pendingMoves[i];
             
             try {
-                // Get position evaluation before the move
+                // Get position evaluation before the move (from White's perspective)
                 const evalBefore = await this.getPositionEvaluation(moveData.fen);
+                
+                // Determine whose turn it is
+                const isWhiteTurn = moveData.fen.split(' ')[1] === 'w';
                 
                 // Get the position after the player's move
                 const tempChess = new Chess(moveData.fen);
@@ -2421,12 +2424,24 @@ class ChessGame {
                 const fenAfter = tempChess.fen();
                 const evalAfter = await this.getPositionEvaluation(fenAfter);
                 
-                // Calculate centipawn loss
-                // Need to account for whose turn it was
-                const isWhiteTurn = moveData.fen.split(' ')[1] === 'w';
-                const centipawnLoss = isWhiteTurn 
-                    ? Math.max(0, evalBefore - evalAfter)  // White's turn: positive eval is good
-                    : Math.max(0, evalAfter - evalBefore);  // Black's turn: negative eval is good
+                // Calculate centipawn loss correctly
+                // Stockfish eval is always from White's perspective
+                // If it's White's turn and eval decreases (e.g., +100 → -50), that's a loss of 150
+                // If it's Black's turn and eval increases (e.g., -100 → +50), that's a loss of 150
+                
+                let centipawnLoss = 0;
+                
+                if (isWhiteTurn) {
+                    // White moved: positive eval is good for White
+                    // If evalBefore > evalAfter, White made the position worse
+                    centipawnLoss = Math.max(0, evalBefore - evalAfter);
+                } else {
+                    // Black moved: negative eval is good for Black
+                    // If evalBefore < evalAfter, Black made the position worse (eval became more positive)
+                    centipawnLoss = Math.max(0, evalAfter - evalBefore);
+                }
+                
+                console.log(`Move ${i + 1}: ${moveData.san} | ${isWhiteTurn ? 'White' : 'Black'} | Eval: ${evalBefore} → ${evalAfter} | CPL: ${centipawnLoss}`);
                 
                 totalCentipawnLoss += centipawnLoss;
                 
