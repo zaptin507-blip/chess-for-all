@@ -2697,7 +2697,7 @@ class ChessGame {
             return null;
         }
         
-        const elo = this.ratingData.baseElo;
+        const elo = this.ratingData.estimatedELO || this.ratingData.baseElo || 1200;
         const result = this.ratingData.result;
         
         // Level determination
@@ -2755,22 +2755,23 @@ class ChessGame {
             <div style="text-align: center; margin-bottom: 20px;">
                 <div style="font-size: 48px; margin-bottom: 10px;">${result.levelEmoji}</div>
                 <div style="font-size: 24px; color: #4CAF50; font-weight: bold; margin-bottom: 5px;">${result.level}</div>
-                <div style="font-size: 36px; color: #fff; font-weight: bold; margin: 15px 0;">ELO: ${result.elo}</div>
-                <div style="font-size: 16px; color: #aaa; margin-bottom: 10px;">Range: ${result.eloRange}</div>
+                <div style="font-size: 42px; color: #fff; font-weight: bold; margin: 15px 0; text-shadow: 0 0 20px rgba(76, 175, 80, 0.5);">ELO: ${result.elo}</div>
+                <div style="font-size: 16px; color: #aaa; margin-bottom: 10px;">Estimated Range: ${result.eloRange}</div>
                 <div style="font-size: 18px; color: #fff; margin-bottom: 10px;">${result.result}</div>
             </div>
             
             <div style="background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                <div style="color: #aaa; font-size: 14px; margin-bottom: 10px;">Game Summary</div>
-                <div style="color: #fff; font-size: 16px;">📊 Moves played: ${result.totalMoves}</div>
+                <div style="color: #aaa; font-size: 14px; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">📊 Game Summary</div>
+                <div style="color: #fff; font-size: 15px; margin: 8px 0;">Moves played: ${result.totalMoves}</div>
+                ${result.statsHTML || ''}
             </div>
             
-            <div style="color: #ddd; font-size: 14px; line-height: 1.6; padding: 10px; background: rgba(255, 255, 255, 0.05); border-radius: 6px;">
+            <div style="color: #ddd; font-size: 14px; line-height: 1.6; padding: 10px; background: rgba(76, 175, 80, 0.1); border-left: 3px solid #4CAF50; border-radius: 4px;">
                 ${result.description}
             </div>
             
-            <div style="color: #888; font-size: 12px; margin-top: 15px; text-align: center;">
-                Estimated based on ${result.totalMoves} moves
+            <div style="color: #888; font-size: 11px; margin-top: 15px; text-align: center; font-style: italic;">
+                Analysis powered by The Tester • ${result.totalMoves} moves analyzed
             </div>
         `;
         
