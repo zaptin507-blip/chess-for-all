@@ -3220,6 +3220,16 @@ class ChessGame {
                 console.log('Starting analyzeAllMoves...');
                 await this.analyzeAllMoves();
                 console.log('analyzeAllMoves completed');
+                console.log('Estimated ELO:', this.ratingData.estimatedELO);
+                
+                // Check if we have enough data
+                if (!this.ratingData.estimatedELO) {
+                    console.error('❌ No ELO estimated!');
+                    alert('Unable to calculate ELO. Please play more moves.');
+                    return;
+                }
+                
+                // Show rating modal after a delay (after game over modal is visible)
                 setTimeout(() => {
                     console.log('Showing rating modal now...');
                     this.showRatingModal();
@@ -3227,9 +3237,10 @@ class ChessGame {
                     // After showing rating, calculate ELO boost
                     const estimatedELO = this.ratingData.estimatedELO || 1200;
                     setTimeout(() => {
+                        console.log('Applying ELO boost...');
                         this.calculateELOBoost(estimatedELO);
                     }, 2000);
-                }, 500);
+                }, 1000);
             } catch (error) {
                 console.error('Error during ELO analysis:', error);
                 console.error('Error stack:', error.stack);
