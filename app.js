@@ -1359,6 +1359,9 @@ class ChessGame {
                 // Set the selected bot
                 window.chessGame.selectedBot = this.dataset.bot;
                 
+                // Update the display (avatar, name, rating, chat section)
+                window.chessGame.updateBotDisplay();
+                
                 // Update start button
                 window.chessGame.checkAllSelected();
                 
@@ -1563,11 +1566,13 @@ class ChessGame {
         // Step 1: Bot selection
         newGodBot.addEventListener('click', () => {
             this.selectedBot = 'god';
+            this.updateBotDisplay();
             this.showSections(['step2'], ['step1']);
         });
         
         newMrsTong.addEventListener('click', () => {
             this.selectedBot = 'mrstong';
+            this.updateBotDisplay();
             this.showSections(['step2'], ['step1']);
         });
         
