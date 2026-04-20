@@ -2445,17 +2445,30 @@ class ChessGame {
                 
                 totalCentipawnLoss += centipawnLoss;
                 
-                // Classify the move
+                // Classify the move using chess.com-style thresholds
+                // Chess.com uses much more lenient thresholds:
+                // 0 CPL = Best move (book move or engine's top choice)
+                // < 20 CPL = Excellent (⭐) - nearly perfect
+                // < 50 CPL = Great (👍) - very good move
+                // < 100 CPL = Good (✓) - solid move
+                // < 200 CPL = Inaccuracy (⚡) - slight mistake
+                // < 400 CPL = Mistake (⚠️) - significant error
+                // 400+ CPL = Blunder (❌) - major mistake
+                
                 if (centipawnLoss === 0) {
-                    bestMoves++;
+                    bestMoves++; // Perfect move
+                } else if (centipawnLoss < 20) {
+                    bestMoves++; // Excellent (close enough to best)
                 } else if (centipawnLoss < 50) {
-                    goodMoves++;
-                } else if (centipawnLoss < 150) {
-                    inaccuracies++;
-                } else if (centipawnLoss < 300) {
-                    mistakes++;
+                    goodMoves++; // Great move
+                } else if (centipawnLoss < 100) {
+                    goodMoves++; // Good move
+                } else if (centipawnLoss < 200) {
+                    inaccuracies++; // Inaccuracy
+                } else if (centipawnLoss < 400) {
+                    mistakes++; // Mistake
                 } else {
-                    blunders++;
+                    blunders++; // Blunder
                 }
                 
                 console.log(`Move ${i + 1}: ${moveData.san} - CPL: ${centipawnLoss}`);
