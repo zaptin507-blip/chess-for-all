@@ -42,7 +42,8 @@ class ChessGame {
             mistakes: 0,
             inaccuracies: 0,
             bestMoves: 0,
-            goodMoves: 0
+            goodMoves: 0,
+            brilliantMoves: 0
         };
         
         // Analysis mode state
@@ -2406,6 +2407,7 @@ class ChessGame {
         let inaccuracies = 0;
         let bestMoves = 0;
         let goodMoves = 0;
+        let brilliantMoves = 0;
         
         // Analyze each move with Stockfish
         for (let i = 0; i < this.ratingData.pendingMoves.length; i++) {
@@ -2445,33 +2447,56 @@ class ChessGame {
                 
                 totalCentipawnLoss += centipawnLoss;
                 
-                // Classify the move using chess.com-style thresholds
-                // Chess.com uses much more lenient thresholds:
-                // 0 CPL = Best move (book move or engine's top choice)
-                // < 20 CPL = Excellent (⭐) - nearly perfect
-                // < 50 CPL = Great (👍) - very good move
-                // < 100 CPL = Good (✓) - solid move
-                // < 200 CPL = Inaccuracy (⚡) - slight mistake
-                // < 400 CPL = Mistake (⚠️) - significant error
-                // 400+ CPL = Blunder (❌) - major mistake
+                // Check for brilliant move BEFORE regular classification
+                // Brilliant move criteria (chess.com style):
+                // 1. It's a best move (0-20 CPL)
+                // 2. It's a sacrifice (gives up material)
+                // 3. It's a quiet move (no check or capture)
+                // 4. It's unique (only one best move)
+                let isBrilliant = false;
                 
-                if (centipawnLoss === 0) {
-                    bestMoves++; // Perfect move
-                } else if (centipawnLoss < 20) {
-                    bestMoves++; // Excellent (close enough to best)
-                } else if (centipawnLoss < 50) {
-                    goodMoves++; // Great move
-                } else if (centipawnLoss < 100) {
-                    goodMoves++; // Good move
-                } else if (centipawnLoss < 200) {
-                    inaccuracies++; // Inaccuracy
-                } else if (centipawnLoss < 400) {
-                    mistakes++; // Mistake
-                } else {
-                    blunders++; // Blunder
+                if (centipawnLoss < 20) {
+                    // Check if it's a sacrifice
+                    const tempChessForSacrifice = new Chess(moveData.fen);
+                    const moveObj = tempChessForSacrifice.move(moveData.san);
+                    
+                    if (moveObj) {
+                        const isCapture = moveObj.flags.includes('c'); // capture
+                        const isPromotion = moveObj.flags.includes('p'); // promotion
+                        const hasCheck = moveData.san.includes('+') || moveData.san.includes('#');
+                        
+                        // Check if it's a sacrifice: we gave up material
+                        const wasSacrifice = this.isSacrifice(moveData.fen, moveData.san);
+                        
+                        // Brilliant = best move + sacrifice + quiet (no check/capture)
+                        if (wasSacrifice && !isCapture && !hasCheck) {
+                            isBrilliant = true;
+                            brilliantMoves++;
+                            console.log(`✨ BRILLIANT MOVE: ${moveData.san} (sacrifice + quiet)`);
+                        }
+                    }
                 }
                 
-                console.log(`Move ${i + 1}: ${moveData.san} - CPL: ${centipawnLoss}`);
+                // Regular classification (only if not brilliant)
+                if (!isBrilliant) {
+                    if (centipawnLoss === 0) {
+                        bestMoves++; // Perfect move
+                    } else if (centipawnLoss < 20) {
+                        bestMoves++; // Excellent (close enough to best)
+                    } else if (centipawnLoss < 50) {
+                        goodMoves++; // Great move
+                    } else if (centipawnLoss < 100) {
+                        goodMoves++; // Good move
+                    } else if (centipawnLoss < 200) {
+                        inaccuracies++; // Inaccuracy
+                    } else if (centipawnLoss < 400) {
+                        mistakes++; // Mistake
+                    } else {
+                        blunders++; // Blunder
+                    }
+                }
+                
+                console.log(`Move ${i + 1}: ${moveData.san} - CPL: ${centipawnLoss}${isBrilliant ? ' ✨BRILLIANT' : ''}`);
             } catch (error) {
                 console.error(`Error analyzing move ${i + 1}:`, error);
                 // Assume moderate error if analysis fails
@@ -2493,9 +2518,10 @@ class ChessGame {
         console.log('📊 Analysis Complete:');
         console.log('  - Total centipawn loss:', totalCentipawnLoss);
         console.log('  - Average CPL:', Math.round(totalCentipawnLoss / moveCount));
-        console.log('  - Best moves:', bestMoves);
-        console.log('  - Good moves:', goodMoves);
-        console.log('  - Inaccuracies:', inaccuracies);
+        console.log('  - ✨ Brilliant moves:', brilliantMoves);
+        console.log('  - ⭐ Best moves:', bestMoves);
+        console.log('  - 👍 Good moves:', goodMoves);
+        console.log('  - ⚡ Inaccuracies:', inaccuracies);
         console.log('  - Mistakes:', mistakes);
         console.log('  - Blunders:', blunders);
         
@@ -2603,6 +2629,48 @@ class ChessGame {
         
         // Apply ELO boost
         this.calculateELOBoost(estimatedELO);
+    }
+    
+    // Helper function to check if a move is a sacrifice
+    isSacrifice(fen, moveSAN) {
+        try {
+            const chess = new Chess(fen);
+            const playerColor = chess.turn(); // Color of the player making the move
+            
+            // Get piece values
+            const pieceValues = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+            
+            // Count material before the move
+            let materialBefore = 0;
+            const board = chess.board();
+            for (let row of board) {
+                for (let square of row) {
+                    if (square && square.color === playerColor) {
+                        materialBefore += pieceValues[square.type] || 0;
+                    }
+                }
+            }
+            
+            // Make the move
+            chess.move(moveSAN);
+            
+            // Count material after the move (playerColor is still the same player)
+            let materialAfter = 0;
+            const boardAfter = chess.board();
+            for (let row of boardAfter) {
+                for (let square of row) {
+                    if (square && square.color === playerColor) {
+                        materialAfter += pieceValues[square.type] || 0;
+                    }
+                }
+            }
+            
+            // If we have less material after (and it wasn't a capture), it's a sacrifice
+            const isCapture = moveSAN.includes('x');
+            return materialAfter < materialBefore && !isCapture;
+        } catch (error) {
+            return false;
+        }
     }
     
     // Helper function to get position evaluation
@@ -2758,14 +2826,40 @@ class ChessGame {
         else if (result === 'loss') resultMsg = '❌ You lost';
         else resultMsg = '🤝 Draw';
         
+        // Build detailed stats
+        let statsHTML = '';
+        if (this.ratingData.brilliantMoves !== undefined && this.ratingData.brilliantMoves > 0) {
+            statsHTML += `<div style="color: #FFD700; font-size: 15px; margin: 8px 0; font-weight: bold;">✨ Brilliant Moves: ${this.ratingData.brilliantMoves}</div>`;
+        }
+        if (this.ratingData.bestMoves !== undefined) {
+            statsHTML += `<div style="color: #fff; font-size: 14px; margin: 5px 0;">⭐ Best Moves: ${this.ratingData.bestMoves}</div>`;
+        }
+        if (this.ratingData.goodMoves !== undefined) {
+            statsHTML += `<div style="color: #fff; font-size: 14px; margin: 5px 0;">👍 Good Moves: ${this.ratingData.goodMoves}</div>`;
+        }
+        if (this.ratingData.inaccuracies !== undefined) {
+            statsHTML += `<div style="color: #fff; font-size: 14px; margin: 5px 0;">⚡ Inaccuracies: ${this.ratingData.inaccuracies}</div>`;
+        }
+        if (this.ratingData.mistakes !== undefined) {
+            statsHTML += `<div style="color: #fff; font-size: 14px; margin: 5px 0;">⚠️ Mistakes: ${this.ratingData.mistakes}</div>`;
+        }
+        if (this.ratingData.blunders !== undefined) {
+            statsHTML += `<div style="color: #ff6b6b; font-size: 14px; margin: 5px 0;">❌ Blunders: ${this.ratingData.blunders}</div>`;
+        }
+        if (this.ratingData.totalCentipawnLoss !== undefined && this.ratingData.moveCount > 0) {
+            const avgCPL = Math.round(this.ratingData.totalCentipawnLoss / this.ratingData.moveCount);
+            statsHTML += `<div style="color: #aaa; font-size: 13px; margin: 10px 0 5px 0; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px;">📊 Avg Centipawn Loss: ${avgCPL}</div>`;
+        }
+        
         return {
             elo: Math.round(elo),
-            eloRange: `${Math.round(elo - 75)}-${Math.round(elo + 75)}`,
+            eloRange: `${Math.round(elo - 100)}-${Math.round(elo + 100)}`,
             level: level,
             levelEmoji: levelEmoji,
             description: description,
             totalMoves: this.ratingData.moveCount,
-            result: resultMsg
+            result: resultMsg,
+            statsHTML: statsHTML
         };
     }
     
@@ -5743,7 +5837,8 @@ class ChessGame {
             mistakes: 0,
             inaccuracies: 0,
             bestMoves: 0,
-            goodMoves: 0
+            goodMoves: 0,
+            brilliantMoves: 0
         };
     }
 }
