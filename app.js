@@ -1919,7 +1919,8 @@ class ChessGame {
                         pieceElement.draggable = false;
                     }
                     
-                    square.appendChild(pieceElement);                }
+                    square.appendChild(pieceElement);
+                }
 
                 if (this.selectedSquare === squareName) {
                     square.classList.add('selected');
@@ -1935,7 +1936,8 @@ class ChessGame {
                 // Add drag and drop event listeners to squares
                 square.addEventListener('dragover', (e) => this.handleSquareDragOver(e));
                 square.addEventListener('dragleave', (e) => this.handleSquareDragLeave(e));
-                square.addEventListener('drop', (e) => this.handleSquareDrop(e, squareName));                this.board.appendChild(square);
+                square.addEventListener('drop', (e) => this.handleSquareDrop(e, squareName));
+                this.board.appendChild(square);
             }
         }
 
