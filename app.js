@@ -2548,13 +2548,22 @@ class ChessGame {
         let bestMoves = 0;
         let goodMoves = 0;
         let brilliantMoves = 0;
+        let forcedMoves = 0;
         
         // Analyze each move with Stockfish
         for (let i = 0; i < this.ratingData.pendingMoves.length; i++) {
             const moveData = this.ratingData.pendingMoves[i];
             
             try {
-                // Get position evaluation before the move (from White's perspective)
+                // Check if this is a forced move (should not be rated)
+                const isForced = this.isForcedMove(moveData.fen, moveData.san);
+                
+                if (isForced) {
+                    forcedMoves++;
+                    console.log(`🔒 Move ${i + 1}: ${moveData.san} - FORCED (skipped from rating)`);
+                    continue; // Skip this move from analysis
+                }
+                                // Get position evaluation before the move (from White's perspective)
                 const evalBefore = await this.getPositionEvaluation(moveData.fen);
                 
                 // Determine whose turn it is
@@ -2658,6 +2667,7 @@ class ChessGame {
         console.log('📊 Analysis Complete:');
         console.log('  - Total centipawn loss:', totalCentipawnLoss);
         console.log('  - Average CPL:', Math.round(totalCentipawnLoss / moveCount));
+        console.log('  - 🔒 Forced moves:', forcedMoves, '(not rated)');
         console.log('  - ✨ Brilliant moves:', brilliantMoves);
         console.log('  - ⭐ Best moves:', bestMoves);
         console.log('  - 👍 Good moves:', goodMoves);
@@ -2813,6 +2823,149 @@ class ChessGame {
         }
     }
     
+
+    // Check if a move is forced (should not be rated)
+    isForcedMove(fen, moveSAN) {
+        try {
+            const chess = new Chess(fen);
+            
+            // Get all legal moves
+            const legalMoves = chess.moves({ verbose: true });
+            
+            // If in check, see if there's only one legal move
+            if (chess.in_check()) {
+                // Count legal moves
+                if (legalMoves.length === 1) {
+                    console.log('  ⚠️ Only 1 legal move (in check) - FORCED');
+                    return true;
+                }
+                
+                // If multiple moves, check if only one doesn't lose immediately
+                const playerColor = chess.turn();
+                let nonLosingMoves = 0;
+                
+                for (const move of legalMoves) {
+                    const tempChess = new Chess(fen);
+                    tempChess.move(move.san);
+                    
+                    // If opponent can checkmate next move, this move loses
+                    if (tempChess.in_checkmate()) {
+                        continue; // This move loses
+                    }
+                    
+                    // Get evaluation after this move
+                    const evalAfter = this.getQuickEvaluation(tempChess.fen());
+                    
+                    // If eval is not terrible (>-1000), it's a reasonable move
+                    const isWhiteTurn = playerColor === 'w';
+                    const evalForPlayer = isWhiteTurn ? evalAfter : -evalAfter;
+                    
+                    if (evalAfter > -1000) {
+                        nonLosingMoves++;
+                    }
+                }
+                
+                // If only one move doesn't lose immediately, it's forced
+                if (nonLosingMoves === 1) {
+                    console.log('  ⚠️ Only 1 move avoids immediate loss - FORCED');
+                    return true;
+                }
+            }
+            
+            // Check if the player is losing significant material no matter what
+            // Get current evaluation
+            const evalBefore = this.getQuickEvaluation(fen);
+            
+            let reasonableMoves = 0;
+            const playerColor = chess.turn();
+            
+            for (const move of legalMoves) {
+                const tempChess = new Chess(fen);
+                tempChess.move(move.san);
+                
+                // Get evaluation after this move
+                const evalAfter = this.getQuickEvaluation(tempChess.fen());
+                
+                // Calculate centipawn loss for this move
+                const isWhiteTurn = playerColor === 'w';
+                let centipawnLoss;
+                
+                if (isWhiteTurn) {
+                    centipawnLoss = Math.max(0, evalBefore - evalAfter);
+                } else {
+                    centipawnLoss = Math.max(0, evalAfter - evalBefore);
+                }
+                
+                // If centipawn loss is reasonable (< 300), it's a reasonable move
+                if (centipawnLoss < 300) {
+                    reasonableMoves++;
+                }
+            }
+            
+            // If only one reasonable move, it's practically forced
+            if (reasonableMoves === 1 && legalMoves.length > 1) {
+                console.log('  ⚠️ Only 1 reasonable move - FORCED');
+                return true;
+            }
+            
+            return false;
+        } catch (error) {
+            // If we can't determine, assume not forced
+            return false;
+        }
+    }
+    
+    // Quick evaluation for forced move detection (lower depth for speed)
+    getQuickEvaluation(fen) {
+        return new Promise((resolve) => {
+            const tempEngine = new Worker('stockfish.js');
+            
+            let evaluation = 0;
+            let resolved = false;
+            
+            const listener = (event) => {
+                if (resolved) return;
+                
+                const cpMatch = event.data.match(/cp\s+(-?\d+)/);
+                const mateMatch = event.data.match(/mate\s+(-?\d+)/);
+                
+                if (mateMatch) {
+                    const mateIn = parseInt(mateMatch[1]);
+                    evaluation = mateIn > 0 ? 10000 : -10000;
+                    resolved = true;
+                    tempEngine.removeEventListener('message', listener);
+                    tempEngine.terminate();
+                    resolve(evaluation);
+                } else if (cpMatch) {
+                    evaluation = parseInt(cpMatch[1]);
+                }
+                
+                if (event.data.startsWith('bestmove')) {
+                    if (!resolved) {
+                        resolved = true;
+                        tempEngine.removeEventListener('message', listener);
+                        tempEngine.terminate();
+                        resolve(evaluation);
+                    }
+                }
+            };
+            
+            tempEngine.addEventListener('message', listener);
+            tempEngine.postMessage('uci');
+            tempEngine.postMessage(`position fen ${fen}`);
+            tempEngine.postMessage('go depth 12'); // Lower depth for speed
+            
+            // Timeout after 2 seconds
+            setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    tempEngine.removeEventListener('message', listener);
+                    tempEngine.terminate();
+                    resolve(evaluation);
+                }
+            }, 2000);
+        });
+    }
     // Helper function to get position evaluation
     async getPositionEvaluation(fen) {
         return new Promise((resolve) => {
