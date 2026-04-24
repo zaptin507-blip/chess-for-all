@@ -1424,10 +1424,10 @@ class ChessGame {
     }
     
     // Show/hide multiple sections at once
-    showSections(sectionsToShow = [], sectionsToHide = []) {
+    showSections(sectionsToShow = [], sectionsToHide = [], displayType = 'block') {
         sectionsToShow.forEach(id => {
             const el = this.getElement(id);
-            if (el) el.style.display = 'block';
+            if (el) el.style.display = displayType;
         });
         sectionsToHide.forEach(id => {
             const el = this.getElement(id);
@@ -1904,7 +1904,6 @@ class ChessGame {
                     if (svgCode) {
                         pieceElement.innerHTML = svgCode;
                     }
-                    }
                     
                     // Enable drag and drop for player's pieces
                     if (piece.color === this.playerColor && !this.gameOver && this.gameStarted) {
@@ -2090,7 +2089,6 @@ class ChessGame {
         // Store the source square
         this.draggedPiece = square;
         
-        console.log('🖱️ Drag started from:', square);
     }
     
     handleDragEnd(e) {
@@ -2394,7 +2392,6 @@ class ChessGame {
         console.log('selectedBot:', this.selectedBot);
         
         if (this.gameOver || !this.gameStarted) {
-            console.log('❌ Not making move - game over or not started');
             return;
         }
         
@@ -2467,7 +2464,6 @@ class ChessGame {
 
         this.stockfish.addEventListener('message', listener);
         this.stockfish.postMessage(`position fen ${fen}`);
-        console.log('✓ Position sent to stockfish');
         
         // Set difficulty based on game mode
         if (this.gameMode === 'practice') {
@@ -2492,7 +2488,6 @@ class ChessGame {
             depth = Math.min(20, Math.max(1, depth));
             console.log(`Practice mode - ELO: ${this.engineElo}, Depth: ${depth}`);
             this.stockfish.postMessage(`go depth ${depth}`);
-            console.log(`✓ Sent: go depth ${depth}`);
         } else {
             // Boss battle mode: Use fixed depth per bot
             // THE ONE ABOVE ALL: depth 16 (expert level)
@@ -2501,7 +2496,6 @@ class ChessGame {
             const depth = this.selectedBot === 'mrstong' ? 10 : (this.selectedBot === 'tester' ? 8 : 16);
             console.log(`Boss battle - Bot: ${this.selectedBot}, Depth: ${depth}`);
             this.stockfish.postMessage(`go depth ${depth}`);
-            console.log(`✓ Sent: go depth ${depth}`);
         }
         
         // Add timeout check - if no response in 30 seconds, log error
@@ -2528,7 +2522,6 @@ class ChessGame {
     
     async analyzeAllMoves() {
         if (this.selectedBot !== 'tester' || !this.ratingData.pendingMoves || this.ratingData.pendingMoves.length === 0) {
-            console.log('⚠️ No moves to analyze for The Tester');
             return;
         }
         
@@ -2752,11 +2745,9 @@ class ChessGame {
         if (moveCount < 3) {
             // Too few moves, can't estimate accurately
             estimatedELO = 1200; // Default to beginner-intermediate
-            console.log('⚠️ Too few moves for accurate estimation');
         } else if (moveCount < 8) {
             // Short game, reduce confidence
             estimatedELO = Math.round(estimatedELO * 0.85);
-            console.log('⚠️ Short game - reducing confidence');
         } else if (moveCount < 15) {
             // Medium game
             estimatedELO = Math.round(estimatedELO * 0.95);
@@ -2838,7 +2829,6 @@ class ChessGame {
             if (chess.in_check()) {
                 // Count legal moves
                 if (legalMoves.length === 1) {
-                    console.log('  ⚠️ Only 1 legal move (in check) - FORCED');
                     return true;
                 }
                 
@@ -2869,7 +2859,6 @@ class ChessGame {
                 
                 // If only one move doesn't lose immediately, it's forced
                 if (nonLosingMoves === 1) {
-                    console.log('  ⚠️ Only 1 move avoids immediate loss - FORCED');
                     return true;
                 }
             }
@@ -2906,7 +2895,6 @@ class ChessGame {
             
             // If only one reasonable move, it's practically forced
             if (reasonableMoves === 1 && legalMoves.length > 1) {
-                console.log('  ⚠️ Only 1 reasonable move - FORCED');
                 return true;
             }
             
@@ -3192,7 +3180,7 @@ class ChessGame {
             </div>
         `;
         
-        document.getElementById('ratingModal').style.display = 'flex';
+        this.showSections(['ratingModal'], [], 'flex');
     }
 
     renderCoordinates() {
@@ -3710,11 +3698,11 @@ class ChessGame {
         
         document.getElementById('newGame').addEventListener('click', () => this.resetGame());
         document.getElementById('playAgain').addEventListener('click', () => {
-            document.getElementById('gameOverModal').style.display = 'none';
+            this.showSections([], ['gameOverModal']);
             this.resetGame();
         });
         document.getElementById('reviewGame').addEventListener('click', () => {
-            document.getElementById('gameOverModal').style.display = 'none';
+            this.showSections([], ['gameOverModal']);
             this.analyzeGame();
         });
         document.getElementById('analyzeBtn').addEventListener('click', () => this.analyzeGame());
