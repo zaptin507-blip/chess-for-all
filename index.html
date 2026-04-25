@@ -535,16 +535,70 @@
             </div>
             
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
-                <div class="piece-style-option" data-style="cburnett" style="cursor: pointer; padding: 20px; background: rgba(118, 150, 86, 0.2); border: 2px solid #769656; border-radius: 8px; text-align: center; transition: all 0.2s;">
-                    <div style="font-size: 60px; margin-bottom: 10px;">♔♕♖♗♘♙</div>
-                    <div style="color: #fff; font-weight: 600;">Chess.com / Lichess</div>
-                    <div style="color: rgba(255,255,255,0.6); font-size: 12px; margin-top: 5px;">Classic clean design</div>
+                <div class="piece-style-option" data-style="cburnett" style="cursor: pointer; padding: 20px; background: rgba(118, 150, 86, 0.2); border: 2px solid #769656; border-radius: 8px; text-align: center; transition: all 0.2s; position: relative; pointer-events: auto;" onmouseover="this.style.transform='scale(1.05)'; this.style.borderColor='#769656'" onmouseout="this.style.transform='scale(1)'; this.style.borderColor='rgba(255,255,255,0.2)'">
+                    <div style="font-size: 60px; margin-bottom: 10px; pointer-events: none;">♔♕♖♗♘♙</div>
+                    <div style="color: #fff; font-weight: 600; pointer-events: none;">Chess.com / Lichess</div>
+                    <div style="color: rgba(255,255,255,0.6); font-size: 12px; margin-top: 5px; pointer-events: none;">Classic clean design</div>
+                </div>
+                            
+                <div class="piece-style-option" data-style="unicode" style="cursor: pointer; padding: 20px; background: rgba(118, 150, 86, 0.2); border: 2px solid rgba(255,255,255,0.2); border-radius: 8px; text-align: center; transition: all 0.2s; position: relative; pointer-events: auto;" onmouseover="this.style.transform='scale(1.05)'; this.style.borderColor='#769656'" onmouseout="this.style.transform='scale(1)'; this.style.borderColor='rgba(255,255,255,0.2)'">
+                    <div style="font-size: 60px; margin-bottom: 10px; pointer-events: none;">♚♛♜♝♞♟</div>
+                    <div style="color: #fff; font-weight: 600; pointer-events: none;">Unicode</div>
+                    <div style="color: rgba(255,255,255,0.6); font-size: 12px; margin-top: 5px; pointer-events: none;">Simple & minimal</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Profile Stats Modal (Chess.com Style) -->
+    <div id="profileStatsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.85); z-index: 10002; justify-content: center; align-items: center;">
+        <div style="max-width: 600px; width: 90%; background: linear-gradient(135deg, #312e2b 0%, #272522 100%); border: 2px solid #769656; border-radius: 12px; padding: 0; box-shadow: 0 0 30px rgba(118, 150, 86, 0.3); overflow: hidden;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #769656 0%, #5a7a3a 100%); padding: 30px; text-align: center; position: relative;">
+                <button id="closeProfileStats" style="position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.3); border: none; color: #fff; font-size: 24px; cursor: pointer; padding: 5px 10px; border-radius: 50%; width: 35px; height: 35px; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.5)'" onmouseout="this.style.background='rgba(0,0,0,0.3)'">&times;</button>
+                <div style="width: 80px; height: 80px; background: rgba(255,255,255,0.2); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-size: 40px; border: 3px solid rgba(255,255,255,0.4);">👤</div>
+                <h2 id="profileStatsName" style="color: #fff; margin: 0; font-size: 28px; font-weight: 700;">The One Above All</h2>
+                <div id="profileStatsELO" style="color: rgba(255,255,255,0.9); font-size: 20px; margin-top: 8px; font-weight: 600;">Rating: Unrated</div>
+            </div>
+            
+            <!-- Stats Grid -->
+            <div style="padding: 30px;">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 25px;">
+                    <div style="background: rgba(118, 150, 86, 0.1); border: 1px solid rgba(118, 150, 86, 0.3); border-radius: 8px; padding: 20px; text-align: center;">
+                        <div style="color: rgba(255,255,255,0.6); font-size: 12px; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px;">Games Played</div>
+                        <div id="profileStatsGames" style="color: #fff; font-size: 32px; font-weight: 700;">0</div>
+                    </div>
+                    <div style="background: rgba(118, 150, 86, 0.1); border: 1px solid rgba(118, 150, 86, 0.3); border-radius: 8px; padding: 20px; text-align: center;">
+                        <div style="color: rgba(255,255,255,0.6); font-size: 12px; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px;">Win Rate</div>
+                        <div id="profileStatsWinRate" style="color: #769656; font-size: 32px; font-weight: 700;">0%</div>
+                    </div>
                 </div>
                 
-                <div class="piece-style-option" data-style="unicode" style="cursor: pointer; padding: 20px; background: rgba(118, 150, 86, 0.2); border: 2px solid rgba(255,255,255,0.2); border-radius: 8px; text-align: center; transition: all 0.2s;">
-                    <div style="font-size: 60px; margin-bottom: 10px;">♚♛♜♝♞♟</div>
-                    <div style="color: #fff; font-weight: 600;">Unicode</div>
-                    <div style="color: rgba(255,255,255,0.6); font-size: 12px; margin-top: 5px;">Simple & minimal</div>
+                <!-- Record -->
+                <div style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+                    <div style="color: rgba(255,255,255,0.6); font-size: 12px; text-transform: uppercase; margin-bottom: 15px; letter-spacing: 1px;">Record</div>
+                    <div style="display: flex; justify-content: space-around; text-align: center;">
+                        <div>
+                            <div style="color: #4CAF50; font-size: 28px; font-weight: 700;" id="profileStatsWins">0</div>
+                            <div style="color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 5px;">Wins</div>
+                        </div>
+                        <div style="width: 1px; background: rgba(255,255,255,0.1);"></div>
+                        <div>
+                            <div style="color: #f44336; font-size: 28px; font-weight: 700;" id="profileStatsLosses">0</div>
+                            <div style="color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 5px;">Losses</div>
+                        </div>
+                        <div style="width: 1px; background: rgba(255,255,255,0.1);"></div>
+                        <div>
+                            <div style="color: #FFC107; font-size: 28px; font-weight: 700;" id="profileStatsDraws">0</div>
+                            <div style="color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 5px;">Draws</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                    <button id="profileEditFromStats" style="padding: 12px; background: rgba(118, 150, 86, 0.2); border: 1px solid #769656; color: #fff; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(118, 150, 86, 0.3)'" onmouseout="this.style.background='rgba(118, 150, 86, 0.2)'">✏️ Edit Profile</button>
+                    <button id="profilePreferences" style="padding: 12px; background: rgba(118, 150, 86, 0.2); border: 1px solid #769656; color: #fff; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(118, 150, 86, 0.3)'" onmouseout="this.style.background='rgba(118, 150, 86, 0.2)'">🎨 Preferences</button>
                 </div>
             </div>
         </div>

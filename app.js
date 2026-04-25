@@ -6220,18 +6220,8 @@ if (auth) {
             const userProfileElement = document.getElementById('userProfile');
             if (userProfileElement) {
                 userProfileElement.onclick = () => {
-                    const currentELO = parseInt(localStorage.getItem('userELO')) || 0;
-                    const displayName = localStorage.getItem('displayName') || user.email.split('@')[0];
-                    const gamesPlayed = parseInt(localStorage.getItem('gamesPlayed')) || 0;
-                    const wins = parseInt(localStorage.getItem('wins')) || 0;
-                    const losses = parseInt(localStorage.getItem('losses')) || 0;
-                    const draws = parseInt(localStorage.getItem('draws')) || 0;
-                    
-                    alert(`👤 Profile: ${displayName}\n\n` +
-                        `Rating: ${currentELO > 0 ? currentELO : 'Unrated (Play The Tester to get rated!)'}\n` +
-                        `Games: ${gamesPlayed}\n` +
-                        `Record: ${wins}W - ${losses}L - ${draws}D\n` +
-                        `Win Rate: ${gamesPlayed > 0 ? Math.round((wins / gamesPlayed) * 100) : 0}%`);
+                    // Show the chess.com-style profile stats modal
+                    window.chessGame.showProfileStats();
                 };
             }
             
@@ -6520,6 +6510,31 @@ ChessGame.prototype.applyPieceStyle = function(style) {
     console.log('♟️ Piece style applied:', style);
 };
 
+// Show chess.com-style profile stats modal
+ChessGame.prototype.showProfileStats = function() {
+    const currentELO = parseInt(localStorage.getItem('userELO')) || 0;
+    const displayName = localStorage.getItem('displayName') || 'Player';
+    const gamesPlayed = parseInt(localStorage.getItem('gamesPlayed')) || 0;
+    const wins = parseInt(localStorage.getItem('wins')) || 0;
+    const losses = parseInt(localStorage.getItem('losses')) || 0;
+    const draws = parseInt(localStorage.getItem('draws')) || 0;
+    const winRate = gamesPlayed > 0 ? Math.round((wins / gamesPlayed) * 100) : 0;
+    
+    // Update modal content
+    document.getElementById('profileStatsName').textContent = displayName;
+    document.getElementById('profileStatsELO').textContent = currentELO > 0 ? `Rating: ${currentELO}` : 'Rating: Unrated';
+    document.getElementById('profileStatsGames').textContent = gamesPlayed;
+    document.getElementById('profileStatsWinRate').textContent = `${winRate}%`;
+    document.getElementById('profileStatsWins').textContent = wins;
+    document.getElementById('profileStatsLosses').textContent = losses;
+    document.getElementById('profileStatsDraws').textContent = draws;
+    
+    // Show modal
+    this.showSections(['profileStatsModal'], [], 'flex');
+    
+    console.log('👤 Profile stats modal opened');
+};
+
 // Setup Firebase auth event listeners when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     // Open auth modal when clicking corner indicator
@@ -6742,6 +6757,36 @@ document.addEventListener('DOMContentLoaded', () => {
     if (closePieceModal) {
         closePieceModal.addEventListener('click', () => {
             window.chessGame.showSections([], ['pieceStyleModal']);
+        });
+    }
+    
+    // Close Profile Stats Modal
+    const closeProfileStats = document.getElementById('closeProfileStats');
+    if (closeProfileStats) {
+        closeProfileStats.addEventListener('click', () => {
+            window.chessGame.showSections([], ['profileStatsModal']);
+        });
+    }
+    
+    // Profile Edit from Stats Modal
+    const profileEditFromStats = document.getElementById('profileEditFromStats');
+    if (profileEditFromStats) {
+        profileEditFromStats.addEventListener('click', () => {
+            window.chessGame.showSections([], ['profileStatsModal']);
+            setTimeout(() => {
+                window.chessGame.showSections(['profileEditModal'], [], 'flex');
+            }, 100);
+        });
+    }
+    
+    // Profile Preferences from Stats Modal
+    const profilePreferences = document.getElementById('profilePreferences');
+    if (profilePreferences) {
+        profilePreferences.addEventListener('click', () => {
+            window.chessGame.showSections([], ['profileStatsModal']);
+            setTimeout(() => {
+                window.chessGame.showSections(['boardThemeModal'], [], 'flex');
+            }, 100);
         });
     }
     
