@@ -1424,10 +1424,10 @@ class ChessGame {
     }
     
     // Show/hide multiple sections at once
-    showSections(sectionsToShow = [], sectionsToHide = [], displayType = 'block') {
+    showSections(sectionsToShow = [], sectionsToHide = []) {
         sectionsToShow.forEach(id => {
             const el = this.getElement(id);
-            if (el) el.style.display = displayType;
+            if (el) el.style.display = 'block';
         });
         sectionsToHide.forEach(id => {
             const el = this.getElement(id);
@@ -1634,9 +1634,6 @@ class ChessGame {
 
     startGame() {
         this.gameStarted = true;
-        
-        // Load saved preferences
-        this.loadPreferences();
         
         console.log('startGame called - playerColor:', this.playerColor, 'timerMode:', this.timerMode, 'selectedBot:', this.selectedBot);
         console.log('gameStarted set to:', this.gameStarted);
@@ -1907,6 +1904,7 @@ class ChessGame {
                     if (svgCode) {
                         pieceElement.innerHTML = svgCode;
                     }
+                    }
                     
                     // Enable drag and drop for player's pieces
                     if (piece.color === this.playerColor && !this.gameOver && this.gameStarted) {
@@ -2092,6 +2090,7 @@ class ChessGame {
         // Store the source square
         this.draggedPiece = square;
         
+        console.log('🖱️ Drag started from:', square);
     }
     
     handleDragEnd(e) {
@@ -2395,6 +2394,7 @@ class ChessGame {
         console.log('selectedBot:', this.selectedBot);
         
         if (this.gameOver || !this.gameStarted) {
+            console.log('❌ Not making move - game over or not started');
             return;
         }
         
@@ -2467,6 +2467,7 @@ class ChessGame {
 
         this.stockfish.addEventListener('message', listener);
         this.stockfish.postMessage(`position fen ${fen}`);
+        console.log('✓ Position sent to stockfish');
         
         // Set difficulty based on game mode
         if (this.gameMode === 'practice') {
@@ -2491,6 +2492,7 @@ class ChessGame {
             depth = Math.min(20, Math.max(1, depth));
             console.log(`Practice mode - ELO: ${this.engineElo}, Depth: ${depth}`);
             this.stockfish.postMessage(`go depth ${depth}`);
+            console.log(`✓ Sent: go depth ${depth}`);
         } else {
             // Boss battle mode: Use fixed depth per bot
             // THE ONE ABOVE ALL: depth 16 (expert level)
@@ -2499,6 +2501,7 @@ class ChessGame {
             const depth = this.selectedBot === 'mrstong' ? 10 : (this.selectedBot === 'tester' ? 8 : 16);
             console.log(`Boss battle - Bot: ${this.selectedBot}, Depth: ${depth}`);
             this.stockfish.postMessage(`go depth ${depth}`);
+            console.log(`✓ Sent: go depth ${depth}`);
         }
         
         // Add timeout check - if no response in 30 seconds, log error
@@ -2525,6 +2528,7 @@ class ChessGame {
     
     async analyzeAllMoves() {
         if (this.selectedBot !== 'tester' || !this.ratingData.pendingMoves || this.ratingData.pendingMoves.length === 0) {
+            console.log('⚠️ No moves to analyze for The Tester');
             return;
         }
         
@@ -2748,9 +2752,11 @@ class ChessGame {
         if (moveCount < 3) {
             // Too few moves, can't estimate accurately
             estimatedELO = 1200; // Default to beginner-intermediate
+            console.log('⚠️ Too few moves for accurate estimation');
         } else if (moveCount < 8) {
             // Short game, reduce confidence
             estimatedELO = Math.round(estimatedELO * 0.85);
+            console.log('⚠️ Short game - reducing confidence');
         } else if (moveCount < 15) {
             // Medium game
             estimatedELO = Math.round(estimatedELO * 0.95);
@@ -2832,6 +2838,7 @@ class ChessGame {
             if (chess.in_check()) {
                 // Count legal moves
                 if (legalMoves.length === 1) {
+                    console.log('  ⚠️ Only 1 legal move (in check) - FORCED');
                     return true;
                 }
                 
@@ -2862,6 +2869,7 @@ class ChessGame {
                 
                 // If only one move doesn't lose immediately, it's forced
                 if (nonLosingMoves === 1) {
+                    console.log('  ⚠️ Only 1 move avoids immediate loss - FORCED');
                     return true;
                 }
             }
@@ -2898,6 +2906,7 @@ class ChessGame {
             
             // If only one reasonable move, it's practically forced
             if (reasonableMoves === 1 && legalMoves.length > 1) {
+                console.log('  ⚠️ Only 1 reasonable move - FORCED');
                 return true;
             }
             
@@ -3183,7 +3192,7 @@ class ChessGame {
             </div>
         `;
         
-        this.showSections(['ratingModal'], [], 'flex');
+        document.getElementById('ratingModal').style.display = 'flex';
     }
 
     renderCoordinates() {
@@ -3701,11 +3710,11 @@ class ChessGame {
         
         document.getElementById('newGame').addEventListener('click', () => this.resetGame());
         document.getElementById('playAgain').addEventListener('click', () => {
-            this.showSections([], ['gameOverModal']);
+            document.getElementById('gameOverModal').style.display = 'none';
             this.resetGame();
         });
         document.getElementById('reviewGame').addEventListener('click', () => {
-            this.showSections([], ['gameOverModal']);
+            document.getElementById('gameOverModal').style.display = 'none';
             this.analyzeGame();
         });
         document.getElementById('analyzeBtn').addEventListener('click', () => this.analyzeGame());
@@ -6454,66 +6463,6 @@ function applyPieceStyle(style) {
     }, 50);
 }
 
-// Board & Piece Preference Methods
-ChessGame.prototype.loadPreferences = function() {
-    // Load board theme
-    const boardTheme = localStorage.getItem('boardTheme') || 'green';
-    this.applyBoardTheme(boardTheme);
-    
-    // Load piece style
-    const pieceStyle = localStorage.getItem('pieceStyle') || 'cburnett';
-    this.applyPieceStyle(pieceStyle);
-};
-
-ChessGame.prototype.applyBoardTheme = function(theme) {
-    const lightSquares = document.querySelectorAll('.square.light');
-    const darkSquares = document.querySelectorAll('.square.dark');
-    
-    const themes = {
-        green: { light: '#f0d9b5', dark: '#b58863' },
-        blue: { light: '#dee3ec', dark: '#8ca2ad' },
-        brown: { light: '#f0d9b5', dark: '#b58863' },
-        gray: { light: '#e8e8e8', dark: '#888888' }
-    };
-    
-    const colors = themes[theme] || themes.green;
-    
-    lightSquares.forEach(sq => {
-        sq.style.backgroundColor = colors.light;
-    });
-    
-    darkSquares.forEach(sq => {
-        sq.style.backgroundColor = colors.dark;
-    });
-    
-    console.log('🎨 Board theme applied:', theme);
-};
-
-ChessGame.prototype.applyPieceStyle = function(style) {
-    const pieces = document.querySelectorAll('.piece');
-    
-    pieces.forEach((pieceEl, index) => {
-        if (style === 'unicode') {
-            // Show Unicode chess symbols
-            const pieceKey = pieceEl.dataset.piece;
-            const unicodePieces = {
-                'wK': '♔', 'wQ': '♕', 'wR': '♖', 'wB': '♗', 'wN': '♘', 'wP': '♙',
-                'bK': '♚', 'bQ': '♛', 'bR': '♜', 'bB': '♝', 'bN': '♞', 'bP': '♟'
-            };
-            pieceEl.innerHTML = `<span style="font-size: 40px; line-height: 1; color: ${pieceKey.startsWith('w') ? '#fff' : '#000'}; text-shadow: ${pieceKey.startsWith('w') ? '0 0 3px #000' : '0 0 3px #fff'};">${unicodePieces[pieceKey] || '?'}</span>`;
-        } else {
-            // Use SVG pieces (cburnett style)
-            const pieceKey = pieceEl.dataset.piece;
-            const svgCode = this.pieceSVG[pieceKey];
-            if (svgCode) {
-                pieceEl.innerHTML = svgCode;
-            }
-        }
-    });
-    
-    console.log('♟️ Piece style applied:', style);
-};
-
 // Setup Firebase auth event listeners when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     // Open auth modal when clicking corner indicator
@@ -6682,60 +6631,6 @@ document.addEventListener('DOMContentLoaded', () => {
         editProfileBtn.addEventListener('click', (e) => {
             e.stopPropagation(); // Prevent triggering userProfile click
             openProfileEditModal();
-        });
-    }
-    
-    // Board Theme Preference Button
-    const boardPrefBtn = document.getElementById('boardPrefBtn');
-    if (boardPrefBtn) {
-        boardPrefBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            window.chessGame.showSections(['boardThemeModal'], [], 'flex');
-        });
-    }
-    
-    // Piece Style Preference Button
-    const piecePrefBtn = document.getElementById('piecePrefBtn');
-    if (piecePrefBtn) {
-        piecePrefBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            window.chessGame.showSections(['pieceStyleModal'], [], 'flex');
-        });
-    }
-    
-    // Board Theme Selection
-    document.querySelectorAll('.board-theme-option').forEach(option => {
-        option.addEventListener('click', () => {
-            const theme = option.dataset.theme;
-            localStorage.setItem('boardTheme', theme);
-            window.chessGame.applyBoardTheme(theme);
-            window.chessGame.showSections([], ['boardThemeModal']);
-        });
-    });
-    
-    // Piece Style Selection
-    document.querySelectorAll('.piece-style-option').forEach(option => {
-        option.addEventListener('click', () => {
-            const style = option.dataset.style;
-            localStorage.setItem('pieceStyle', style);
-            window.chessGame.applyPieceStyle(style);
-            window.chessGame.showSections([], ['pieceStyleModal']);
-        });
-    });
-    
-    // Close Board Theme Modal
-    const closeBoardModal = document.getElementById('closeBoardModal');
-    if (closeBoardModal) {
-        closeBoardModal.addEventListener('click', () => {
-            window.chessGame.showSections([], ['boardThemeModal']);
-        });
-    }
-    
-    // Close Piece Style Modal
-    const closePieceModal = document.getElementById('closePieceModal');
-    if (closePieceModal) {
-        closePieceModal.addEventListener('click', () => {
-            window.chessGame.showSections([], ['pieceStyleModal']);
         });
     }
     
