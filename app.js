@@ -6186,6 +6186,12 @@ if (auth) {
             if (sidebarToggle) sidebarToggle.style.display = 'block';
             if (userDisplayName) userDisplayName.textContent = displayName + (isAdmin ? ' 👑' : '');
             
+            // Load user's saved preferences on login
+            if (window.chessGame) {
+                window.chessGame.loadPreferences();
+                console.log('✅ Preferences loaded for logged-in user');
+            }
+            
             // Show admin button only for admins
             if (adminToggleBtn) {
                 adminToggleBtn.style.display = isAdmin ? 'inline-block' : 'none';
@@ -6843,6 +6849,10 @@ window.addEventListener('load', () => {
     try {
         chessGame = new ChessGame();
         console.log('Chess game initialized successfully');
+        
+        // Load saved board and piece preferences immediately
+        chessGame.loadPreferences();
+        console.log('✅ User preferences loaded from localStorage');
         
         // Check for Tester reminder (every 6 months)
         chessGame.checkTesterReminder();
