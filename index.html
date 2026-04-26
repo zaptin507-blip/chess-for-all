@@ -465,7 +465,7 @@
     </div>
     
     <!-- User Profile Indicator -->
-    <div id="userProfile" style="position: fixed; bottom: 10px; left: 10px; background: rgba(40, 40, 40, 0.95); padding: 12px 20px; border-radius: 8px; z-index: 1000; display: none; cursor: pointer; color: #fff; font-size: 14px; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+    <div id="userProfile" style="position: fixed; bottom: 10px; left: 10px; background: rgba(40, 40, 40, 0.95); padding: 12px 20px; border-radius: 8px; z-index: 10000; display: none; cursor: pointer; color: #fff; font-size: 14px; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); pointer-events: auto;">
         <div style="width: 45px; height: 45px; background: #4CAF50; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;">👤</div>
         <div style="display: flex; flex-direction: column; gap: 2px;">
             <span id="userDisplayName" style="cursor: pointer; font-weight: 600; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;">The One Above All</span>
@@ -474,7 +474,7 @@
     </div>
     
     <!-- Profile Dropdown Menu -->
-    <div id="profileDropdown" style="position: fixed; bottom: 70px; left: 10px; background: rgba(40, 40, 40, 0.98); padding: 8px; border-radius: 8px; z-index: 1001; display: none; min-width: 200px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
+    <div id="profileDropdown" style="position: fixed; bottom: 70px; left: 10px; background: rgba(40, 40, 40, 0.98); padding: 8px; border-radius: 8px; z-index: 10000; display: none; min-width: 200px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); pointer-events: auto;">
         <button id="boardPrefBtn" style="width: 100%; padding: 10px 15px; background: none; border: none; color: #fff; cursor: pointer; font-size: 14px; text-align: left; border-radius: 4px; transition: background 0.2s; display: flex; align-items: center; gap: 10px;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='none'">🎨 Board Theme</button>
         <button id="piecePrefBtn" style="width: 100%; padding: 10px 15px; background: none; border: none; color: #fff; cursor: pointer; font-size: 14px; text-align: left; border-radius: 4px; transition: background 0.2s; display: flex; align-items: center; gap: 10px;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='none'">♟️ Piece Style</button>
         <button id="editProfileBtn" style="width: 100%; padding: 10px 15px; background: none; border: none; color: #fff; cursor: pointer; font-size: 14px; text-align: left; border-radius: 4px; transition: background 0.2s; display: flex; align-items: center; gap: 10px;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='none'">✏️ Edit Profile</button>
