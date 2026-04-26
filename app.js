@@ -3700,10 +3700,16 @@ class ChessGame {
         window.chessGame = this;
         
         document.getElementById('newGame').addEventListener('click', () => this.resetGame());
-        document.getElementById('playAgain').addEventListener('click', () => {
-            this.showSections([], ['gameOverModal']);
-            this.resetGame();
-        });
+        const playAgainBtn = document.getElementById('playAgain');
+        if (playAgainBtn) {
+            playAgainBtn.addEventListener('click', () => {
+                console.log('🔄 Play Again button clicked');
+                this.showSections([], ['gameOverModal']);
+                this.resetGame();
+            });
+        } else {
+            console.error('❌ playAgain button not found in DOM');
+        }
         document.getElementById('reviewGame').addEventListener('click', () => {
             this.showSections([], ['gameOverModal']);
             this.analyzeGame();
