@@ -6537,13 +6537,15 @@ ChessGame.prototype.showProfileStats = function() {
 
 // Setup Firebase auth event listeners when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    // Open auth modal when clicking corner indicator
+    // Bottom-right corner indicator - show profile stats if logged in, auth modal if not
     const cornerIndicator = document.getElementById('cornerIndicator');
     if (cornerIndicator) {
         cornerIndicator.addEventListener('click', () => {
             if (currentUser) {
-                // Already logged in, show profile options
-                alert(`Logged in as: ${currentUser.email}\n\nClick Logout to sign out.`);
+                // Already logged in, show chess.com-style profile stats
+                if (window.chessGame) {
+                    window.chessGame.showProfileStats();
+                }
             } else {
                 // Not logged in, show login modal
                 const authModal = document.getElementById('authModal');
