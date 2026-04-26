@@ -6222,31 +6222,25 @@ if (auth) {
                 }
             }
             
-            // Add click handler to user profile to show profile details
+            // Add click handler to user profile to show profile dropdown
             const userProfileElement = document.getElementById('userProfile');
-            const userDisplayNameElement = document.getElementById('userDisplayName');
-            
-            // Add click handler to user display name to show profile stats
-            if (userDisplayNameElement) {
-                userDisplayNameElement.onclick = (e) => {
-                    e.stopPropagation(); // Prevent triggering parent clicks
-                    if (window.chessGame) {
-                        window.chessGame.showProfileStats();
-                    }
-                };
-            }
-            
-            // Also allow clicking the profile container (but not buttons)
             if (userProfileElement) {
-                userProfileElement.onclick = (e) => {
-                    // Only show stats if clicking the container itself, not a button
-                    if (e.target === userProfileElement || e.target === userDisplayNameElement) {
-                        if (window.chessGame) {
-                            window.chessGame.showProfileStats();
-                        }
+                userProfileElement.onclick = () => {
+                    const dropdown = document.getElementById('profileDropdown');
+                    if (dropdown) {
+                        dropdown.style.display = dropdown.style.display === 'flex' ? 'none' : 'flex';
                     }
                 };
             }
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                const dropdown = document.getElementById('profileDropdown');
+                const profile = document.getElementById('userProfile');
+                if (dropdown && profile && !dropdown.contains(e.target) && !profile.contains(e.target)) {
+                    dropdown.style.display = 'none';
+                }
+            });
             
             // Show tutorial for first-time users
             const tutorialCompleted = localStorage.getItem('chessTutorialCompleted');
@@ -6558,14 +6552,16 @@ ChessGame.prototype.showProfileStats = function() {
 
 // Setup Firebase auth event listeners when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    // Bottom-right corner indicator - show profile stats if logged in, login if not
+    // Bottom-right corner indicator - show login modal
     const cornerIndicator = document.getElementById('cornerIndicator');
     if (cornerIndicator) {
         cornerIndicator.addEventListener('click', () => {
             if (currentUser) {
-                // Already logged in, show profile stats
-                if (window.chessGame) {
-                    window.chessGame.showProfileStats();
+                // Already logged in, show logout confirmation
+                if (confirm('Do you want to logout?')) {
+                    if (window.chessGame) {
+                        window.chessGame.logout();
+                    }
                 }
             } else {
                 // Not logged in, show login modal
@@ -6705,26 +6701,31 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Profile Edit Button
-    const editProfileBtn = document.getElementById('editProfileBtn');
-    if (editProfileBtn) {
-        editProfileBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); // Prevent triggering userProfile click
-            openProfileEditModal();
-        });
-    }
-    
-    // Logout button from profile stats modal
-    const logoutFromStats = document.getElementById('logoutFromStats');
-    if (logoutFromStats) {
-        logoutFromStats.addEventListener('click', async () => {
+    // Logout button
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
             try {
+                const dropdown = document.getElementById('profileDropdown');
+                if (dropdown) dropdown.style.display = 'none';
                 if (auth) {
                     await auth.signOut();
+                    console.log('Logout successful');
                 }
             } catch (error) {
                 console.error('Logout error:', error);
             }
+        });
+    }
+    
+    // Profile Edit Button
+    const editProfileBtn = document.getElementById('editProfileBtn');
+    if (editProfileBtn) {
+        editProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const dropdown = document.getElementById('profileDropdown');
+            if (dropdown) dropdown.style.display = 'none';
+            openProfileEditModal();
         });
     }
     
@@ -6733,6 +6734,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (boardPrefBtn) {
         boardPrefBtn.addEventListener('click', (e) => {
             e.stopPropagation();
+            const dropdown = document.getElementById('profileDropdown');
+            if (dropdown) dropdown.style.display = 'none';
             window.chessGame.showSections(['boardThemeModal'], [], 'flex');
         });
     }
@@ -6742,6 +6745,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (piecePrefBtn) {
         piecePrefBtn.addEventListener('click', (e) => {
             e.stopPropagation();
+            const dropdown = document.getElementById('profileDropdown');
+            if (dropdown) dropdown.style.display = 'none';
             window.chessGame.showSections(['pieceStyleModal'], [], 'flex');
         });
     }
