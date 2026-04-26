@@ -6224,10 +6224,27 @@ if (auth) {
             
             // Add click handler to user profile to show profile details
             const userProfileElement = document.getElementById('userProfile');
+            const userDisplayNameElement = document.getElementById('userDisplayName');
+            
+            // Add click handler to user display name to show profile stats
+            if (userDisplayNameElement) {
+                userDisplayNameElement.onclick = (e) => {
+                    e.stopPropagation(); // Prevent triggering parent clicks
+                    if (window.chessGame) {
+                        window.chessGame.showProfileStats();
+                    }
+                };
+            }
+            
+            // Also allow clicking the profile container (but not buttons)
             if (userProfileElement) {
-                userProfileElement.onclick = () => {
-                    // Show the chess.com-style profile stats modal
-                    window.chessGame.showProfileStats();
+                userProfileElement.onclick = (e) => {
+                    // Only show stats if clicking the container itself, not a button
+                    if (e.target === userProfileElement || e.target === userDisplayNameElement) {
+                        if (window.chessGame) {
+                            window.chessGame.showProfileStats();
+                        }
+                    }
                 };
             }
             
@@ -6541,16 +6558,14 @@ ChessGame.prototype.showProfileStats = function() {
 
 // Setup Firebase auth event listeners when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    // Bottom-right corner indicator - show login modal
+    // Bottom-right corner indicator - show profile stats if logged in, login if not
     const cornerIndicator = document.getElementById('cornerIndicator');
     if (cornerIndicator) {
         cornerIndicator.addEventListener('click', () => {
             if (currentUser) {
-                // Already logged in, show logout confirmation
-                if (confirm('Do you want to logout?')) {
-                    if (window.chessGame) {
-                        window.chessGame.logout();
-                    }
+                // Already logged in, show profile stats
+                if (window.chessGame) {
+                    window.chessGame.showProfileStats();
                 }
             } else {
                 // Not logged in, show login modal
@@ -6690,27 +6705,26 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Logout button
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', async () => {
-            try {
-                if (auth) {
-                    await auth.signOut();
-                    console.log('Logout successful');
-                }
-            } catch (error) {
-                console.error('Logout error:', error);
-            }
-        });
-    }
-    
     // Profile Edit Button
     const editProfileBtn = document.getElementById('editProfileBtn');
     if (editProfileBtn) {
         editProfileBtn.addEventListener('click', (e) => {
             e.stopPropagation(); // Prevent triggering userProfile click
             openProfileEditModal();
+        });
+    }
+    
+    // Logout button from profile stats modal
+    const logoutFromStats = document.getElementById('logoutFromStats');
+    if (logoutFromStats) {
+        logoutFromStats.addEventListener('click', async () => {
+            try {
+                if (auth) {
+                    await auth.signOut();
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
         });
     }
     
