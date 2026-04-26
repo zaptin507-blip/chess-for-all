@@ -75,20 +75,16 @@ class ChessGame {
                     // Capture sound - make it louder!
                     this.sounds.capture.volume = 1.0; // Maximum volume
                     this.sounds.capture.currentTime = 0;
-                    this.sounds.capture.play().catch(e => console.log('Audio play failed:', e));
                 } else if (this.chess.in_check()) {
                     // Check sound - also louder
                     this.sounds.check.volume = 0.9;
                     this.sounds.check.currentTime = 0;
-                    this.sounds.check.play().catch(e => console.log('Audio play failed:', e));
                 } else {
                     // Normal move sound (thud) - make it louder!
                     this.sounds.move.volume = 1.0; // Maximum volume
                     this.sounds.move.currentTime = 0;
-                    this.sounds.move.play().catch(e => console.log('Audio play failed:', e));
                 }
             } catch (e) {
-                console.log('Sound error:', e);
             }
         }.bind(this);
         
@@ -1273,12 +1269,10 @@ class ChessGame {
 
     initStockfish() {
         try {
-            console.log('🔧 Initializing Stockfish engine...');
             const stockfish = new Worker('stockfish.js');
             stockfish.postMessage('uci');
             stockfish.postMessage('setoption name Skill Level value 20');
             stockfish.postMessage('setoption name Hash value 128');
-            console.log('✅ Stockfish engine initialized successfully');
             return stockfish;
         } catch (error) {
             console.error('❌ Failed to initialize Stockfish:', error);
@@ -1289,7 +1283,6 @@ class ChessGame {
     initAnalysisEngine() {
         // Create a separate Stockfish instance for analysis
         try {
-            console.log('Initializing analysis engine...');
             const analysisEngine = new Worker('stockfish.js');
             analysisEngine.postMessage('uci');
             analysisEngine.postMessage('isready');
@@ -1366,7 +1359,6 @@ class ChessGame {
                 // Update start button
                 window.chessGame.checkAllSelected();
                 
-                console.log('Selected bot:', this.dataset.bot);
             });
         });
         
@@ -1524,7 +1516,6 @@ class ChessGame {
         // this.selectedBot is already set by bot card click handler
         this.playerColor = colorSelect.value === 'random' ? (Math.random() < 0.5 ? 'w' : 'b') : colorSelect.value;
         
-        console.log('Dropdown selections - Time:', this.timerMode, 'Bot:', this.selectedBot, 'Color:', this.playerColor);
         
         // Hide config panel and start game
         document.getElementById('gameConfigPanel').style.display = 'none';
@@ -1638,8 +1629,6 @@ class ChessGame {
         // Load saved preferences
         this.loadPreferences();
         
-        console.log('startGame called - playerColor:', this.playerColor, 'timerMode:', this.timerMode, 'selectedBot:', this.selectedBot);
-        console.log('gameStarted set to:', this.gameStarted);
         
         // Start background music for Bullet & Blitz modes
         if (this.timerMode === 'bullet' || this.timerMode === 'blitz') {
@@ -1667,10 +1656,8 @@ class ChessGame {
         this.updateTimerDisplay();
         
         this.chess.reset();
-        console.log('Chess reset, FEN:', this.chess.fen());
         this.renderBoard();
         
-        console.log('After renderBoard - playerColor:', this.playerColor);
         
         // Reset rating data for The Tester
         if (this.selectedBot === 'tester') {
@@ -1706,8 +1693,6 @@ class ChessGame {
         
         // If player is black, make bot (white) move first
         if (this.playerColor === 'b') {
-            console.log('Player is black, bot (white) moves first');
-            console.log('Setting currentTurn to bot');
             this.currentTurn = 'bot';
             this.statusDisplay.textContent = `${this.selectedBot === 'mrstong' ? 'Mrs. Tong' : 'THE ONE ABOVE ALL'} (White) moves first...`;
             // Only start timer if not in infinite mode
@@ -1947,6 +1932,9 @@ class ChessGame {
 
         console.log('Board rendered with 64 squares');
         this.showLegalMoves();
+        
+        // Apply saved board theme after rendering
+        this.applyBoardTheme(localStorage.getItem('boardTheme') || 'green');
     }
 
     showLegalMoves() {
@@ -4113,7 +4101,6 @@ class ChessGame {
                     colorSelect = document.getElementById('colorSelect');
                 }
                 
-                console.log('Selected bot:', window.chessGame?.selectedBot);
                 console.log('Time value:', timeSelect?.value);
                 
                 if (window.chessGame && window.chessGame.selectedBot && timeSelect && timeSelect.value) {
