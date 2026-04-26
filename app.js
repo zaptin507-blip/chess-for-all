@@ -6,25 +6,14 @@ class ChessGame {
         this.movesList = document.getElementById('movesList');
         this.selectedSquare = null;
         this.legalMoves = [];
-        this.playerColor = null; // Will be set by user choice
         this.gameOver = false;
         this.moveAnalyses = [];
         this.lastMove = null;
         this.moveHistory = []; // Store all moves for analysis
         this.stockfishReady = false;
-        this.openingName = null; // Store the detected opening name
-        this.winProbability = { win: 50, draw: 30, loss: 20 }; // Initial probabilities
-        this.analysisStartTime = null; // Track analysis start time
-        this.totalMovesToAnalyze = 0; // Total moves for analysis
-        this.movesAnalyzed = 0; // Moves analyzed so far
-        this.gameStarted = false; // Track if game has started
         
         // Timer variables
         this.timerMode = null; // 'bullet', 'blitz', or 'rapid'
-        this.playerTime = 0; // Player's remaining time in seconds
-        this.botTime = 0; // Bot's remaining time in seconds
-        this.timerInterval = null; // Interval ID for countdown
-        this.currentTurn = null; // Who's turn it is: 'player' or 'bot'
         
         // Bot selection
         this.selectedBot = null; // 'god' or 'mrstong' or 'tester'
@@ -3703,7 +3692,31 @@ class ChessGame {
             playAgainBtn.addEventListener('click', () => {
                 console.log('🔄 Play Again button clicked');
                 this.showSections([], ['gameOverModal']);
+                
+                // Save current settings before reset
+                const savedBot = this.selectedBot;
+                const savedTimerMode = this.timerMode;
+                const savedPlayerColor = this.playerColor;
+                
+                // Reset the game
                 this.resetGame();
+                
+                // Restore settings
+                this.selectedBot = savedBot;
+                this.timerMode = savedTimerMode;
+                this.playerColor = savedPlayerColor;
+                
+                // Update UI to show saved selections
+                const timeSelect = document.getElementById('timeSelect');
+                const colorSelect = document.getElementById('colorSelect');
+                if (timeSelect && savedTimerMode) timeSelect.value = savedTimerMode;
+                if (colorSelect && savedPlayerColor) colorSelect.value = savedPlayerColor;
+                
+                // Update bot display
+                this.updateBotDisplay();
+                
+                // Start the game immediately
+                this.startGame();
             });
         } else {
             console.error('❌ playAgain button not found in DOM');
