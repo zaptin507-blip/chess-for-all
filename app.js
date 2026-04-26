@@ -1914,6 +1914,8 @@ class ChessGame {
                         pieceElement.dataset.square = squareName;
                         pieceElement.dataset.piece = pieceKey;
                         
+                        console.log(`♟️ Made piece draggable at ${squareName}:`, pieceKey);
+                        
                         // Add drag event listeners
                         pieceElement.addEventListener('dragstart', (e) => this.handleDragStart(e, squareName));
                         pieceElement.addEventListener('dragend', (e) => this.handleDragEnd(e));
@@ -2070,15 +2072,23 @@ class ChessGame {
 
     // Drag and Drop Handlers
     handleDragStart(e, square) {
+        console.log('🖱️ Drag start triggered on:', square);
+        console.log('  - gameOver:', this.gameOver, 'gameStarted:', this.gameStarted);
+        console.log('  - playerColor:', this.playerColor, 'turn:', this.chess.turn());
+        
         if (this.gameOver || !this.gameStarted) {
+            console.log('  ❌ Drag prevented: game not started or over');
             e.preventDefault();
             return;
         }
         
         if (this.chess.turn() !== this.playerColor) {
+            console.log('  ❌ Drag prevented: not player\'s turn');
             e.preventDefault();
             return;
         }
+        
+        console.log('  ✅ Drag allowed!');
         
         // Set the dragged piece data
         e.dataTransfer.setData('text/plain', square);

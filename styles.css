@@ -220,6 +220,7 @@ body {
 .piece svg {
     width: 90%;
     height: 90%;
+    pointer-events: none;
     /* Filter is applied via JavaScript for theme-specific effects */
 }
 
