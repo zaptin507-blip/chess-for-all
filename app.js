@@ -60,21 +60,19 @@ class ChessGame {
         // Sound effect method
         this.playSound = function(move) {
             try {
+                let sound;
                 if (move.captured) {
-                    // Capture sound - make it louder!
-                    this.sounds.capture.volume = 1.0; // Maximum volume
-                    this.sounds.capture.currentTime = 0;
+                    sound = this.sounds.capture;
                 } else if (this.chess.in_check()) {
-                    // Check sound - also louder
-                    this.sounds.check.volume = 0.9;
-                    this.sounds.check.currentTime = 0;
+                    sound = this.sounds.check;
+                    sound.volume = 0.9;
                 } else {
-                    // Normal move sound (thud) - make it louder!
-                    this.sounds.move.volume = 1.0; // Maximum volume
-                    this.sounds.move.currentTime = 0;
+                    sound = this.sounds.move;
                 }
-            } catch (e) {
-            }
+                sound.volume = sound.volume || 1.0;
+                sound.currentTime = 0;
+                sound.play().catch(() => {});
+            } catch (e) {}
         }.bind(this);
         
         // Background music methods for Blitz/Bullet
@@ -6553,14 +6551,16 @@ ChessGame.prototype.showProfileStats = function() {
 
 // Setup Firebase auth event listeners when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    // Bottom-right corner indicator - show profile stats if logged in, auth modal if not
+    // Bottom-right corner indicator - show login modal
     const cornerIndicator = document.getElementById('cornerIndicator');
     if (cornerIndicator) {
         cornerIndicator.addEventListener('click', () => {
             if (currentUser) {
-                // Already logged in, show chess.com-style profile stats
-                if (window.chessGame) {
-                    window.chessGame.showProfileStats();
+                // Already logged in, show logout confirmation
+                if (confirm('Do you want to logout?')) {
+                    if (window.chessGame) {
+                        window.chessGame.logout();
+                    }
                 }
             } else {
                 // Not logged in, show login modal
