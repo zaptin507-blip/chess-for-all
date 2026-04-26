@@ -48,8 +48,12 @@ class ChessGame {
             capture: new Audio('sounds/capture.mp3'),
             check: new Audio('sounds/check.mp3')
         };
-        // Preload sounds
-        Object.values(this.sounds).forEach(sound => sound.load());
+        // Preload sounds (silently fail if files don't exist)
+        try {
+            Object.values(this.sounds).forEach(sound => sound.load());
+        } catch (e) {
+            // Sounds are optional, game works without them
+        }
         
         // Background music for Blitz & Bullet
         this.backgroundMusic = null;
@@ -6905,7 +6909,11 @@ window.addEventListener('load', () => {
         // Check for Tester reminder (every 6 months)
         chessGame.checkTesterReminder();
     } catch (error) {
-        console.error('Error initializing chess game:', error);
-        alert('Error loading chess game. Please check the console for details.');
+        console.error('⚠️ Chess game initialization warning:', error);
+        // Only show alert for critical errors that prevent the game from working
+        if (error.message && error.message.includes('Critical')) {
+            alert('Error loading chess game: ' + error.message);
+        }
+        // For non-critical errors (like sound files), the game will still work
     }
 });
