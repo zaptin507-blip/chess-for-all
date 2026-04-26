@@ -6,14 +6,25 @@ class ChessGame {
         this.movesList = document.getElementById('movesList');
         this.selectedSquare = null;
         this.legalMoves = [];
+        this.playerColor = null; // Will be set by user choice
         this.gameOver = false;
         this.moveAnalyses = [];
         this.lastMove = null;
         this.moveHistory = []; // Store all moves for analysis
         this.stockfishReady = false;
+        this.openingName = null; // Store the detected opening name
+        this.winProbability = { win: 50, draw: 30, loss: 20 }; // Initial probabilities
+        this.analysisStartTime = null; // Track analysis start time
+        this.totalMovesToAnalyze = 0; // Total moves for analysis
+        this.movesAnalyzed = 0; // Moves analyzed so far
+        this.gameStarted = false; // Track if game has started
         
         // Timer variables
         this.timerMode = null; // 'bullet', 'blitz', or 'rapid'
+        this.playerTime = 0; // Player's remaining time in seconds
+        this.botTime = 0; // Bot's remaining time in seconds
+        this.timerInterval = null; // Interval ID for countdown
+        this.currentTurn = null; // Who's turn it is: 'player' or 'bot'
         
         // Bot selection
         this.selectedBot = null; // 'god' or 'mrstong' or 'tester'
@@ -60,19 +71,25 @@ class ChessGame {
         // Sound effect method
         this.playSound = function(move) {
             try {
-                let sound;
                 if (move.captured) {
-                    sound = this.sounds.capture;
+                    // Capture sound - make it louder!
+                    this.sounds.capture.volume = 1.0; // Maximum volume
+                    this.sounds.capture.currentTime = 0;
+                    this.sounds.capture.play().catch(e => console.log('Audio play failed:', e));
                 } else if (this.chess.in_check()) {
-                    sound = this.sounds.check;
-                    sound.volume = 0.9;
+                    // Check sound - also louder
+                    this.sounds.check.volume = 0.9;
+                    this.sounds.check.currentTime = 0;
+                    this.sounds.check.play().catch(e => console.log('Audio play failed:', e));
                 } else {
-                    sound = this.sounds.move;
+                    // Normal move sound (thud) - make it louder!
+                    this.sounds.move.volume = 1.0; // Maximum volume
+                    this.sounds.move.currentTime = 0;
+                    this.sounds.move.play().catch(e => console.log('Audio play failed:', e));
                 }
-                sound.volume = sound.volume || 1.0;
-                sound.currentTime = 0;
-                sound.play().catch(() => {});
-            } catch (e) {}
+            } catch (e) {
+                console.log('Sound error:', e);
+            }
         }.bind(this);
         
         // Background music methods for Blitz/Bullet
@@ -1256,10 +1273,12 @@ class ChessGame {
 
     initStockfish() {
         try {
+            console.log('🔧 Initializing Stockfish engine...');
             const stockfish = new Worker('stockfish.js');
             stockfish.postMessage('uci');
             stockfish.postMessage('setoption name Skill Level value 20');
             stockfish.postMessage('setoption name Hash value 128');
+            console.log('✅ Stockfish engine initialized successfully');
             return stockfish;
         } catch (error) {
             console.error('❌ Failed to initialize Stockfish:', error);
@@ -1270,6 +1289,7 @@ class ChessGame {
     initAnalysisEngine() {
         // Create a separate Stockfish instance for analysis
         try {
+            console.log('Initializing analysis engine...');
             const analysisEngine = new Worker('stockfish.js');
             analysisEngine.postMessage('uci');
             analysisEngine.postMessage('isready');
@@ -1346,6 +1366,7 @@ class ChessGame {
                 // Update start button
                 window.chessGame.checkAllSelected();
                 
+                console.log('Selected bot:', this.dataset.bot);
             });
         });
         
@@ -1503,6 +1524,7 @@ class ChessGame {
         // this.selectedBot is already set by bot card click handler
         this.playerColor = colorSelect.value === 'random' ? (Math.random() < 0.5 ? 'w' : 'b') : colorSelect.value;
         
+        console.log('Dropdown selections - Time:', this.timerMode, 'Bot:', this.selectedBot, 'Color:', this.playerColor);
         
         // Hide config panel and start game
         document.getElementById('gameConfigPanel').style.display = 'none';
@@ -1616,6 +1638,8 @@ class ChessGame {
         // Load saved preferences
         this.loadPreferences();
         
+        console.log('startGame called - playerColor:', this.playerColor, 'timerMode:', this.timerMode, 'selectedBot:', this.selectedBot);
+        console.log('gameStarted set to:', this.gameStarted);
         
         // Start background music for Bullet & Blitz modes
         if (this.timerMode === 'bullet' || this.timerMode === 'blitz') {
@@ -1643,8 +1667,10 @@ class ChessGame {
         this.updateTimerDisplay();
         
         this.chess.reset();
+        console.log('Chess reset, FEN:', this.chess.fen());
         this.renderBoard();
         
+        console.log('After renderBoard - playerColor:', this.playerColor);
         
         // Reset rating data for The Tester
         if (this.selectedBot === 'tester') {
@@ -1680,6 +1706,8 @@ class ChessGame {
         
         // If player is black, make bot (white) move first
         if (this.playerColor === 'b') {
+            console.log('Player is black, bot (white) moves first');
+            console.log('Setting currentTurn to bot');
             this.currentTurn = 'bot';
             this.statusDisplay.textContent = `${this.selectedBot === 'mrstong' ? 'Mrs. Tong' : 'THE ONE ABOVE ALL'} (White) moves first...`;
             // Only start timer if not in infinite mode
@@ -1886,6 +1914,7 @@ class ChessGame {
                         pieceElement.dataset.square = squareName;
                         pieceElement.dataset.piece = pieceKey;
                         
+                        console.log(`♟️ Made piece draggable at ${squareName}:`, pieceKey);
                         
                         // Add drag event listeners
                         pieceElement.addEventListener('dragstart', (e) => this.handleDragStart(e, squareName));
@@ -2046,19 +2075,23 @@ class ChessGame {
 
     // Drag and Drop Handlers
     handleDragStart(e, square) {
+        console.log('🖱️ Drag start triggered on:', square);
         console.log('  - gameOver:', this.gameOver, 'gameStarted:', this.gameStarted);
         console.log('  - playerColor:', this.playerColor, 'turn:', this.chess.turn());
         
         if (this.gameOver || !this.gameStarted) {
+            console.log('  ❌ Drag prevented: game not started or over');
             e.preventDefault();
             return;
         }
         
         if (this.chess.turn() !== this.playerColor) {
+            console.log('  ❌ Drag prevented: not player\'s turn');
             e.preventDefault();
             return;
         }
         
+        console.log('  ✅ Drag allowed!');
         
         // Set the dragged piece data
         e.dataTransfer.setData('text/plain', square);
@@ -2400,6 +2433,7 @@ class ChessGame {
         const listener = (event) => {
             const match = event.data.match(/^bestmove\s+(\S+)/);
             if (match) {
+                console.log('✅ Stockfish responded with bestmove:', match[1]);
                 this.stockfish.removeEventListener('message', listener);
                 
                 const bestMove = match[1];
@@ -3684,31 +3718,7 @@ class ChessGame {
             playAgainBtn.addEventListener('click', () => {
                 console.log('🔄 Play Again button clicked');
                 this.showSections([], ['gameOverModal']);
-                
-                // Save current settings before reset
-                const savedBot = this.selectedBot;
-                const savedTimerMode = this.timerMode;
-                const savedPlayerColor = this.playerColor;
-                
-                // Reset the game
                 this.resetGame();
-                
-                // Restore settings
-                this.selectedBot = savedBot;
-                this.timerMode = savedTimerMode;
-                this.playerColor = savedPlayerColor;
-                
-                // Update UI to show saved selections
-                const timeSelect = document.getElementById('timeSelect');
-                const colorSelect = document.getElementById('colorSelect');
-                if (timeSelect && savedTimerMode) timeSelect.value = savedTimerMode;
-                if (colorSelect && savedPlayerColor) colorSelect.value = savedPlayerColor;
-                
-                // Update bot display
-                this.updateBotDisplay();
-                
-                // Start the game immediately
-                this.startGame();
             });
         } else {
             console.error('❌ playAgain button not found in DOM');
@@ -4079,6 +4089,7 @@ class ChessGame {
         allStartBtns.forEach(btn => {
             btn.onclick = function(e) {
                 e.preventDefault();
+                console.log('🎮 Play button clicked!');
                 
                 const chessSidebar = document.getElementById('chessSidebar');
                 const playSection = document.getElementById('playSection');
@@ -4092,19 +4103,24 @@ class ChessGame {
                 console.log('Sidebar visible:', sidebarVisible, 'Play visible:', playVisible);
                 
                 if (sidebarVisible) {
+                    console.log('✓ Using Chess.com sidebar');
                     timeSelect = document.getElementById('timeSelect');
                     colorSelect = document.getElementById('colorSelect');
                 } else if (playVisible) {
+                    console.log('✓ Using Boss Battle section');
                     timeSelect = document.getElementById('timeSelect');
                     colorSelect = document.getElementById('colorSelect');
                 } else {
+                    console.log('⚠️ Neither visible, using first found');
                     timeSelect = document.getElementById('timeSelect');
                     colorSelect = document.getElementById('colorSelect');
                 }
                 
+                console.log('Selected bot:', window.chessGame?.selectedBot);
                 console.log('Time value:', timeSelect?.value);
                 
                 if (window.chessGame && window.chessGame.selectedBot && timeSelect && timeSelect.value) {
+                    console.log('✓ Starting game...');
                     window.chessGame.timerMode = timeSelect.value;
                     window.chessGame.playerColor = colorSelect.value || 'w';
                     if (window.chessGame.playerColor === 'random') {
@@ -6192,6 +6208,7 @@ if (auth) {
             // Load user's saved preferences on login
             if (window.chessGame) {
                 window.chessGame.loadPreferences();
+                console.log('✅ Preferences loaded for logged-in user');
             }
             
             // Show admin button only for admins
@@ -6446,6 +6463,7 @@ function applyPieceStyle(style) {
             }
             
             if (index === 0) {
+                console.log('✅ Applied', style, 'style to first piece. Filter:', el.style.filter);
             }
         });
     }, 50);
@@ -6508,6 +6526,7 @@ ChessGame.prototype.applyPieceStyle = function(style) {
         }
     });
     
+    console.log('♟️ Piece style applied:', style);
 };
 
 // Show chess.com-style profile stats modal
@@ -6537,16 +6556,14 @@ ChessGame.prototype.showProfileStats = function() {
 
 // Setup Firebase auth event listeners when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    // Bottom-right corner indicator - show login modal
+    // Bottom-right corner indicator - show profile stats if logged in, auth modal if not
     const cornerIndicator = document.getElementById('cornerIndicator');
     if (cornerIndicator) {
         cornerIndicator.addEventListener('click', () => {
             if (currentUser) {
-                // Already logged in, show logout confirmation
-                if (confirm('Do you want to logout?')) {
-                    if (window.chessGame) {
-                        window.chessGame.logout();
-                    }
+                // Already logged in, show chess.com-style profile stats
+                if (window.chessGame) {
+                    window.chessGame.showProfileStats();
                 }
             } else {
                 // Not logged in, show login modal
@@ -6901,6 +6918,7 @@ window.addEventListener('load', () => {
         
         // Load saved board and piece preferences immediately
         chessGame.loadPreferences();
+        console.log('✅ User preferences loaded from localStorage');
         
         // Check for Tester reminder (every 6 months)
         chessGame.checkTesterReminder();
