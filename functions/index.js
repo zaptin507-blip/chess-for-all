@@ -1,24 +1,16 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 
 admin.initializeApp();
 
-// Email configuration - UPDATE THESE WITH YOUR GMAIL CREDENTIALS
-const EMAIL_CONFIG = {
-  user: 'zaptin507@gmail.com', // Your Gmail address
-  pass: 'YOUR_APP_PASSWORD_HERE', // You'll generate this (see instructions below)
-  to: 'zaptin507@gmail.com' // Where to send the report
-};
+// SendGrid configuration - UPDATE WITH YOUR SENDGRID API KEY
+const SENDGRID_API_KEY = 'YOUR_SENDGRID_API_KEY_HERE'; // Get from https://app.sendgrid.com/settings/api_keys
+const FROM_EMAIL = 'zaptin507@gmail.com'; // Your verified sender email
+const TO_EMAIL = 'zaptin507@gmail.com'; // Where to send the report
 
-// Create email transporter
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: EMAIL_CONFIG.user,
-    pass: EMAIL_CONFIG.pass
-  }
-});
+// Initialize SendGrid
+sgMail.setApiKey(SENDGRID_API_KEY);
 
 /**
  * Daily User Report - Runs every day at 9:00 AM UTC
@@ -77,16 +69,16 @@ exports.dailyUserReport = functions.pubsub
       // Create HTML email content
       const htmlContent = generateEmailHTML(userData);
       
-      // Send email
-      const mailOptions = {
-        from: EMAIL_CONFIG.user,
-        to: EMAIL_CONFIG.to,
-        subject: `📊 Daily Chess App User Report - ${new Date().toLocaleDateString()}`,
+      // Send email via SendGrid
+      const msg = {
+        to: TO_EMAIL,
+        from: FROM_EMAIL,
+        subject: ` Daily Chess App User Report - ${new Date().toLocaleDateString()}`,
         html: htmlContent
       };
       
-      await transporter.sendMail(mailOptions);
-      console.log('✅ Daily user report email sent successfully!');
+      await sgMail.send(msg);
+      console.log('✅ Daily user report email sent successfully via SendGrid!');
       
       return null;
     } catch (error) {

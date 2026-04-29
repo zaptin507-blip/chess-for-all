@@ -9,35 +9,32 @@
 
 ---
 
-##  Quick Setup (5 Steps)
+##  Quick Setup (4 Steps)
 
-### **1️ Install Node.js**
+### **1️⃣ Install Node.js**
 ```
 Download from: https://nodejs.org/ (LTS version)
 ```
 
-### **2️⃣ Generate Gmail App Password**
+### **2️⃣ Create SendGrid Account**
 ```
-1. Go to: https://myaccount.google.com/apppasswords
-2. Create password for: "Chess App Daily Report"
-3. Copy the 16-character code (remove spaces)
+1. Sign up: https://signup.sendgrid.com/
+2. Create API Key: https://app.sendgrid.com/settings/api_keys
+3. Verify sender email: https://app.sendgrid.com/settings/sender_auth/senders
+4. Copy your API key (starts with SG.)
 ```
 
 ### **3️⃣ Update Email Config**
 ```
 Open: functions/index.js
-Line 10: Replace 'YOUR_APP_PASSWORD_HERE' with your app password
+Line 7: Replace 'YOUR_SENDGRID_API_KEY_HERE' with your SendGrid API key
 Save the file
 ```
 
-### **4️⃣ Run Setup Script**
+### **4️⃣ Run Setup & Deploy**
 ```bash
 cd /Users/maxting/Desktop/Qoder/Chess
-./setup-daily-report.sh
-```
-
-### **5️⃣ Deploy to Firebase**
-```bash
+cd functions && npm install && cd ..
 firebase login
 firebase deploy --only functions
 ```
@@ -106,8 +103,9 @@ Chess/
 ## ⚠️ Important Notes
 
 1. **Blaze Plan Required**: Enable in Firebase Console (pay-as-you-go)
-2. **App Password**: Never share your Gmail app password
+2. **SendGrid API Key**: Never share your API key
 3. **Security**: All code runs server-side, credentials are secure
+4. **NO 2FA Needed**: SendGrid doesn't require Google 2-Step Verification!
 
 ---
 
