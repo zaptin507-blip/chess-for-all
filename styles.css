@@ -55,6 +55,46 @@ body {
     margin-top: 10px;
 }
 
+/* Captured Pieces Display (chess.com style) */
+.captured-pieces {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 4px 8px;
+    min-height: 24px;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.captured-pieces .piece-icon {
+    font-size: 18px;
+    opacity: 0.9;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+}
+
+/* White captured pieces (player captured) */
+.captured-pieces .piece-white {
+    color: #fff;
+    text-shadow: 0 0 3px rgba(255,255,255,0.5);
+}
+
+/* Black captured pieces (bot captured) */
+.captured-pieces .piece-black {
+    color: #000;
+    text-shadow: 0 0 3px rgba(0,0,0,0.5);
+}
+
+/* Material advantage indicator */
+.captured-pieces .material-advantage {
+    font-size: 14px;
+    font-weight: 600;
+    color: #4CAF50;
+    margin-left: 8px;
+    padding: 2px 6px;
+    background: rgba(76, 175, 80, 0.2);
+    border-radius: 4px;
+}
+
 .avatar {
     width: 50px;
     height: 50px;

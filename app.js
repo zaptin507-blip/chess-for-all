@@ -61,6 +61,10 @@ class ChessGame {
         this.audioContext = null;
         this.musicGainNode = null;
         
+        // Captured pieces tracking
+        this.capturedByWhite = []; // Pieces captured by white (black pieces)
+        this.capturedByBlack = []; // Pieces captured by black (white pieces)
+        
         // Sound effect method
         this.playSound = function(move) {
             try {
@@ -1959,6 +1963,77 @@ class ChessGame {
         document.querySelectorAll('.move-indicator, .capture-indicator').forEach(el => el.remove());
     }
 
+    // Update captured pieces display
+    updateCapturedPieces(move) {
+        const capturedPiece = move.captured;
+        const capturingColor = move.color; // Color of the piece making the capture
+        
+        // Add to appropriate captured list
+        if (capturingColor === 'w') {
+            // White captured a black piece
+            this.capturedByWhite.push(capturedPiece);
+        } else {
+            // Black captured a white piece
+            this.capturedByBlack.push(capturedPiece);
+        }
+        
+        // Update the display
+        this.renderCapturedPieces();
+    }
+
+    // Render captured pieces on the board UI
+    renderCapturedPieces() {
+        const pieceSymbols = {
+            'p': '', 'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚',
+            'P': '♙', 'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔'
+        };
+        
+        // Piece values for material count
+        const pieceValues = {
+            'p': 1, 'P': 1,
+            'n': 3, 'N': 3,
+            'b': 3, 'B': 3,
+            'r': 5, 'R': 5,
+            'q': 9, 'Q': 9
+        };
+        
+        // Render captured by player (shown in bot's area - white captured black pieces)
+        const capturedByPlayerEl = document.getElementById('capturedByPlayer');
+        if (capturedByPlayerEl) {
+            // Determine which list based on player color
+            const playerCaptured = this.playerColor === 'w' ? this.capturedByWhite : this.capturedByBlack;
+            
+            // Sort by piece value (highest first)
+            const sorted = [...playerCaptured].sort((a, b) => (pieceValues[b] || 0) - (pieceValues[a] || 0));
+            
+            let html = sorted.map(piece => {
+                const symbol = pieceSymbols[piece.toUpperCase()];
+                const colorClass = piece === piece.toUpperCase() ? 'piece-white' : 'piece-black';
+                return `<span class="piece-icon ${colorClass}">${symbol}</span>`;
+            }).join('');
+            
+            capturedByPlayerEl.innerHTML = html;
+        }
+        
+        // Render captured by bot (shown in player's area - black captured white pieces)
+        const capturedByBotEl = document.getElementById('capturedByBot');
+        if (capturedByBotEl) {
+            // Determine which list based on bot color
+            const botCaptured = this.playerColor === 'w' ? this.capturedByBlack : this.capturedByWhite;
+            
+            // Sort by piece value (highest first)
+            const sorted = [...botCaptured].sort((a, b) => (pieceValues[b] || 0) - (pieceValues[a] || 0));
+            
+            let html = sorted.map(piece => {
+                const symbol = pieceSymbols[piece.toUpperCase()];
+                const colorClass = piece === piece.toUpperCase() ? 'piece-white' : 'piece-black';
+                return `<span class="piece-icon ${colorClass}">${symbol}</span>`;
+            }).join('');
+            
+            capturedByBotEl.innerHTML = html;
+        }
+    }
+
     handleSquareClick(square) {
         if (this.gameOver || !this.gameStarted) {
             return;
@@ -2125,6 +2200,11 @@ class ChessGame {
             if (move) {
                 // Valid move - play sound
                 this.playSound(move);
+                
+                // Track captured pieces
+                if (move.captured) {
+                    this.updateCapturedPieces(move);
+                }
                 
                 // Track move for analysis
                 this.moveHistory.push({
@@ -2422,6 +2502,11 @@ class ChessGame {
                         fenBefore: fenBefore,
                         fenAfter: this.chess.fen()
                     });
+                    
+                    // Track captured pieces for bot moves
+                    if (move.captured) {
+                        this.updateCapturedPieces(move);
+                    }
                     
                     this.lastMove = move;
                     this.renderBoard();
@@ -6061,6 +6146,10 @@ class ChessGame {
         this.lastMove = null;
         this.gameStarted = false;
         
+        // Reset captured pieces
+        this.capturedByWhite = [];
+        this.capturedByBlack = [];
+        
         // Remove any suggestion arrow
         this.removeSuggestionArrow();
         
@@ -6549,6 +6638,12 @@ ChessGame.prototype.showProfileStats = function() {
     
     console.log('👤 Profile stats modal opened');
 };
+
+// Helper to close profile dropdown
+function closeProfileDropdown() {
+    const dropdown = document.getElementById('profileDropdown');
+    if (dropdown) dropdown.style.display = 'none';
+}
 
 // Setup Firebase auth event listeners when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
