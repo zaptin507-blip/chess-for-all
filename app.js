@@ -6719,17 +6719,29 @@ document.addEventListener('DOMContentLoaded', () => {
     // Logout button
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', async () => {
+        logoutBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🚪 Logout button clicked');
+            
             try {
                 closeProfileDropdown();
+                
                 if (auth) {
                     await auth.signOut();
-                    console.log('Logout successful');
+                    console.log('✅ Logout successful');
+                    alert('You have been logged out successfully.');
+                } else {
+                    console.error('❌ Firebase auth not initialized');
+                    alert('Error: Authentication service not available.');
                 }
             } catch (error) {
-                console.error('Logout error:', error);
+                console.error('❌ Logout error:', error);
+                alert('Logout failed: ' + error.message);
             }
         });
+    } else {
+        console.error('❌ Logout button not found in DOM');
     }
     
     // Profile Edit Button
