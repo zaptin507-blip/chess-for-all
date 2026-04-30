@@ -6230,7 +6230,7 @@ if (auth) {
             const userProfileElement = document.getElementById('userProfile');
             if (userProfileElement) {
                 userProfileElement.addEventListener('click', (e) => {
-                    const excludedButtons = ['#profileFriendsBtn', '#profileMailBtn', '#profileNotifBtn', '#profileSettingsBtn'];
+                    const excludedButtons = ['#profileFriendsBtn', '#profileMailBtn', '#profileNotifBtn', '#profileSettingsBtn', '#sidebarFriendsBtn', '#sidebarMailBtn', '#sidebarNotifBtn', '#sidebarSettingsBtn'];
                     const clickedExcludedButton = excludedButtons.some(selector => e.target.closest(selector));
                     if (!clickedExcludedButton) {
                         toggleProfileDropdown();
@@ -6722,10 +6722,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Settings button
+    // Settings button (main profile)
     const profileSettingsBtn = document.getElementById('profileSettingsBtn');
     if (profileSettingsBtn) {
         profileSettingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleProfileDropdown();
+        });
+    }
+    
+    // Settings button (sidebar profile)
+    const sidebarSettingsBtn = document.getElementById('sidebarSettingsBtn');
+    if (sidebarSettingsBtn) {
+        sidebarSettingsBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             toggleProfileDropdown();
         });
