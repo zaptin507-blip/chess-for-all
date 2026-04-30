@@ -6189,7 +6189,7 @@ if (auth) {
             const sidebarToggle = document.getElementById('sidebarToggle');
             const adminToggleBtn = document.getElementById('adminToggleBtn');
             
-            if (userProfile) userProfile.style.display = 'flex';
+            if (userProfile) userProfile.style.display = 'block';
             if (sidebarToggle) sidebarToggle.style.display = 'block';
             if (userDisplayName) userDisplayName.textContent = displayName + (isAdmin ? ' 👑' : '');
             
@@ -6223,9 +6223,18 @@ if (auth) {
             }
             
             // Add click handler to user profile to show profile dropdown
+            // Click on profile area to toggle dropdown
             const userProfileElement = document.getElementById('userProfile');
             if (userProfileElement) {
-                userProfileElement.onclick = toggleProfileDropdown;
+                userProfileElement.addEventListener('click', (e) => {
+                    // Only toggle if clicking the profile header (not the icon buttons)
+                    if (!e.target.closest('#profileFriendsBtn') && 
+                        !e.target.closest('#profileMailBtn') && 
+                        !e.target.closest('#profileNotifBtn') && 
+                        !e.target.closest('#profileSettingsBtn')) {
+                        toggleProfileDropdown();
+                    }
+                });
             }
             
             // Close dropdown when clicking outside
@@ -6551,28 +6560,12 @@ function closeProfileDropdown() {
     if (dropdown) dropdown.style.display = 'none';
 }
 
-// Helper to close profile dropdown
-function closeProfileDropdown() {
-    const dropdown = document.getElementById('profileDropdown');
-    if (dropdown) dropdown.style.display = 'none';
-}
-
 // Helper to toggle profile dropdown
 function toggleProfileDropdown() {
     const dropdown = document.getElementById('profileDropdown');
     if (dropdown) {
         dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
     }
-}
-
-// Settings button click handler
-const profileSettingsBtn = document.getElementById('profileSettingsBtn');
-if (profileSettingsBtn) {
-    profileSettingsBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        console.log('⚙️ Settings button clicked');
-        toggleProfileDropdown();
-    });
 }
 
 // Setup Firebase auth event listeners when DOM is ready
@@ -6723,6 +6716,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 if (successDiv) successDiv.style.display = 'none';
             }
+        });
+    }
+    
+    // Settings button
+    const profileSettingsBtn = document.getElementById('profileSettingsBtn');
+    if (profileSettingsBtn) {
+        profileSettingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleProfileDropdown();
         });
     }
     
