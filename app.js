@@ -6561,8 +6561,18 @@ function closeProfileDropdown() {
 function toggleProfileDropdown() {
     const dropdown = document.getElementById('profileDropdown');
     if (dropdown) {
-        dropdown.style.display = dropdown.style.display === 'flex' ? 'none' : 'flex';
+        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
     }
+}
+
+// Settings button click handler
+const profileSettingsBtn = document.getElementById('profileSettingsBtn');
+if (profileSettingsBtn) {
+    profileSettingsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        console.log('⚙️ Settings button clicked');
+        toggleProfileDropdown();
+    });
 }
 
 // Setup Firebase auth event listeners when DOM is ready
