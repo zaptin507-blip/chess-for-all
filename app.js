@@ -6189,7 +6189,7 @@ if (auth) {
             const sidebarToggle = document.getElementById('sidebarToggle');
             const adminToggleBtn = document.getElementById('adminToggleBtn');
             
-            if (userProfile) userProfile.style.display = 'block';
+            if (userProfile) userProfile.style.display = 'flex';
             if (sidebarToggle) sidebarToggle.style.display = 'block';
             if (userDisplayName) userDisplayName.textContent = displayName + (isAdmin ? ' 👑' : '');
             
@@ -6223,15 +6223,12 @@ if (auth) {
             }
             
             // Add click handler to user profile to show profile dropdown
-            // Click on profile area to toggle dropdown
             const userProfileElement = document.getElementById('userProfile');
             if (userProfileElement) {
                 userProfileElement.addEventListener('click', (e) => {
-                    // Only toggle if clicking the profile header (not the icon buttons)
-                    if (!e.target.closest('#profileFriendsBtn') && 
-                        !e.target.closest('#profileMailBtn') && 
-                        !e.target.closest('#profileNotifBtn') && 
-                        !e.target.closest('#profileSettingsBtn')) {
+                    const excludedButtons = ['#profileFriendsBtn', '#profileMailBtn', '#profileNotifBtn', '#profileSettingsBtn'];
+                    const clickedExcludedButton = excludedButtons.some(selector => e.target.closest(selector));
+                    if (!clickedExcludedButton) {
                         toggleProfileDropdown();
                     }
                 });
@@ -6564,7 +6561,7 @@ function closeProfileDropdown() {
 function toggleProfileDropdown() {
     const dropdown = document.getElementById('profileDropdown');
     if (dropdown) {
-        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        dropdown.style.display = dropdown.style.display === 'none' ? 'flex' : 'none';
     }
 }
 
