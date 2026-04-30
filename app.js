@@ -6183,15 +6183,19 @@ if (auth) {
             }
             const displayName = localStorage.getItem('displayName') || user.email.split('@')[0];
             
-            // Show user profile
+            // Show user profile (both sidebar and main)
             const userProfile = document.getElementById('userProfile');
+            const sidebarUserProfile = document.getElementById('sidebarUserProfile');
             const userDisplayName = document.getElementById('userDisplayName');
+            const sidebarUserDisplayName = document.getElementById('sidebarUserDisplayName');
             const sidebarToggle = document.getElementById('sidebarToggle');
             const adminToggleBtn = document.getElementById('adminToggleBtn');
             
             if (userProfile) userProfile.style.display = 'flex';
+            if (sidebarUserProfile) sidebarUserProfile.style.display = 'flex';
             if (sidebarToggle) sidebarToggle.style.display = 'block';
             if (userDisplayName) userDisplayName.textContent = displayName + (isAdmin ? ' 👑' : '');
+            if (sidebarUserDisplayName) sidebarUserDisplayName.textContent = displayName + (isAdmin ? ' 👑' : '');
             
             // Load user's saved preferences on login
             if (window.chessGame) {
@@ -6262,8 +6266,10 @@ if (auth) {
             isAdmin = false;
             console.log('User logged out');
             const userProfile = document.getElementById('userProfile');
+            const sidebarUserProfile = document.getElementById('sidebarUserProfile');
             const sidebarToggle = document.getElementById('sidebarToggle');
             if (userProfile) userProfile.style.display = 'none';
+            if (sidebarUserProfile) sidebarUserProfile.style.display = 'none';
             if (sidebarToggle) sidebarToggle.style.display = 'none';
             hideAdminPanel();
             // Hide sidebar when logout
@@ -6890,12 +6896,14 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Update all displays
         const userDisplayName = document.getElementById('userDisplayName');
+        const sidebarUserDisplayName = document.getElementById('sidebarUserDisplayName');
         const sidebarUsername = document.getElementById('sidebarUsername');
         const playerName = document.getElementById('playerName');
         
         const displayName = newName + (isAdmin ? ' 👑' : '');
         
         if (userDisplayName) userDisplayName.textContent = displayName;
+        if (sidebarUserDisplayName) sidebarUserDisplayName.textContent = displayName;
         if (sidebarUsername) sidebarUsername.textContent = displayName;
         if (playerName) playerName.textContent = newName;
         
