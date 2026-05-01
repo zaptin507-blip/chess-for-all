@@ -84,7 +84,7 @@ class ChessGame {
         }.bind(this);
         
         // Background music methods for Blitz/Bullet
-        this.startBackgroundMusic = function() {
+        this.startBackgroundMusic = async function() {
             // Only play music for Bullet and Blitz modes
             if (this.timerMode !== 'bullet' && this.timerMode !== 'blitz') {
                 return;
@@ -97,12 +97,13 @@ class ChessGame {
                 this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 
                 // Resume audio context if suspended (required by modern browsers)
+                // MUST await this before creating music!
                 if (this.audioContext.state === 'suspended') {
-                    this.audioContext.resume().then(() => {
-                        console.log('✅ AudioContext resumed');
-                    }).catch(err => {
-                        console.error('Failed to resume AudioContext:', err);
-                    });
+                    console.log('⏳ AudioContext is suspended, resuming...');
+                    await this.audioContext.resume();
+                    console.log('✅ AudioContext resumed successfully');
+                } else {
+                    console.log('✅ AudioContext state:', this.audioContext.state);
                 }
                 
                 // Create gain node for volume control
@@ -116,7 +117,8 @@ class ChessGame {
                 this.musicPlaying = true;
                 console.log('🎵 Background music started for', this.timerMode, 'mode');
             } catch (e) {
-                console.error('Music error:', e);
+                console.error('❌ Music error:', e);
+                console.error('Error stack:', e.stack);
             }
         }.bind(this);
         
@@ -1642,8 +1644,9 @@ class ChessGame {
         
         // Start background music for Bullet & Blitz modes
         if (this.timerMode === 'bullet' || this.timerMode === 'blitz') {
-            setTimeout(() => {
-                this.startBackgroundMusic();
+            setTimeout(async () => {
+                console.log('🎵 Starting background music for', this.timerMode);
+                await this.startBackgroundMusic();
             }, 500); // Delay slightly to ensure audio context is ready
         }
         
