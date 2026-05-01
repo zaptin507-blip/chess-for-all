@@ -3110,40 +3110,6 @@ class ChessGame {
         return move ? move.san : '';
     }
     
-    // Evaluate current position and display evaluation to user
-    async evaluateCurrentPosition() {
-        if (!this.analysisEngine) {
-            alert('Analysis engine not initialized. Please wait or reload.');
-            return;
-        }
-        
-        const currentFEN = this.chess.fen();
-        const evaluation = await this.getPositionEvaluation(currentFEN);
-        
-        if (!evaluation) {
-            alert('Failed to evaluate position');
-            return;
-        }
-        
-        // Convert centipawns to pawn units
-        const evalInPawns = (evaluation.score / 100).toFixed(2);
-        const isPositive = evaluation.score > 0;
-        const side = isPositive ? 'White' : 'Black';
-        
-        // Determine advantage level
-        let advantage = 'Equal';
-        const absScore = Math.abs(evaluation.score);
-        if (absScore > 300) advantage = 'Winning';
-        else if (absScore > 150) advantage = 'Clear advantage';
-        else if (absScore > 50) advantage = 'Slight advantage';
-        
-        alert(`📊 Position Evaluation\n\n` +
-              `Score: ${isPositive ? '+' : ''}${evalInPawns}\n` +
-              `Advantage: ${advantage} for ${side}\n` +
-              `Depth: 18\n\n` +
-              `${absScore < 50 ? 'Position is balanced' : side + ' has the advantage'}`);
-    }
-    
     calculateELO() {
         if (this.ratingData.moveCount < 3) {
             return null;
@@ -3489,6 +3455,95 @@ class ChessGame {
     }
 
     // Check if 6 months have passed since last Tester reminder
+    checkTesterReminder() {
+        const now = new Date();
+        const sixMonthsInMillis = 6 * 30 * 24 * 60 * 60 * 1000; // Approximately 6 months
+        
+        if (!this.lastTesterReminder || (now - new Date(this.lastTesterReminder)) > sixMonthsInMillis) {
+            this.showTesterReminderPopup();
+        }
+    }
+    
+    // Show Tester reminder popup
+    showTesterReminderPopup() {
+        const popup = document.createElement('div');
+        popup.id = 'testerReminderPopup';
+        popup.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        `;
+        
+        const testerELO = this.estimatedTesterELO;
+        const userELO = this.userCurrentELO;
+        const boostedELO = Math.round((testerELO - userELO) / 2 + userELO);
+        
+        // Get display name from localStorage or fallback
+        const username = localStorage.getItem('displayName') || 
+            ((typeof currentUser !== 'undefined' && currentUser && currentUser.email) 
+                ? currentUser.email.split('@')[0] 
+                : 'Player');
+        
+        popup.innerHTML = `
+            <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); padding: 40px; border-radius: 15px; border: 2px solid #0f3460; max-width: 500px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+                <h2 style="color: #e94560; margin-bottom: 20px; font-size: 28px;">🧪 The Tester Wants to Challenge You, ${username}!</h2>
+                <p style="color: #fff; font-size: 16px; margin-bottom: 15px;">It's been 6 months since your last rating check.</p>
+                <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; margin: 20px 0;">
+                    <p style="color: #4CAF50; font-size: 18px; margin: 10px 0;">The Tester's ELO: <strong>${testerELO}</strong></p>
+                    <p style="color: #2196F3; font-size: 18px; margin: 10px 0;">${username}'s Current ELO: <strong>${userELO}</strong></p>
+                    <p style="color: #FFD700; font-size: 20px; margin: 15px 0; font-weight: bold;">Potential Boost: ${boostedELO} ELO</p>
+                </div>
+                <p style="color: #aaa; font-size: 14px; margin-bottom: 25px;">Play against The Tester to get your new rating estimate and potential ELO boost!</p>
+                <div style="display: flex; gap: 15px; justify-content: center;">
+                    <button id="acceptTesterBtn" style="padding: 15px 30px; background: linear-gradient(135deg, #e94560, #c23152); border: none; border-radius: 8px; color: #fff; font-size: 16px; font-weight: 600; cursor: pointer;">Accept Challenge</button>
+                    <button id="dismissTesterBtn" style="padding: 15px 30px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; color: #fff; font-size: 16px; cursor: pointer;">Maybe Later</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(popup);
+        
+        // Add event listeners
+        document.getElementById('acceptTesterBtn').addEventListener('click', () => this.acceptTesterChallenge());
+        document.getElementById('dismissTesterBtn').addEventListener('click', () => this.dismissTesterReminder());
+    }
+    
+    // Accept Tester challenge
+    acceptTesterChallenge() {
+        const popup = document.getElementById('testerReminderPopup');
+        if (popup) popup.remove();
+        
+        // Update last reminder date
+        this.lastTesterReminder = new Date().toISOString();
+        localStorage.setItem('lastTesterReminder', this.lastTesterReminder);
+        
+        // Start a game against The Tester
+        this.selectedBot = 'tester';
+        this.playerColor = 'w';
+        this.timerMode = 'infinite';
+        this.updateBotDisplay();
+        this.startGame();
+    }
+    
+    // Dismiss Tester reminder
+    dismissTesterReminder() {
+        const popup = document.getElementById('testerReminderPopup');
+        if (popup) popup.remove();
+        
+        // Set reminder for 1 month from now (so it doesn't annoy too much)
+        const oneMonthLater = new Date();
+        oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
+        localStorage.setItem('lastTesterReminder', oneMonthLater.toISOString());
+    }
+    
+    // Calculate ELO boost after playing The Tester
     calculateELOBoost(testerEstimatedELO) {
         const userELO = this.userCurrentELO;
         const boostedELO = Math.round((testerEstimatedELO - userELO) / 2 + userELO);
@@ -5456,11 +5511,6 @@ if (auth) {
             }
             const displayName = localStorage.getItem('displayName') || user.email.split('@')[0];
             
-            console.log('👤 User logged in:', user.email);
-            console.log('📝 Display name:', displayName);
-            console.log('👑 Is admin:', isAdmin);
-            console.log('🎨 localStorage displayName:', localStorage.getItem('displayName'));
-            
             // Show user profile (both sidebar and main)
             const userProfile = document.getElementById('userProfile');
             const sidebarUserProfile = document.getElementById('sidebarUserProfile');
@@ -5469,23 +5519,11 @@ if (auth) {
             const sidebarToggle = document.getElementById('sidebarToggle');
             const adminToggleBtn = document.getElementById('adminToggleBtn');
             
-            console.log('🔍 Profile elements found:', {
-                userProfile: !!userProfile,
-                sidebarUserProfile: !!sidebarUserProfile,
-                sidebarUserDisplayName: !!sidebarUserDisplayName
-            });
-            
             if (userProfile) userProfile.style.display = 'flex';
-            if (sidebarUserProfile) {
-                sidebarUserProfile.style.display = 'flex';
-                console.log('✅ Sidebar profile shown');
-            }
+            if (sidebarUserProfile) sidebarUserProfile.style.display = 'flex';
             if (sidebarToggle) sidebarToggle.style.display = 'block';
             if (userDisplayName) userDisplayName.textContent = displayName + (isAdmin ? ' 👑' : '');
-            if (sidebarUserDisplayName) {
-                sidebarUserDisplayName.textContent = displayName + (isAdmin ? ' 👑' : '');
-                console.log('✅ Sidebar display name set to:', displayName + (isAdmin ? ' 👑' : ''));
-            }
+            if (sidebarUserDisplayName) sidebarUserDisplayName.textContent = displayName + (isAdmin ? ' 👑' : '');
             
             // Load user's saved preferences on login
             if (window.chessGame) {
