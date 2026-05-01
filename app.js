@@ -1,3 +1,49 @@
+// ===== SAFE STORAGE UTILITY =====
+// Wraps localStorage with try/catch to prevent crashes in:
+// - Safari private browsing (QuotaExceededError)
+// - Storage-disabled browsers
+// - Corrupt localStorage data
+const safeStorage = {
+    get(key, fallback = null) {
+        try {
+            const value = localStorage.getItem(key);
+            return value !== null ? value : fallback;
+        } catch (e) {
+            console.warn('⚠️ localStorage.getItem failed:', e.message);
+            return fallback;
+        }
+    },
+    getInt(key, fallback = 0) {
+        try {
+            const value = localStorage.getItem(key);
+            if (value === null) return fallback;
+            const parsed = parseInt(value);
+            return isNaN(parsed) ? fallback : parsed;
+        } catch (e) {
+            console.warn('⚠️ localStorage.getItem (int) failed:', e.message);
+            return fallback;
+        }
+    },
+    set(key, value) {
+        try {
+            localStorage.setItem(key, String(value));
+            return true;
+        } catch (e) {
+            console.warn('⚠️ localStorage.setItem failed:', e.message);
+            return false;
+        }
+    },
+    remove(key) {
+        try {
+            localStorage.removeItem(key);
+            return true;
+        } catch (e) {
+            console.warn('⚠️ localStorage.removeItem failed:', e.message);
+            return false;
+        }
+    }
+};
+
 class ChessGame {
     constructor() {
         this.chess = new Chess();
@@ -19,9 +65,9 @@ class ChessGame {
         this.selectedBot = null; // 'god' or 'mrstong' or 'tester'
         
         // Tester reminder system - check every 6 months
-        this.lastTesterReminder = localStorage.getItem('lastTesterReminder') || null;
-        this.estimatedTesterELO = parseInt(localStorage.getItem('testerEstimatedELO')) || 2000;
-        this.userCurrentELO = parseInt(localStorage.getItem('userELO')) || 1200;
+        this.lastTesterReminder = safeStorage.get('lastTesterReminder', null);
+        this.estimatedTesterELO = safeStorage.getInt('testerEstimatedELO', 2000);
+        this.userCurrentELO = safeStorage.getInt('userELO', 1200);
         
         // Rating estimation data for The Tester
         this.ratingData = {
@@ -1328,15 +1374,17 @@ class ChessGame {
         this.displayWinProbability(); // Show initial probability
         
         // Add event delegation for annotation clicks
-        this.movesList.addEventListener('click', (e) => {
-            const annotation = e.target.closest('.move-annotation');
-            if (annotation && this.analysisMode) {
-                const moveIndex = parseInt(annotation.dataset.moveIndex);
-                const symbol = annotation.textContent;
-                const classification = this.annotations[moveIndex] || 'good';
-                this.showAnnotationPopup(moveIndex, symbol, classification);
-            }
-        });
+        if (this.movesList) {
+            this.movesList.addEventListener('click', (e) => {
+                const annotation = e.target.closest('.move-annotation');
+                if (annotation && this.analysisMode) {
+                    const moveIndex = parseInt(annotation.dataset.moveIndex);
+                    const symbol = annotation.textContent;
+                    const classification = this.annotations[moveIndex] || 'good';
+                    this.showAnnotationPopup(moveIndex, symbol, classification);
+                }
+            });
+        }
     }
 
     setupDropdowns() {
@@ -1870,7 +1918,7 @@ class ChessGame {
         this.showLegalMoves();
         
         // Apply saved board theme after rendering
-        this.applyBoardTheme(localStorage.getItem('boardTheme') || 'green');
+        this.applyBoardTheme(safeStorage.get('boardTheme', 'green'));
     }
 
     showLegalMoves() {
@@ -2342,6 +2390,14 @@ class ChessGame {
                 this.stockfish.removeEventListener('message', listener);
                 
                 const bestMove = match[1];
+                
+                // Guard: Stockfish returns '(none)' when no legal moves exist
+                if (bestMove === '(none)') {
+                    console.warn('⚠️ Stockfish returned no valid move — game may be over');
+                    this.handleGameOver();
+                    return;
+                }
+                
                 const from = bestMove.substring(0, 2);
                 const to = bestMove.substring(2, 4);
                 const promotion = bestMove.length > 4 ? bestMove[4] : 'q';
@@ -2667,7 +2723,7 @@ class ChessGame {
         
         
         // Store the estimate
-        localStorage.setItem('testerEstimatedELO', estimatedELO.toString());
+        safeStorage.set('testerEstimatedELO', estimatedELO);
         
         // Apply ELO boost
         this.calculateELOBoost(estimatedELO);
@@ -3243,7 +3299,7 @@ class ChessGame {
         const boostedELO = Math.round((testerELO - userELO) / 2 + userELO);
         
         // Get display name from localStorage or fallback
-        const username = localStorage.getItem('displayName') || 
+        const username = safeStorage.get('displayName') ||
             ((typeof currentUser !== 'undefined' && currentUser && currentUser.email) 
                 ? currentUser.email.split('@')[0] 
                 : 'Player');
@@ -3279,7 +3335,7 @@ class ChessGame {
         
         // Update last reminder date
         this.lastTesterReminder = new Date().toISOString();
-        localStorage.setItem('lastTesterReminder', this.lastTesterReminder);
+        safeStorage.set('lastTesterReminder', this.lastTesterReminder);
         
         // Start a game against The Tester
         this.selectedBot = 'tester';
@@ -3297,7 +3353,7 @@ class ChessGame {
         // Set reminder for 1 month from now (so it doesn't annoy too much)
         const oneMonthLater = new Date();
         oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
-        localStorage.setItem('lastTesterReminder', oneMonthLater.toISOString());
+        safeStorage.set('lastTesterReminder', oneMonthLater.toISOString());
     }
     
     // Calculate ELO boost after playing The Tester
@@ -3308,8 +3364,8 @@ class ChessGame {
         // Only boost if the estimated ELO is higher
         if (testerEstimatedELO > userELO) {
             this.userCurrentELO = boostedELO;
-            localStorage.setItem('userELO', boostedELO.toString());
-            localStorage.setItem('testerEstimatedELO', testerEstimatedELO.toString());
+            safeStorage.set('userELO', boostedELO);
+            safeStorage.set('testerEstimatedELO', testerEstimatedELO);
             
             // Update sidebar ELO display
             const sidebarELO = document.getElementById('sidebarELO');
@@ -3323,7 +3379,7 @@ class ChessGame {
             }, 500);
         } else {
             // No boost needed - your ELO is already higher than the estimate
-            localStorage.setItem('testerEstimatedELO', testerEstimatedELO.toString());
+            safeStorage.set('testerEstimatedELO', testerEstimatedELO);
             
             // Update sidebar ELO display
             const sidebarELO = document.getElementById('sidebarELO');
@@ -3645,7 +3701,7 @@ class ChessGame {
         window.closeTutorial = () => {
             document.getElementById('chessTutorialModal').style.display = 'none';
             // Mark tutorial as completed in localStorage
-            localStorage.setItem('chessTutorialCompleted', 'true');
+            safeStorage.set('chessTutorialCompleted', 'true');
         };
         
         window.showTutorial = () => {
@@ -5134,20 +5190,29 @@ class ChessGame {
         }
         
         // Hide evaluation graph and navigation
-        document.getElementById('evalGraph').style.display = 'none';
-        document.getElementById('navControls').style.display = 'none';
+        const evalGraph = document.getElementById('evalGraph');
+        const navControls = document.getElementById('navControls');
+        if (evalGraph) evalGraph.style.display = 'none';
+        if (navControls) navControls.style.display = 'none';
         
         this.renderBoard();
         this.updateMoveList();
         this.updateStatus();
-        document.getElementById('gameOverModal').style.display = 'none';
-        document.getElementById('analysisPanel').style.display = 'none';
-        document.getElementById('analyzeBtn').textContent = 'Analyze Game';
+        
+        const gameOverModal = document.getElementById('gameOverModal');
+        const analysisPanel = document.getElementById('analysisPanel');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        if (gameOverModal) gameOverModal.style.display = 'none';
+        if (analysisPanel) analysisPanel.style.display = 'none';
+        if (analyzeBtn) analyzeBtn.textContent = 'Analyze Game';
         
         // Reset undo button to disabled state
-        document.getElementById('undoBtn').disabled = true;
-        document.getElementById('undoBtn').style.opacity = '0.5';
-        document.getElementById('undoBtn').style.cursor = 'not-allowed';
+        const undoBtn = document.getElementById('undoBtn');
+        if (undoBtn) {
+            undoBtn.disabled = true;
+            undoBtn.style.opacity = '0.5';
+            undoBtn.style.cursor = 'not-allowed';
+        }
         
         // Reset bot display to default
         const botAvatar = document.getElementById('botAvatar');
@@ -5235,15 +5300,15 @@ if (auth) {
             isAdmin = user.email === 'zaptin507@gmail.com';
             
             // Set display name for admin (The One Above All) or use stored name
-            if (isAdmin && !localStorage.getItem('displayName')) {
-                localStorage.setItem('displayName', 'The One Above All');
+            if (isAdmin && !safeStorage.get('displayName')) {
+                safeStorage.set('displayName', 'The One Above All');
             }
-            const displayName = localStorage.getItem('displayName') || user.email.split('@')[0];
+            const displayName = safeStorage.get('displayName') || user.email.split('@')[0];
             
             console.log('👤 User logged in:', user.email);
             console.log('📝 Display name:', displayName);
             console.log('👑 Is admin:', isAdmin);
-            console.log('🎨 localStorage displayName:', localStorage.getItem('displayName'));
+            console.log('🎨 localStorage displayName:', safeStorage.get('displayName'));
             
             // Show user profile (both sidebar and main)
             const userProfile = document.getElementById('userProfile');
@@ -5288,7 +5353,7 @@ if (auth) {
             // Update sidebar ELO/Rating
             const sidebarELO = document.getElementById('sidebarELO');
             if (sidebarELO) {
-                const userELO = parseInt(localStorage.getItem('userELO')) || 0;
+                const userELO = safeStorage.getInt('userELO', 0);
                 if (userELO > 0) {
                     sidebarELO.textContent = `Rating: ${userELO}`;
                 } else {
@@ -5318,7 +5383,7 @@ if (auth) {
             });
             
             // Show tutorial for first-time users
-            const tutorialCompleted = localStorage.getItem('chessTutorialCompleted');
+            const tutorialCompleted = safeStorage.get('chessTutorialCompleted');
             if (!tutorialCompleted) {
                 // Show tutorial after a short delay
                 setTimeout(() => {
@@ -5423,11 +5488,11 @@ function toggleSidebar() {
 // Board & Piece Preference Methods
 ChessGame.prototype.loadPreferences = function() {
     // Load board theme
-    const boardTheme = localStorage.getItem('boardTheme') || 'green';
+    const boardTheme = safeStorage.get('boardTheme', 'green');
     this.applyBoardTheme(boardTheme);
     
     // Load piece style
-    const pieceStyle = localStorage.getItem('pieceStyle') || 'cburnett';
+    const pieceStyle = safeStorage.get('pieceStyle', 'cburnett');
     this.applyPieceStyle(pieceStyle);
 };
 
@@ -5488,12 +5553,12 @@ ChessGame.prototype.applyPieceStyle = function(style) {
 
 // Show chess.com-style profile stats modal
 ChessGame.prototype.showProfileStats = function() {
-    const currentELO = parseInt(localStorage.getItem('userELO')) || 0;
-    const displayName = localStorage.getItem('displayName') || 'Player';
-    const gamesPlayed = parseInt(localStorage.getItem('gamesPlayed')) || 0;
-    const wins = parseInt(localStorage.getItem('wins')) || 0;
-    const losses = parseInt(localStorage.getItem('losses')) || 0;
-    const draws = parseInt(localStorage.getItem('draws')) || 0;
+    const currentELO = safeStorage.getInt('userELO', 0);
+    const displayName = safeStorage.get('displayName', 'Player');
+    const gamesPlayed = safeStorage.getInt('gamesPlayed', 0);
+    const wins = safeStorage.getInt('wins', 0);
+    const losses = safeStorage.getInt('losses', 0);
+    const draws = safeStorage.getInt('draws', 0);
     const winRate = gamesPlayed > 0 ? Math.round((wins / gamesPlayed) * 100) : 0;
     
     // Update modal content
@@ -5752,7 +5817,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.board-theme-option').forEach(option => {
         option.addEventListener('click', () => {
             const theme = option.dataset.theme;
-            localStorage.setItem('boardTheme', theme);
+            safeStorage.set('boardTheme', theme);
             window.chessGame.applyBoardTheme(theme);
             window.chessGame.showSections([], ['boardThemeModal']);
         });
@@ -5762,7 +5827,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.piece-style-option').forEach(option => {
         option.addEventListener('click', () => {
             const style = option.dataset.style;
-            localStorage.setItem('pieceStyle', style);
+            safeStorage.set('pieceStyle', style);
             window.chessGame.applyPieceStyle(style);
             window.chessGame.showSections([], ['pieceStyleModal']);
         });
@@ -5824,7 +5889,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.openProfileEditModal = () => {
         if (profileEditModal) {
             // Load current display name
-            const currentName = localStorage.getItem('displayName') || '';
+            const currentName = safeStorage.get('displayName', '');
             if (profileNameInput) {
                 profileNameInput.value = currentName;
             }
@@ -5851,7 +5916,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         // Save to localStorage
-        localStorage.setItem('displayName', newName);
+        safeStorage.set('displayName', newName);
         
         // Update all displays
         const userDisplayName = document.getElementById('userDisplayName');
