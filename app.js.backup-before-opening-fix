@@ -4358,6 +4358,852 @@ class ChessGame {
             document.getElementById('annotationPopup').style.display = 'none';
         });
         
+        // ===== LEARN SECTION - CHESS OPENINGS =====
+        window.renderLearnSection = () => {
+            const learnSection = document.getElementById('learnSection');
+            
+            const openings = [
+                {
+                    id: 'italian',
+                    name: 'Italian Game',
+                    moves: '1.e4 e5 2.Nf3 Nc6 3.Bc4',
+                    fen: 'r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3',
+                    emoji: '🏰',
+                    description: 'One of the oldest and most popular openings. White develops the bishop to c4, targeting the weak f7 square.',
+                    strength: 'Strong central control, rapid development, attacks f7',
+                    weakness: 'Can lead to sharp tactical positions',
+                    continuation: 'After 3...Bc5 (Giuoco Piano), play 4.c3 to prepare d4',
+                    famous_game: 'Morphy vs Duke of Brunswick, 1858',
+                    rating: '⭐⭐⭐⭐⭐',
+                    level: 'Beginner'
+                },
+                {
+                    id: 'ruy_lopez',
+                    name: 'Ruy Lopez',
+                    moves: '1.e4 e5 2.Nf3 Nc6 3.Bb5',
+                    fen: 'r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3',
+                    emoji: '🇪🇸',
+                    description: 'The Spanish Opening. White puts pressure on the knight defending e5, preparing for long-term strategic play.',
+                    strength: 'Solid, flexible, rich in strategic ideas',
+                    weakness: 'Complex theory, requires deep understanding',
+                    continuation: 'After 3...a6 4.Ba4 Nf6 5.O-O, Black can play 5...Be7 (Closed) or 5...Nxe4 (Open)',
+                    famous_game: 'Karpov vs Kasparov, World Championship 1984',
+                    rating: '⭐⭐⭐⭐⭐',
+                    level: 'Hard'
+                },
+                {
+                    id: 'sicilian',
+                    name: 'Sicilian Defense',
+                    moves: '1.e4 c5',
+                    fen: 'rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+                    emoji: '🛡️',
+                    description: 'The most popular response to 1.e4. Black fights for the center asymmetrically, creating unbalanced positions.',
+                    strength: 'Creates winning chances for Black, unbalanced positions',
+                    weakness: 'White gets space advantage, sharp tactical battles',
+                    continuation: 'After 2.Nf3 d6 3.d4 cxd4 4.Nxd4, choose: Najdorf (4...Nf6 5.Nc3 a6) or Dragon (4...Nf6 5.Nc3 g6)',
+                    famous_game: 'Fischer vs Spassky, Game 6, 1972',
+                    rating: '⭐⭐⭐⭐⭐',
+                    level: 'Hard'
+                },
+                {
+                    id: 'queens_gambit',
+                    name: "Queen's Gambit",
+                    moves: '1.d4 d5 2.c4',
+                    fen: 'rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR b KQkq - 0 2',
+                    emoji: '👑',
+                    description: 'White offers a pawn to gain central control. If Black takes, White recaptures with strong center.',
+                    strength: 'Strong center, solid development, strategic play',
+                    weakness: 'Requires understanding of pawn structures',
+                    continuation: 'If 2...dxc4 (Accepted), play 3.e3 or 3.Nf3. If 2...e6 (Declined), play 3.Nc3',
+                    famous_game: 'Anand vs Topalov, 2010 World Championship',
+                    rating: '⭐⭐⭐⭐',
+                    level: 'Medium'
+                },
+                {
+                    id: 'kings_indian',
+                    name: "King's Indian Defense",
+                    moves: '1.d4 Nf6 2.c4 g6 3.Nc3 Bg7',
+                    fen: 'rnbqk2r/ppppppbp/5np1/8/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 2 4',
+                    emoji: '🦁',
+                    description: 'A hypermodern opening where Black allows White to build a big center, then attacks it later.',
+                    strength: 'Dynamic counterplay, kingside attacks, rich tactical opportunities',
+                    weakness: 'Gives White space, requires precise timing',
+                    continuation: 'After 4.e4 d6, play 5.Nf3 0-0 6.Be2 e5 for the Classical Variation',
+                    famous_game: 'Kasparov vs Karpov, Game 16, 1985',
+                    rating: '⭐⭐⭐⭐⭐',
+                    level: 'Hard'
+                },
+                {
+                    id: 'french',
+                    name: 'French Defense',
+                    moves: '1.e4 e6',
+                    fen: 'rnbqkbnr/pppp1ppp/4p3/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+                    emoji: '🇫',
+                    description: 'A solid, positional defense. Black prepares ...d5 to challenge the center while maintaining a pawn chain.',
+                    strength: 'Solid structure, clear plans, less tactical',
+                    weakness: 'Light-squared bishop can be bad, cramped position',
+                    continuation: 'After 2.d4 d5, choose: Winawer (3.Nc3 Bb4), Classical (3.Nc3 Nf6), or Exchange (3.exd5)',
+                    famous_game: 'Botvinnik vs Capablanca, AVRO 1938',
+                    rating: '⭐⭐⭐⭐',
+                    level: 'Medium'
+                },
+                {
+                    id: 'caro_kann',
+                    name: 'Caro-Kann Defense',
+                    moves: '1.e4 c6',
+                    fen: 'rnbqkbnr/pp1ppppp/2p5/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+                    emoji: '🛡️',
+                    description: 'A solid, reliable defense. Black prepares ...d5 with strong pawn structure, avoiding the bad bishop problem of the French.',
+                    strength: 'Extremely solid, good pawn structure, endgame prospects',
+                    weakness: 'Can be passive, less dynamic than Sicilian',
+                    continuation: 'After 2.d4 d5, main lines: 3.Nc3 (Classical), 3.Nd2 (Advance), or 3.exd5 (Exchange)',
+                    famous_game: 'Karpov vs Kasparov, Game 12, 1984 World Championship',
+                    famous_game_description: 'Karpov demonstrated the solidity of the Caro-Kann, reaching a winning endgame.',
+                    rating: '⭐⭐⭐⭐',
+                    level: 'Medium'
+                },
+                {
+                    id: 'scandinavian',
+                    name: 'Scandinavian Defense',
+                    moves: '1.e4 d5',
+                    fen: 'rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+                    emoji: '⚔️',
+                    description: 'An aggressive defense that immediately challenges White\'s center. Black captures on e4 and brings the queen out early.',
+                    strength: 'Forces the game, less theory, surprise value',
+                    weakness: 'Queen can be harassed, development can be slow',
+                    continuation: 'After 2.exd5 Qxd5 3.Nc3, Queen retreats to a5 or d8. Then develop with ...Nf6, ...Bg4, ...e6.',
+                    famous_game: 'Carlsen vs Caruana, Candidates 2018',
+                    famous_game_description: 'Carlsen used the Scandinavian to surprise his opponent and create an imbalanced position.',
+                    rating: '⭐⭐⭐',
+                    level: 'Beginner'
+                },
+                {
+                    id: 'london_system',
+                    name: 'London System',
+                    moves: '1.d4 d5 2.Bf4',
+                    fen: 'rnbqkbnr/ppp1pppp/8/3p4/3P1B2/8/PPP1PPPP/RN1QKBNR b KQkq - 1 2',
+                    emoji: '',
+                    description: 'A solid, system-based opening for White. Easy to learn, can be played against almost any Black setup.',
+                    strength: 'Easy to learn, solid structure, versatile',
+                    weakness: 'Can be predictable, less ambitious than other d4 openings',
+                    continuation: 'After 2...Nf6 3.e3 e6 4.Nf3, continue with Bd3, 0-0, Nbd2, c3 for a solid setup.',
+                    famous_game: 'Carlsen vs Anand, World Championship 2014',
+                    famous_game_description: 'Carlsen used the London System to reach a comfortable middlegame with lasting pressure.',
+                    rating: '⭐⭐⭐⭐',
+                    level: 'Beginner'
+                },
+                {
+                    id: 'nimzo_indian',
+                    name: 'Nimzo-Indian Defense',
+                    moves: '1.d4 Nf6 2.c4 e6 3.Nc3 Bb4',
+                    fen: 'rnbqk2r/pppp1ppp/4pn2/8/1bPP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 2 4',
+                    emoji: '🎯',
+                    description: 'One of the most respected defenses against 1.d4. Black pins the knight and prepares to double White\'s pawns.',
+                    strength: 'Excellent strategic ideas, flexible, respected at all levels',
+                    weakness: 'Requires understanding of pawn structures and piece play',
+                    continuation: 'After 4.e3 (Rubinstein), play 4...0-0 or 4...c5. After 4.Qc2 (Classical), play 4...0-0 or 4...c5.',
+                    famous_game: 'Kasparov vs Karpov, Game 11, 1985 World Championship',
+                    famous_game_description: 'Kasparov demonstrated the dynamic potential of the Nimzo-Indian with brilliant piece play.',
+                    rating: '⭐⭐⭐⭐⭐',
+                    level: 'Hard'
+                },
+                {
+                    id: 'grunfeld',
+                    name: 'Grünfeld Defense',
+                    moves: '1.d4 Nf6 2.c4 g6 3.Nc3 d5',
+                    fen: 'rnbqkb1r/ppp1ppbp/5np1/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 2 4',
+                    emoji: '🦅',
+                    description: 'A hypermodern defense where Black allows White to build a big center, then attacks it with pieces and ...c5.',
+                    strength: 'Dynamic counterplay, active piece play, rich tactical positions',
+                    weakness: 'Gives White central space, requires precise play',
+                    continuation: 'After 4.cxd5 Nxd5 5.e4 Nxc3 6.bxc3 Bg7, Black fianchettoes and attacks the center with ...c5.',
+                    famous_game: 'Kasparov vs Karpov, Game 19, 1985 World Championship',
+                    famous_game_description: 'A masterclass in Grünfeld strategy, showing how to fight for the center dynamically.',
+                    rating: '⭐⭐⭐⭐⭐',
+                    level: 'Hard'
+                },
+                {
+                    id: 'pietroff',
+                    name: "Petroff's Defense",
+                    moves: '1.e4 e5 2.Nf3 Nf6',
+                    fen: 'rnbqkb1r/pppp1ppp/5n2/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 3 3',
+                    emoji: '',
+                    description: 'A solid, symmetrical defense. Black mirrors White\'s development, leading to balanced positions.',
+                    strength: 'Very solid, drawish tendencies, good for tournament play',
+                    weakness: 'Can be boring, less winning chances for Black',
+                    continuation: 'After 3.Nxe5 d6 4.Nf3 Nxe4 5.d4, main lines lead to symmetrical positions with equal chances.',
+                    famous_game: 'Kramnik vs Topalov, World Championship 2006',
+                    famous_game_description: 'Kramnik used the Petroff to neutralize Topalov\'s attacking style and draw the match.',
+                    rating: '⭐⭐⭐',
+                    level: 'Medium'
+                },
+                {
+                    id: 'scotch_game',
+                    name: 'Scotch Game',
+                    moves: '1.e4 e5 2.Nf3 Nc6 3.d4',
+                    fen: 'r1bqkbnr/pppp1ppp/2n5/4p3/3PP3/5N2/PPP2PPP/RNBQKB1R b KQkq - 0 3',
+                    emoji: '🏴',
+                    description: 'An aggressive opening that immediately challenges Black\'s center. White opens the position early for tactical play.',
+                    strength: 'Opens the game, tactical opportunities, less theory than Ruy Lopez',
+                    weakness: 'Can lead to simplified positions, Black equalizes easily',
+                    continuation: 'After 3...exd4 4.Nxd4, Black plays 4...Nf6 or 4...Bc5',
+                    famous_game: 'Kasparov vs Karpov, Game 20, 1990',
+                    rating: '⭐⭐⭐⭐',
+                    level: 'Medium'
+                },
+                {
+                    id: 'kings_gambit',
+                    name: "King's Gambit",
+                    moves: '1.e4 e5 2.f4',
+                    fen: 'rnbqkbnr/pppp1ppp/8/4p3/4PP2/8/PPPP2PP/RNBQKBNR b KQkq - 0 2',
+                    emoji: '👑',
+                    description: 'A romantic, aggressive gambit. White sacrifices a pawn for rapid development and attacking chances.',
+                    strength: 'Exciting attacks, development advantage, psychological pressure',
+                    weakness: 'Weakens king position, risky if attack fails',
+                    continuation: 'After 2...exf4 (Accepted), play 3.Nf3. If 2...Bc5 (Declined), continue with Nf3',
+                    famous_game: 'Fischer vs Spassky, Game 6, 1972',
+                    rating: '⭐⭐⭐',
+                    level: 'Hard'
+                },
+                {
+                    id: 'vienna_game',
+                    name: 'Vienna Game',
+                    moves: '1.e4 e5 2.Nc3',
+                    fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/2N5/PPPP1PPP/R1BQKBNR b KQkq - 1 2',
+                    emoji: '🇦🇹',
+                    description: 'A flexible opening that delays Nf3 to keep options open. Can transpose to various e4 openings.',
+                    strength: 'Flexible, can lead to Vienna Gambit, good for surprise value',
+                    weakness: 'Less direct than other openings, requires understanding of multiple systems',
+                    continuation: 'After 2...Nf6, play 3.f4 (Vienna Gambit) for sharp play, or 3.Bc4 for quieter positions',
+                    famous_game: 'Anderssen vs Morphy, 1858',
+                    rating: '⭐⭐⭐',
+                    level: 'Medium'
+                },
+                {
+                    id: 'pirc_defense',
+                    name: 'Pirc Defense',
+                    moves: '1.e4 d6',
+                    fen: 'rnbqkbnr/ppp1pppp/3p4/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+                    emoji: '🇸',
+                    description: 'A hypermodern defense where Black allows White to build a center, then undermines it later with ...Nf6 and ...g6.',
+                    strength: 'Flexible, unbalancing, good counter-attacking chances',
+                    weakness: 'Gives White space, requires precise timing',
+                    continuation: 'After 2.d4 Nf6 3.Nc3 g6, Black fianchettoes the bishop and prepares ...Bg7',
+                    famous_game: 'Fischer vs Pirc, 1970',
+                    rating: '⭐⭐⭐',
+                    level: 'Hard'
+                },
+                {
+                    id: 'alekhine_defense',
+                    name: 'Alekhine Defense',
+                    moves: '1.e4 Nf6',
+                    fen: 'rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2',
+                    emoji: '🇨',
+                    description: 'A provocative defense that invites White to chase the knight and build a big pawn center, which Black then attacks.',
+                    strength: 'Unbalances the game, tempts White to overextend, surprise value',
+                    weakness: 'Gives White space, knight can be harassed',
+                    continuation: 'After 2.e5 Nd5 3.d4 d6, Black challenges the center immediately',
+                    famous_game: 'Alekhine vs Nimzowitsch, 1930',
+                    rating: '⭐⭐⭐',
+                    level: 'Hard'
+                },
+                {
+                    id: 'slav_defense',
+                    name: 'Slav Defense',
+                    moves: '1.d4 d5 2.c4 c6',
+                    fen: 'rnbqkbnr/pp2pppp/2p5/3p4/2PP4/8/PP2PPPP/RNBQKBNR w KQkq - 0 3',
+                    emoji: '🛡️',
+                    description: 'A solid defense to the Queen\'s Gambit. Black supports d5 with c6 while keeping the light-squared bishop free.',
+                    strength: 'Very solid, good pawn structure, bishop not blocked',
+                    weakness: 'Can be passive, requires understanding of pawn breaks',
+                    continuation: 'After 3.Nf3 Nf6 4.Nc3, Black can play 4...dxc4 (Slav Accepted) or 4...e6 (Semi-Slav)',
+                    famous_game: 'Botvinnik vs Smyslov, 1954',
+                    rating: '⭐⭐⭐⭐',
+                    level: 'Medium'
+                },
+                {
+                    id: 'benoni_defense',
+                    name: 'Benoni Defense',
+                    moves: '1.d4 Nf6 2.c4 c5',
+                    fen: 'rnbqkb1r/pp1ppppp/5n2/2p5/2PP4/8/PP2PPPP/RNBQKBNR w KQkq - 1 3',
+                    emoji: '⚡',
+                    description: 'An ambitious, unbalanced defense. Black allows White a pawn center in exchange for dynamic counterplay on the queenside.',
+                    strength: 'Dynamic counterplay, unbalanced positions, winning chances',
+                    weakness: 'Gives White space, complex theory, risky',
+                    continuation: 'After 3.d5 e6 4.Nc3 exd5 5.cxd5 d6, Black fianchettoes with ...g6 and ...Bg7',
+                    famous_game: 'Fischer vs Larsen, 1971',
+                    rating: '⭐⭐⭐⭐',
+                    level: 'Hard'
+                },
+                {
+                    id: 'dutch_defense',
+                    name: 'Dutch Defense',
+                    moves: '1.d4 f5',
+                    fen: 'rnbqkbnr/ppppp1pp/8/5p2/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 2',
+                    emoji: '🇳',
+                    description: 'An aggressive, asymmetrical defense. Black immediately fights for e4 and creates an unbalanced position.',
+                    strength: 'Unbalancing, kingside attacking chances, surprise value',
+                    weakness: 'Weakens kingside, complex theory, risky',
+                    continuation: 'After 2.c4 Nf6 3.g3 (Leningrad), play ...g6 and ...Bg7. Or 3.Nf3 e6 (Stonewall)',
+                    famous_game: 'Stein vs Spassky, 1973',
+                    rating: '⭐⭐⭐',
+                    level: 'Hard'
+                },
+                {
+                    id: 'english_opening',
+                    name: 'English Opening',
+                    moves: '1.c4',
+                    fen: 'rnbqkbnr/pppppppp/8/8/2P5/8/PP1PPPPP/RNBQKBNR b KQkq - 0 1',
+                    emoji: '🇬',
+                    description: 'A flexible, positional opening. White controls d5 and prepares for various setups.',
+                    strength: 'Flexible, can transpose to many openings, good for positional players',
+                    weakness: 'Less direct, requires understanding of multiple systems',
+                    continuation: 'After 1...e5 (Reversed Sicilian) or 1...Nf6, continue with Nc3, g3, Bg2',
+                    famous_game: 'Karpov vs Kasparov, Game 16, 1985',
+                    rating: '⭐⭐⭐⭐',
+                    level: 'Medium'
+                },
+                {
+                    id: 'reti_opening',
+                    name: 'Réti Opening',
+                    moves: '1.Nf3',
+                    fen: 'rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq - 1 1',
+                    emoji: '🇭🇺',
+                    description: 'A hypermodern opening. White delays pawn moves, developing pieces first and controlling the center from a distance.',
+                    strength: 'Flexible, hypermodern ideas, good for strategic players',
+                    weakness: 'Less direct, can transpose to many openings',
+                    continuation: 'After 1...d5, play 2.c4 (Réti Gambit) or 2.g3 (fianchetto)',
+                    famous_game: 'Réti vs Capablanca, 1924',
+                    rating: '⭐⭐⭐',
+                    level: 'Medium'
+                },
+                {
+                    id: 'catalan_opening',
+                    name: 'Catalan Opening',
+                    moves: '1.d4 Nf6 2.c4 e6 3.g3',
+                    fen: 'rnbqkb1r/pppp1ppp/4pn2/8/2PP4/6P1/PP2PP1P/RNBQKBNR b KQkq - 0 3',
+                    emoji: '🏔️',
+                    description: 'A sophisticated opening combining d4 and fianchetto. White controls the center and develops harmoniously.',
+                    strength: 'Solid, positional pressure, good endgame prospects',
+                    weakness: 'Requires understanding of subtle positional ideas',
+                    continuation: 'After 3...d5 4.Bg2, continue with Nf3, 0-0, Nc3',
+                    famous_game: 'Karpov vs Kasparov, Game 22, 1984',
+                    rating: '⭐⭐⭐⭐',
+                    level: 'Hard'
+                },
+                {
+                    id: 'bird_opening',
+                    name: "Bird's Opening",
+                    moves: '1.f4',
+                    fen: 'rnbqkbnr/pppppppp/8/8/5P2/8/PPPPP1PP/RNBQKBNR b KQkq - 0 1',
+                    emoji: '🐦',
+                    description: 'An aggressive, unconventional opening. White immediately fights for e5 and prepares kingside play.',
+                    strength: 'Unbalancing, surprise value, kingside attacking chances',
+                    weakness: 'Weakens kingside, less theory available',
+                    continuation: 'After 1...d5, play 2.Nf3 Nf6 3.e3 for a solid setup',
+                    famous_game: 'Bird vs Blackburne, 1880',
+                    rating: '⭐⭐',
+                    level: 'Medium'
+                },
+                {
+                    id: 'three_knights',
+                    name: 'Three Knights Opening',
+                    moves: '1.e4 e5 2.Nf3 Nc6 3.Nc3',
+                    fen: 'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/2N2N2/PPPP1PPP/R1BQKB1R b KQkq - 2 3',
+                    emoji: '',
+                    description: 'A solid, classical opening. Both sides develop knights naturally before deciding on bishop placement.',
+                    strength: 'Simple, logical development, good for beginners',
+                    weakness: 'Can lead to symmetrical, drawish positions',
+                    continuation: 'After 3...Nf6 (Four Knights), play 4.Bb5 or 4.Bc4. Focus on castling and central control.',
+                    famous_game: 'Capablanca vs Alekhine, 1927',
+                    rating: '⭐⭐⭐',
+                    level: 'Beginner'
+                },
+                {
+                    id: 'ponziani',
+                    name: 'Ponziani Opening',
+                    moves: '1.e4 e5 2.Nf3 Nc6 3.c3',
+                    fen: 'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/2P2N2/PP1P1PPP/RNBQKB1R b KQkq - 0 3',
+                    emoji: '🎯',
+                    description: 'An old opening that prepares d4 to establish a strong pawn center. Less common but still viable.',
+                    strength: 'Strong center, surprise value, clear plans',
+                    weakness: 'Somewhat passive, Black has good responses',
+                    continuation: 'After 3...d5 or 3...Nf6, continue with d4. Play for central control and piece activity.',
+                    famous_game: 'Old classical games from 1800s',
+                    rating: '⭐⭐⭐',
+                    level: 'Medium'
+                },
+                {
+                    id: 'kings_fianchetto',
+                    name: "King's Fianchetto Opening",
+                    moves: '1.g3',
+                    fen: 'rnbqkbnr/pppppppp/8/8/8/6P1/PPPPPP1P/RNBQKBNR b KQkq - 0 1',
+                    emoji: '👑',
+                    description: 'A hypermodern approach. White fianchettoes the king\'s bishop to control the long diagonal.',
+                    strength: 'Solid, flexible, good for positional players',
+                    weakness: 'Slow development, gives Black time',
+                    continuation: 'After 1...e5 or 1...d5, continue with Bg2, Nf3, 0-0. Control center with pieces.',
+                    famous_game: 'Various hypermodern games',
+                    rating: '⭐⭐⭐',
+                    level: 'Medium'
+                },
+                {
+                    id: 'owen_defense',
+                    name: 'Owen Defense',
+                    moves: '1.e4 b6',
+                    fen: 'rnbqkbnr/p1pppppp/1p6/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+                    emoji: '🦉',
+                    description: 'An unusual defense where Black fianchettoes the queenside bishop early. Unorthodox but playable.',
+                    strength: 'Surprise value, unbalances the game',
+                    weakness: 'Neglects center, passive',
+                    continuation: 'After 2.d4 Bb7, continue with ...e6, ...Nf6. Play for counterattacks.',
+                    famous_game: 'Rare in top-level chess',
+                    rating: '⭐⭐',
+                    level: 'Medium'
+                },
+                {
+                    id: 'nimzowitsch_defense',
+                    name: 'Nimzowitsch Defense',
+                    moves: '1.e4 Nc6',
+                    fen: 'r1bqkbnr/pppppppp/2n5/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2',
+                    emoji: '🎨',
+                    description: 'An unusual defense where Black develops the knight before pawns. Hypermodern ideas.',
+                    strength: 'Unorthodox, flexible, can transpose to good positions',
+                    weakness: 'Violates classical principles, can be awkward',
+                    continuation: 'After 2.Nf3 d5 or 2...e5, continue developing naturally. Play for ...d5 break.',
+                    famous_game: 'Nimzowitsch games from 1920s',
+                    rating: '⭐⭐⭐',
+                    level: 'Hard'
+                }
+            ];
+            
+            let openingsHTML = openings.map((opening) => `
+                <div onclick="window.showOpeningDetail('${opening.id}')" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.3s;" 
+                     onmouseover="this.style.background='rgba(255, 255, 255, 0.1)'; this.style.borderColor='rgba(118, 150, 86, 0.5)'; this.style.transform='translateY(-2px)'" 
+                     onmouseout="this.style.background='rgba(255, 255, 255, 0.05)'; this.style.borderColor='rgba(255, 255, 255, 0.1)'; this.style.transform='translateY(0)'">
+                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 12px;">
+                        <div style="font-size: 40px;">${opening.emoji}</div>
+                        <div style="flex: 1;">
+                            <h3 style="color: #fff; margin: 0 0 4px 0; font-size: 20px;">${opening.name}</h3>
+                            <div style="color: rgba(255, 255, 255, 0.6); font-size: 13px;">${opening.level} | ${opening.rating}</div>
+                        </div>
+                    </div>
+                    <p style="color: rgba(255, 255, 255, 0.7); margin: 0 0 8px 0; font-size: 14px; line-height: 1.5;">${opening.description}</p>
+                    <div style="background: rgba(0, 0, 0, 0.3); padding: 8px 12px; border-radius: 6px; font-family: monospace; color: #769656; font-size: 13px;">
+                        ${opening.moves}
+                    </div>
+                </div>
+            `).join('');
+            
+            learnSection.innerHTML = `
+                <div style="max-width: 1200px; margin: 0 auto; padding: 40px 20px;">
+                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 30px;">
+                        <button onclick="window.closeLearnSection()" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; font-size: 20px; cursor: pointer; padding: 8px 16px; border-radius: 8px; transition: all 0.2s;" 
+                                onmouseover="this.style.background='rgba(255, 255, 255, 0.2)'" 
+                                onmouseout="this.style.background='rgba(255, 255, 255, 0.1)'">← Back</button>
+                        <div>
+                            <h1 style="color: #fff; margin: 0; font-size: 36px; font-weight: bold;">♟️ Chess Openings</h1>
+                            <p style="color: rgba(255, 255, 255, 0.7); margin: 5px 0 0 0; font-size: 16px;">Master the most important openings with visual examples and famous games</p>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px;">
+                        ${openingsHTML}
+                    </div>
+                </div>
+            `;
+        };
+        
+        window.showOpeningDetail = (openingId) => {
+            const openings = {
+                italian: {
+                    name: 'Italian Game', emoji: '🏰',
+                    moves: '1.e4 e5 2.Nf3 Nc6 3.Bc4',
+                    fen: 'r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3',
+                    description: 'One of the oldest and most popular openings. White develops the bishop to c4, targeting the weak f7 square.',
+                    strength: 'Strong central control, rapid development, attacks f7',
+                    weakness: 'Can lead to sharp tactical positions',
+                    continuation: 'After 3...Bc5 (Giuoco Piano), play 4.c3 to prepare d4. Main line: 4.c3 Nf6 5.d4 exd4 6.cxd4 Bb4+',
+                    famous_game: 'Morphy vs Duke of Brunswick, 1858 - "The Opera Game"',
+                    famous_game_description: 'A brilliant demonstration of development and attacking play. Morphy sacrificed material for a devastating attack.',
+                    rating: '⭐⭐⭐⭐⭐', level: 'Beginner to Advanced'
+                },
+                ruy_lopez: {
+                    name: 'Ruy Lopez', emoji: '🇪🇸',
+                    moves: '1.e4 e5 2.Nf3 Nc6 3.Bb5',
+                    fen: 'r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3',
+                    description: 'The Spanish Opening. White puts pressure on the knight defending e5, preparing for long-term strategic play.',
+                    strength: 'Solid, flexible, rich in strategic ideas',
+                    weakness: 'Complex theory, requires deep understanding',
+                    continuation: 'After 3...a6 4.Ba4 Nf6 5.O-O, Black can play 5...Be7 (Closed) or 5...Nxe4 (Open). Closed leads to maneuvering, Open to tactical fights.',
+                    famous_game: 'Karpov vs Kasparov, World Championship 1984, Game 9',
+                    famous_game_description: 'A masterpiece of positional play. Karpov demonstrated the power of small advantages in the Ruy Lopez.',
+                    rating: '⭐⭐⭐⭐⭐', level: 'Intermediate to Master'
+                },
+                sicilian: {
+                    name: 'Sicilian Defense', emoji: '🛡️',
+                    moves: '1.e4 c5',
+                    fen: 'rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+                    description: 'The most popular response to 1.e4. Black fights for the center asymmetrically, creating unbalanced positions.',
+                    strength: 'Creates winning chances for Black, unbalanced positions',
+                    weakness: 'White gets space advantage, sharp tactical battles',
+                    continuation: 'After 2.Nf3 d6 3.d4 cxd4 4.Nxd4: Najdorf (4...Nf6 5.Nc3 a6) - most popular, or Dragon (4...Nf6 5.Nc3 g6) - sharp attacks.',
+                    famous_game: 'Fischer vs Spassky, Game 6, 1972 World Championship',
+                    famous_game_description: 'Fischer shocked the world with his Sicilian preparation, winning a crucial game in the match.',
+                    rating: '⭐⭐⭐⭐⭐', level: 'Advanced'
+                },
+                queens_gambit: {
+                    name: "Queen's Gambit", emoji: '👑',
+                    moves: '1.d4 d5 2.c4',
+                    fen: 'rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR b KQkq - 0 2',
+                    description: 'White offers a pawn to gain central control. If Black takes, White recaptures with strong center.',
+                    strength: 'Strong center, solid development, strategic play',
+                    weakness: 'Requires understanding of pawn structures',
+                    continuation: 'If 2...dxc4 (Accepted), play 3.e3 or 3.Nf3. If 2...e6 (Declined), play 3.Nc3 Nf6 4.Bg5.',
+                    famous_game: 'Anand vs Topalov, 2010 World Championship, Game 2',
+                    famous_game_description: 'A brilliant attacking game showing the power of the Queen\'s Gambit Declined.',
+                    rating: '⭐⭐⭐⭐', level: 'Intermediate'
+                },
+                kings_indian: {
+                    name: "King's Indian Defense", emoji: '🦁',
+                    moves: '1.d4 Nf6 2.c4 g6 3.Nc3 Bg7',
+                    fen: 'rnbqk2r/ppppppbp/5np1/8/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 2 4',
+                    description: 'A hypermodern opening where Black allows White to build a big center, then attacks it later.',
+                    strength: 'Dynamic counterplay, kingside attacks, rich tactical opportunities',
+                    weakness: 'Gives White space, requires precise timing',
+                    continuation: 'After 4.e4 d6 5.Nf3 0-0 6.Be2 e5 (Classical). White can play 7.O-O or 7.d5 for different pawn structures.',
+                    famous_game: 'Kasparov vs Karpov, Game 16, 1985 World Championship',
+                    famous_game_description: 'Kasparov launched a devastating kingside attack, showcasing the KID\'s attacking potential.',
+                    rating: '⭐⭐⭐⭐⭐', level: 'Advanced'
+                },
+                french: {
+                    name: 'French Defense', emoji: '🇫',
+                    moves: '1.e4 e6',
+                    fen: 'rnbqkbnr/pppp1ppp/4p3/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+                    description: 'A solid, positional defense. Black prepares ...d5 to challenge the center while maintaining a pawn chain.',
+                    strength: 'Solid structure, clear plans, less tactical',
+                    weakness: 'Light-squared bishop can be bad, cramped position',
+                    continuation: 'After 2.d4 d5: Winawer (3.Nc3 Bb4), Classical (3.Nc3 Nf6), or Exchange (3.exd5 exd5). Each leads to different pawn structures.',
+                    famous_game: 'Botvinnik vs Capablanca, AVRO 1938',
+                    famous_game_description: 'Botvinnik\'s masterpiece demonstrating strategic understanding in the French Defense.',
+                    rating: '⭐⭐⭐⭐', level: 'Intermediate'
+                },
+                caro_kann: {
+                    name: 'Caro-Kann Defense', emoji: '🛡️',
+                    moves: '1.e4 c6',
+                    fen: 'rnbqkbnr/pp1ppppp/2p5/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+                    description: 'A solid, reliable defense. Black prepares ...d5 with strong pawn structure, avoiding the bad bishop problem of the French.',
+                    strength: 'Extremely solid, good pawn structure, endgame prospects',
+                    weakness: 'Can be passive, less dynamic than Sicilian',
+                    continuation: 'After 2.d4 d5, main lines: 3.Nc3 (Classical), 3.Nd2 (Advance), or 3.exd5 (Exchange). Classical leads to rich middlegames.',
+                    famous_game: 'Karpov vs Kasparov, Game 12, 1984 World Championship',
+                    famous_game_description: 'Karpov demonstrated the solidity of the Caro-Kann, reaching a winning endgame through precise technique.',
+                    rating: '⭐⭐⭐⭐', level: 'Intermediate'
+                },
+                scandinavian: {
+                    name: 'Scandinavian Defense', emoji: '⚔️',
+                    moves: '1.e4 d5',
+                    fen: 'rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+                    description: 'An aggressive defense that immediately challenges White\'s center. Black captures on e4 and brings the queen out early.',
+                    strength: 'Forces the game, less theory, surprise value',
+                    weakness: 'Queen can be harassed, development can be slow',
+                    continuation: 'After 2.exd5 Qxd5 3.Nc3, Queen retreats to a5 or d8. Then develop with ...Nf6, ...Bg4, ...e6 for solid play.',
+                    famous_game: 'Carlsen vs Caruana, Candidates 2018',
+                    famous_game_description: 'Carlsen used the Scandinavian to surprise his opponent and create an imbalanced position with winning chances.',
+                    rating: '⭐⭐⭐', level: 'Beginner to Intermediate'
+                },
+                london_system: {
+                    name: 'London System', emoji: '🇬',
+                    moves: '1.d4 d5 2.Bf4',
+                    fen: 'rnbqkbnr/ppp1pppp/8/3p4/3P1B2/8/PPP1PPPP/RN1QKBNR b KQkq - 1 2',
+                    description: 'A solid, system-based opening for White. Easy to learn, can be played against almost any Black setup.',
+                    strength: 'Easy to learn, solid structure, versatile',
+                    weakness: 'Can be predictable, less ambitious than other d4 openings',
+                    continuation: 'After 2...Nf6 3.e3 e6 4.Nf3, continue with Bd3, 0-0, Nbd2, c3 for a solid setup. Control the center and develop naturally.',
+                    famous_game: 'Carlsen vs Anand, World Championship 2014',
+                    famous_game_description: 'Carlsen used the London System to reach a comfortable middlegame with lasting pressure and eventually won.',
+                    rating: '⭐⭐⭐⭐', level: 'Beginner to Intermediate'
+                },
+                nimzo_indian: {
+                    name: 'Nimzo-Indian Defense', emoji: '🎯',
+                    moves: '1.d4 Nf6 2.c4 e6 3.Nc3 Bb4',
+                    fen: 'rnbqk2r/pppp1ppp/4pn2/8/1bPP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 2 4',
+                    description: 'One of the most respected defenses against 1.d4. Black pins the knight and prepares to double White\'s pawns.',
+                    strength: 'Excellent strategic ideas, flexible, respected at all levels',
+                    weakness: 'Requires understanding of pawn structures and piece play',
+                    continuation: 'After 4.e3 (Rubinstein), play 4...0-0 or 4...c5. After 4.Qc2 (Classical), play 4...0-0 or 4...c5 to challenge the center.',
+                    famous_game: 'Kasparov vs Karpov, Game 11, 1985 World Championship',
+                    famous_game_description: 'Kasparov demonstrated the dynamic potential of the Nimzo-Indian with brilliant piece play and tactical awareness.',
+                    rating: '⭐⭐⭐⭐⭐', level: 'Intermediate to Advanced'
+                },
+                grunfeld: {
+                    name: 'Grünfeld Defense', emoji: '🦅',
+                    moves: '1.d4 Nf6 2.c4 g6 3.Nc3 d5',
+                    fen: 'rnbqkb1r/ppp1ppbp/5np1/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 2 4',
+                    description: 'A hypermodern defense where Black allows White to build a big center, then attacks it with pieces and ...c5.',
+                    strength: 'Dynamic counterplay, active piece play, rich tactical positions',
+                    weakness: 'Gives White central space, requires precise play',
+                    continuation: 'After 4.cxd5 Nxd5 5.e4 Nxc3 6.bxc3 Bg7, Black fianchettoes and attacks the center with ...c5. Sharp, tactical battles ensue.',
+                    famous_game: 'Kasparov vs Karpov, Game 19, 1985 World Championship',
+                    famous_game_description: 'A masterclass in Grünfeld strategy, showing how to fight for the center dynamically and create counterplay.',
+                    rating: '⭐⭐⭐⭐⭐', level: 'Advanced'
+                },
+                pietroff: {
+                    name: "Petroff's Defense", emoji: '🔄',
+                    moves: '1.e4 e5 2.Nf3 Nf6',
+                    fen: 'rnbqkb1r/pppp1ppp/5n2/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 3 3',
+                    description: 'A solid, symmetrical defense. Black mirrors White\'s development, leading to balanced positions.',
+                    strength: 'Very solid, drawish tendencies, good for tournament play',
+                    weakness: 'Can be boring, less winning chances for Black',
+                    continuation: 'After 3.Nxe5 d6 4.Nf3 Nxe4 5.d4, main lines lead to symmetrical positions with equal chances. Focus on piece activity.',
+                    famous_game: 'Kramnik vs Topalov, World Championship 2006',
+                    famous_game_description: 'Kramnik used the Petroff to neutralize Topalov\'s attacking style and successfully drew the match to retain his title.',
+                    rating: '⭐⭐⭐', level: 'Intermediate'
+                },
+                scotch_game: {
+                    name: 'Scotch Game', emoji: '🏴󠁳󠁴',
+                    moves: '1.e4 e5 2.Nf3 Nc6 3.d4',
+                    fen: 'r1bqkbnr/pppp1ppp/2n5/4p3/3PP3/5N2/PPP2PPP/RNBQKB1R b KQkq - 0 3',
+                    description: 'An aggressive opening that immediately challenges Black\'s center. White opens the position early for tactical play.',
+                    strength: 'Opens the game, tactical opportunities, less theory than Ruy Lopez',
+                    weakness: 'Can lead to simplified positions, Black equalizes easily',
+                    continuation: 'After 3...exd4 4.Nxd4, Black plays 4...Nf6 or 4...Bc5. White continues with Nxc6 or Be3.',
+                    famous_game: 'Kasparov vs Karpov, Game 20, 1990 World Championship',
+                    famous_game_description: 'Kasparov used the Scotch to create dynamic positions and outplay Karpov tactically.',
+                    rating: '⭐⭐⭐⭐', level: 'Intermediate'
+                },
+                kings_gambit: {
+                    name: "King's Gambit", emoji: '👑',
+                    moves: '1.e4 e5 2.f4',
+                    fen: 'rnbqkbnr/pppp1ppp/8/4p3/4PP2/8/PPPP2PP/RNBQKBNR b KQkq - 0 2',
+                    description: 'A romantic, aggressive gambit. White sacrifices a pawn for rapid development and attacking chances.',
+                    strength: 'Exciting attacks, development advantage, psychological pressure',
+                    weakness: 'Weakens king position, risky if attack fails',
+                    continuation: 'After 2...exf4 (Accepted), play 3.Nf3. If 2...Bc5 (Declined), continue with Nf3 and develop naturally.',
+                    famous_game: 'Fischer vs Spassky, Game 6, 1972 (declined)',
+                    famous_game_description: 'Though Fischer preferred the King\'s Gambit, this famous game featured a different opening. The gambit remains popular in blitz.',
+                    rating: '⭐⭐⭐', level: 'Intermediate to Advanced'
+                },
+                vienna_game: {
+                    name: 'Vienna Game', emoji: '🇦🇹',
+                    moves: '1.e4 e5 2.Nc3',
+                    fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/2N5/PPPP1PPP/R1BQKBNR b KQkq - 1 2',
+                    description: 'A flexible opening that delays Nf3 to keep options open. Can transpose to various e4 openings.',
+                    strength: 'Flexible, can lead to Vienna Gambit, good for surprise value',
+                    weakness: 'Less direct than other openings, requires understanding of multiple systems',
+                    continuation: 'After 2...Nf6, play 3.f4 (Vienna Gambit) for sharp play, or 3.Bc4 for quieter positions.',
+                    famous_game: 'Anderssen vs Morphy, 1858',
+                    famous_game_description: 'A classic example of the Vienna Game\'s attacking potential in romantic chess.',
+                    rating: '⭐⭐⭐', level: 'Intermediate'
+                },
+                pirc_defense: {
+                    name: 'Pirc Defense', emoji: '🇸',
+                    moves: '1.e4 d6',
+                    fen: 'rnbqkbnr/ppp1pppp/3p4/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+                    description: 'A hypermodern defense where Black allows White to build a center, then undermines it later with ...Nf6 and ...g6.',
+                    strength: 'Flexible, unbalancing, good counter-attacking chances',
+                    weakness: 'Gives White space, requires precise timing',
+                    continuation: 'After 2.d4 Nf6 3.Nc3 g6, Black fianchettoes the bishop and prepares ...Bg7. Play ...Nbd7, ...c6, ...b5 for counterplay.',
+                    famous_game: 'Fischer vs Pirc, 1970',
+                    famous_game_description: 'Pirc demonstrated the defensive resources of this opening against Fischer\'s attacking style.',
+                    rating: '⭐⭐⭐', level: 'Advanced'
+                },
+                alekhine_defense: {
+                    name: 'Alekhine Defense', emoji: '🇨',
+                    moves: '1.e4 Nf6',
+                    fen: 'rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2',
+                    description: 'A provocative defense that invites White to chase the knight and build a big pawn center, which Black then attacks.',
+                    strength: 'Unbalances the game, tempts White to overextend, surprise value',
+                    weakness: 'Gives White space, knight can be harassed',
+                    continuation: 'After 2.e5 Nd5 3.d4 d6, Black challenges the center immediately. Focus on piece activity and undermining pawns.',
+                    famous_game: 'Alekhine vs Nimzowitsch, 1930',
+                    famous_game_description: 'Alekhine demonstrated the dynamic possibilities of his own defense with brilliant piece play.',
+                    rating: '⭐⭐⭐', level: 'Intermediate to Advanced'
+                },
+                slav_defense: {
+                    name: 'Slav Defense', emoji: '🛡️',
+                    moves: '1.d4 d5 2.c4 c6',
+                    fen: 'rnbqkbnr/pp2pppp/2p5/3p4/2PP4/8/PP2PPPP/RNBQKBNR w KQkq - 0 3',
+                    description: 'A solid defense to the Queen\'s Gambit. Black supports d5 with c6 while keeping the light-squared bishop free.',
+                    strength: 'Very solid, good pawn structure, bishop not blocked',
+                    weakness: 'Can be passive, requires understanding of pawn breaks',
+                    continuation: 'After 3.Nf3 Nf6 4.Nc3, Black can play 4...dxc4 (Slav Accepted) or 4...e6 (Semi-Slav). Focus on ...b5 and ...c5 breaks.',
+                    famous_game: 'Botvinnik vs Smyslov, 1954 World Championship',
+                    famous_game_description: 'Botvinnik demonstrated the strategic richness of the Slav with deep positional understanding.',
+                    rating: '⭐⭐⭐⭐', level: 'Intermediate to Advanced'
+                },
+                benoni_defense: {
+                    name: 'Benoni Defense', emoji: '⚡',
+                    moves: '1.d4 Nf6 2.c4 c5',
+                    fen: 'rnbqkb1r/pp1ppppp/5n2/2p5/2PP4/8/PP2PPPP/RNBQKBNR w KQkq - 1 3',
+                    description: 'An ambitious, unbalanced defense. Black allows White a pawn center in exchange for dynamic counterplay on the queenside.',
+                    strength: 'Dynamic counterplay, unbalanced positions, winning chances',
+                    weakness: 'Gives White space, complex theory, risky',
+                    continuation: 'After 3.d5 e6 4.Nc3 exd5 5.cxd5 d6, Black fianchettoes with ...g6 and ...Bg7. Play ...b5, ...Re8 for counterplay.',
+                    famous_game: 'Fischer vs Larsen, 1971 Candidates',
+                    famous_game_description: 'Fischer showcased the Benoni\'s tactical complexity with brilliant sacrifices and attacking play.',
+                    rating: '⭐⭐⭐⭐', level: 'Advanced'
+                },
+                dutch_defense: {
+                    name: 'Dutch Defense', emoji: '🇳',
+                    moves: '1.d4 f5',
+                    fen: 'rnbqkbnr/ppppp1pp/8/5p2/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 2',
+                    description: 'An aggressive, asymmetrical defense. Black immediately fights for e4 and creates an unbalanced position.',
+                    strength: 'Unbalancing, kingside attacking chances, surprise value',
+                    weakness: 'Weakens kingside, complex theory, risky',
+                    continuation: 'After 2.c4 Nf6 3.g3 (Leningrad), play ...g6 and ...Bg7. Or 3.Nf3 e6 (Stonewall) for a solid setup.',
+                    famous_game: 'Stein vs Spassky, 1973',
+                    famous_game_description: 'Spassky demonstrated the Dutch\'s attacking potential with a brilliant kingside assault.',
+                    rating: '⭐⭐⭐', level: 'Intermediate to Advanced'
+                },
+                english_opening: {
+                    name: 'English Opening', emoji: '🇬',
+                    moves: '1.c4',
+                    fen: 'rnbqkbnr/pppppppp/8/8/2P5/8/PP1PPPPP/RNBQKBNR b KQkq - 0 1',
+                    description: 'A flexible, positional opening. White controls d5 and prepares for various setups.',
+                    strength: 'Flexible, can transpose to many openings, good for positional players',
+                    weakness: 'Less direct, requires understanding of multiple systems',
+                    continuation: 'After 1...e5 (Reversed Sicilian) or 1...Nf6, continue with Nc3, g3, Bg2 for a solid setup. Control the center.',
+                    famous_game: 'Karpov vs Kasparov, Game 16, 1985',
+                    famous_game_description: 'Karpov used the English to reach a comfortable positional game against Kasparov.',
+                    rating: '⭐⭐⭐⭐', level: 'Intermediate to Advanced'
+                },
+                reti_opening: {
+                    name: 'Réti Opening', emoji: '🇭🇺',
+                    moves: '1.Nf3',
+                    fen: 'rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq - 1 1',
+                    description: 'A hypermodern opening. White delays pawn moves, developing pieces first and controlling the center from a distance.',
+                    strength: 'Flexible, hypermodern ideas, good for strategic players',
+                    weakness: 'Less direct, can transpose to many openings',
+                    continuation: 'After 1...d5, play 2.c4 (Réti Gambit) or 2.g3 (fianchetto). Focus on piece activity and controlling key squares.',
+                    famous_game: 'Réti vs Capablanca, 1924',
+                    famous_game_description: 'Réti defeated the world champion with his innovative hypermodern approach.',
+                    rating: '⭐⭐⭐', level: 'Intermediate to Advanced'
+                },
+                catalan_opening: {
+                    name: 'Catalan Opening', emoji: '🏔️',
+                    moves: '1.d4 Nf6 2.c4 e6 3.g3',
+                    fen: 'rnbqkb1r/pppp1ppp/4pn2/8/2PP4/6P1/PP2PP1P/RNBQKBNR b KQkq - 0 3',
+                    description: 'A sophisticated opening combining d4 and fianchetto. White controls the center and develops harmoniously.',
+                    strength: 'Solid, positional pressure, good endgame prospects',
+                    weakness: 'Requires understanding of subtle positional ideas',
+                    continuation: 'After 3...d5 4.Bg2, continue with Nf3, 0-0, Nc3. Play for slow pressure and superior pawn structure.',
+                    famous_game: 'Karpov vs Kasparov, Game 22, 1984',
+                    famous_game_description: 'Karpov demonstrated the Catalan\'s positional squeeze with masterful technique.',
+                    rating: '⭐⭐⭐⭐', level: 'Advanced'
+                },
+                bird_opening: {
+                    name: "Bird's Opening", emoji: '🐦',
+                    moves: '1.f4',
+                    fen: 'rnbqkbnr/pppppppp/8/8/5P2/8/PPPPP1PP/RNBQKBNR b KQkq - 0 1',
+                    description: 'An aggressive, unconventional opening. White immediately fights for e5 and prepares kingside play.',
+                    strength: 'Unbalancing, surprise value, kingside attacking chances',
+                    weakness: 'Weakens kingside, less theory available',
+                    continuation: 'After 1...d5, play 2.Nf3 Nf6 3.e3 for a solid setup. Or 2.b3 for a fianchetto system.',
+                    famous_game: 'Bird vs Blackburne, 1880',
+                    famous_game_description: 'Bird demonstrated his opening\'s attacking potential in this classic Victorian-era game.',
+                    rating: '⭐⭐',
+                    level: 'Intermediate'
+                }
+            };
+            
+            const opening = openings[openingId];
+            if (!opening) return;
+            
+            const learnSection = document.getElementById('learnSection');
+            learnSection.innerHTML = `
+                <div style="max-width: 1200px; margin: 0 auto; padding: 40px 20px;">
+                    <button onclick="window.renderLearnSection()" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; font-size: 16px; cursor: pointer; padding: 10px 20px; border-radius: 8px; margin-bottom: 30px; transition: all 0.2s;" 
+                            onmouseover="this.style.background='rgba(255, 255, 255, 0.2)'" 
+                            onmouseout="this.style.background='rgba(255, 255, 255, 0.1)'">← Back to Openings</button>
+                    
+                    <div style="text-align: center; margin-bottom: 40px;">
+                        <div style="font-size: 80px; margin-bottom: 20px;">${opening.emoji}</div>
+                        <h1 style="color: #fff; margin: 0 0 10px 0; font-size: 42px; font-weight: bold;">${opening.name}</h1>
+                        <div style="color: rgba(255, 255, 255, 0.6); font-size: 18px; margin-bottom: 15px;">${opening.level} | ${opening.rating}</div>
+                        <div style="background: rgba(0, 0, 0, 0.3); display: inline-block; padding: 12px 24px; border-radius: 8px; font-family: monospace; color: #769656; font-size: 16px;">
+                            ${opening.moves}
+                        </div>
+                    </div>
+                    
+                    <div id="openingBoard" style="width: 400px; height: 400px; margin: 0 auto 40px auto; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);"></div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; margin-bottom: 40px;">
+                        <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 25px;">
+                            <h3 style="color: #fff; margin: 0 0 15px 0; font-size: 22px;">📖 Overview</h3>
+                            <p style="color: rgba(255, 255, 255, 0.8); margin: 0; font-size: 15px; line-height: 1.7;">${opening.description}</p>
+                        </div>
+                        <div style="background: rgba(76, 175, 80, 0.1); border: 1px solid rgba(76, 175, 80, 0.3); border-radius: 12px; padding: 25px;">
+                            <h3 style="color: #4CAF50; margin: 0 0 15px 0; font-size: 22px;">💪 Strengths</h3>
+                            <p style="color: rgba(255, 255, 255, 0.8); margin: 0; font-size: 15px; line-height: 1.7;">${opening.strength}</p>
+                        </div>
+                        <div style="background: rgba(244, 67, 54, 0.1); border: 1px solid rgba(244, 67, 54, 0.3); border-radius: 12px; padding: 25px;">
+                            <h3 style="color: #f44336; margin: 0 0 15px 0; font-size: 22px;">⚠️ Weaknesses</h3>
+                            <p style="color: rgba(255, 255, 255, 0.8); margin: 0; font-size: 15px; line-height: 1.7;">${opening.weakness}</p>
+                        </div>
+                        <div style="background: rgba(33, 150, 243, 0.1); border: 1px solid rgba(33, 150, 243, 0.3); border-radius: 12px; padding: 25px;">
+                            <h3 style="color: #2196F3; margin: 0 0 15px 0; font-size: 22px;">🎯 How to Continue</h3>
+                            <p style="color: rgba(255, 255, 255, 0.8); margin: 0; font-size: 15px; line-height: 1.7;">${opening.continuation}</p>
+                        </div>
+                    </div>
+                    
+                    <div style="background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 165, 0, 0.1)); border: 2px solid rgba(255, 215, 0, 0.3); border-radius: 12px; padding: 30px;">
+                        <h3 style="color: #FFD700; margin: 0 0 15px 0; font-size: 24px;">🏆 Famous Game</h3>
+                        <div style="color: #fff; font-size: 18px; font-weight: 600; margin-bottom: 10px;">${opening.famous_game}</div>
+                        <p style="color: rgba(255, 255, 255, 0.8); margin: 0; font-size: 15px; line-height: 1.7;">${opening.famous_game_description}</p>
+                    </div>
+                </div>
+            `;
+            
+            setTimeout(() => renderOpeningBoard(opening.fen), 100);
+        };
+        
+        function renderOpeningBoard(fen) {
+            const board = document.getElementById('openingBoard');
+            if (!board) return;
+            
+            const pieceMap = {
+                'K': '♔', 'Q': '♕', 'R': '♖', 'B': '♗', 'N': '♘', 'P': '♙',
+                'k': '♚', 'q': '♛', 'r': '♜', 'b': '♝', 'n': '♞', 'p': '♟'
+            };
+            
+            const boardPart = fen.split(' ')[0];
+            const rows = boardPart.split('/');
+            
+            let html = '<div style="display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); width: 100%; height: 100%;">';
+            
+            for (let rank = 0; rank < 8; rank++) {
+                for (let file = 0; file < 8; file++) {
+                    const isLight = (file + rank) % 2 === 0;
+                    const color = isLight ? '#eeeed2' : '#769656';
+                    let piece = '';
+                    
+                    if (rank < rows.length) {
+                        let fileIndex = 0;
+                        for (let char of rows[rank]) {
+                            if (char >= '1' && char <= '8') {
+                                fileIndex += parseInt(char);
+                            } else {
+                                if (fileIndex === file) {
+                                    piece = pieceMap[char] || '';
+                                    break;
+                                }
+                                fileIndex++;
+                            }
+                        }
+                    }
+                    
+                    html += `<div style="background: ${color}; display: flex; align-items: center; justify-content: center; font-size: 36px;">${piece}</div>`;
+                }
+            }
+            
+            html += '</div>';
+            board.innerHTML = html;
+        }
+        
+        window.closeLearnSection = () => {
+            document.getElementById('learnSection').style.display = 'none';
+            document.getElementById('sidebarMenu').style.left = '0';
+        };
     }
 
     async analyzeGame() {
