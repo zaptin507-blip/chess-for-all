@@ -1225,6 +1225,11 @@ class ChessGame {
     }
 
     displayWinProbability() {
+        // Guard: winProbability might not be initialized yet during init()
+        if (!this.winProbability) {
+            return;
+        }
+        
         let probDisplay = document.getElementById('winProbability');
         
         if (!probDisplay) {
@@ -1530,109 +1535,12 @@ class ChessGame {
         
         
         // Hide config panel and start game
-        document.getElementById('gameConfigPanel').style.display = 'none';
+        const configPanel = document.getElementById('gameConfigPanel');
+        if (configPanel) {
+            configPanel.style.display = 'none';
+        }
         this.updateBotDisplay();
         this.startGame();
-    }
-
-    showGameSetupModal() {
-        const modal = document.getElementById('gameSetupModal');
-        modal.style.display = 'flex';
-        
-        // Reset to step 1
-        this.showSections(['step1'], ['step2', 'step3']);
-        
-        // Remove old listeners to prevent duplicates
-        const newGodBot = document.getElementById('chooseGodBot').cloneNode(true);
-        const newMrsTong = document.getElementById('chooseMrsTong').cloneNode(true);
-        const newWhite = document.getElementById('chooseWhite').cloneNode(true);
-        const newBlack = document.getElementById('chooseBlack').cloneNode(true);
-        const newRandom = document.getElementById('chooseRandom').cloneNode(true);
-        const newBullet = document.getElementById('chooseBullet').cloneNode(true);
-        const newBlitz = document.getElementById('chooseBlitz').cloneNode(true);
-        const newRapid = document.getElementById('chooseRapid').cloneNode(true);
-        const newInfinite = document.getElementById('chooseInfinite').cloneNode(true);
-        const newBackToStep1 = document.getElementById('backToStep1').cloneNode(true);
-        const newBackToStep2 = document.getElementById('backToStep2').cloneNode(true);
-        
-        document.getElementById('chooseGodBot').parentNode.replaceChild(newGodBot, document.getElementById('chooseGodBot'));
-        document.getElementById('chooseMrsTong').parentNode.replaceChild(newMrsTong, document.getElementById('chooseMrsTong'));
-        document.getElementById('chooseWhite').parentNode.replaceChild(newWhite, document.getElementById('chooseWhite'));
-        document.getElementById('chooseBlack').parentNode.replaceChild(newBlack, document.getElementById('chooseBlack'));
-        document.getElementById('chooseRandom').parentNode.replaceChild(newRandom, document.getElementById('chooseRandom'));
-        document.getElementById('chooseBullet').parentNode.replaceChild(newBullet, document.getElementById('chooseBullet'));
-        document.getElementById('chooseBlitz').parentNode.replaceChild(newBlitz, document.getElementById('chooseBlitz'));
-        document.getElementById('chooseRapid').parentNode.replaceChild(newRapid, document.getElementById('chooseRapid'));
-        document.getElementById('chooseInfinite').parentNode.replaceChild(newInfinite, document.getElementById('chooseInfinite'));
-        document.getElementById('backToStep1').parentNode.replaceChild(newBackToStep1, document.getElementById('backToStep1'));
-        document.getElementById('backToStep2').parentNode.replaceChild(newBackToStep2, document.getElementById('backToStep2'));
-        
-        // Step 1: Bot selection
-        newGodBot.addEventListener('click', () => {
-            this.selectedBot = 'god';
-            this.updateBotDisplay();
-            this.showSections(['step2'], ['step1']);
-        });
-        
-        newMrsTong.addEventListener('click', () => {
-            this.selectedBot = 'mrstong';
-            this.updateBotDisplay();
-            this.showSections(['step2'], ['step1']);
-        });
-        
-        // Step 2: Color selection
-        newWhite.addEventListener('click', () => {
-            this.playerColor = 'w';
-            this.showSections(['step3'], ['step2']);
-        });
-        
-        newBlack.addEventListener('click', () => {
-            this.playerColor = 'b';
-            this.showSections(['step3'], ['step2']);
-        });
-        
-        newRandom.addEventListener('click', () => {
-            this.playerColor = Math.random() < 0.5 ? 'w' : 'b';
-            this.showSections(['step3'], ['step2']);
-        });
-        
-        // Back buttons
-        newBackToStep1.addEventListener('click', () => {
-            this.showSections(['step1'], ['step2']);
-        });
-        
-        newBackToStep2.addEventListener('click', () => {
-            this.showSections(['step2'], ['step3']);
-        });
-        
-        // Step 3: Time control selection
-        newBullet.addEventListener('click', () => {
-            this.timerMode = 'bullet';
-            modal.style.display = 'none';
-            this.updateBotDisplay();
-            this.startGame();
-        });
-        
-        newBlitz.addEventListener('click', () => {
-            this.timerMode = 'blitz';
-            modal.style.display = 'none';
-            this.updateBotDisplay();
-            this.startGame();
-        });
-        
-        newRapid.addEventListener('click', () => {
-            this.timerMode = 'rapid';
-            modal.style.display = 'none';
-            this.updateBotDisplay();
-            this.startGame();
-        });
-        
-        newInfinite.addEventListener('click', () => {
-            this.timerMode = 'infinite';
-            modal.style.display = 'none';
-            this.updateBotDisplay();
-            this.startGame();
-        });
     }
 
     startGame() {
@@ -5480,12 +5388,19 @@ if (auth) {
                 sidebarUserProfile.style.display = 'flex';
                 console.log('✅ Sidebar profile shown');
             }
+            // Hide the old "Guest" user section when logged in
+            const oldUserSection = document.getElementById('oldUserSection');
+            if (oldUserSection) {
+                oldUserSection.style.display = 'none';
+            }
             if (sidebarToggle) sidebarToggle.style.display = 'block';
             if (userDisplayName) userDisplayName.textContent = displayName + (isAdmin ? ' 👑' : '');
             if (sidebarUserDisplayName) {
                 sidebarUserDisplayName.textContent = displayName + (isAdmin ? ' 👑' : '');
                 console.log('✅ Sidebar display name set to:', displayName + (isAdmin ? ' 👑' : ''));
             }
+            
+            // Also update the legacy sidebarUsername element (Guest placeholder) - handled below at line 5420
             
             // Load user's saved preferences on login
             if (window.chessGame) {
@@ -5503,7 +5418,7 @@ if (auth) {
             
             // Update sidebar username
             const sidebarUsername = document.getElementById('sidebarUsername');
-            if (sidebarUsername) sidebarUsername.textContent = displayName;
+            if (sidebarUsername) sidebarUsername.textContent = displayName + (isAdmin ? ' 👑' : '');
             
             // Update sidebar ELO/Rating
             const sidebarELO = document.getElementById('sidebarELO');
@@ -5560,6 +5475,11 @@ if (auth) {
             const sidebarToggle = document.getElementById('sidebarToggle');
             if (userProfile) userProfile.style.display = 'none';
             if (sidebarUserProfile) sidebarUserProfile.style.display = 'none';
+            // Show the old "Guest" user section when logged out
+            const oldUserSection = document.getElementById('oldUserSection');
+            if (oldUserSection) {
+                oldUserSection.style.display = '';
+            }
             if (sidebarToggle) sidebarToggle.style.display = 'none';
             hideAdminPanel();
             // Hide sidebar when logout
@@ -5805,6 +5725,8 @@ ChessGame.prototype.applyPieceStyle = function(style) {
         if (style === 'unicode') {
             // Show Unicode chess symbols
             const pieceKey = pieceEl.dataset.piece;
+            // Guard: skip if pieceKey is missing
+            if (!pieceKey) return;
             const unicodePieces = {
                 'wK': '♔', 'wQ': '♕', 'wR': '♖', 'wB': '♗', 'wN': '♘', 'wP': '♙',
                 'bK': '♚', 'bQ': '♛', 'bR': '♜', 'bB': '♝', 'bN': '♞', 'bP': '♟'
@@ -5813,6 +5735,8 @@ ChessGame.prototype.applyPieceStyle = function(style) {
         } else {
             // Use SVG pieces (cburnett style)
             const pieceKey = pieceEl.dataset.piece;
+            // Guard: skip if pieceKey is missing
+            if (!pieceKey) return;
             const svgCode = this.pieceSVG[pieceKey];
             if (svgCode) {
                 pieceEl.innerHTML = svgCode;
