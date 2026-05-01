@@ -4218,11 +4218,11 @@ class ChessGame {
                         window.chessGame.playerColor = Math.random() < 0.5 ? 'w' : 'b';
                     }
                     
-// console.log('Game settings:', {
-                        bot: window.chessGame.selectedBot,
-                        time: window.chessGame.timerMode,
-                        color: window.chessGame.playerColor
-                    });
+                    // console.log('Game settings:', {
+                    //     bot: window.chessGame.selectedBot,
+                    //     time: window.chessGame.timerMode,
+                    //     color: window.chessGame.playerColor
+                    // });
                     
                     // Hide both UIs
                     if (chessSidebar) chessSidebar.style.display = 'none';
