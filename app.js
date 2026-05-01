@@ -5388,19 +5388,12 @@ if (auth) {
                 sidebarUserProfile.style.display = 'flex';
                 console.log('✅ Sidebar profile shown');
             }
-            // Hide the old "Guest" user section when logged in
-            const oldUserSection = document.getElementById('oldUserSection');
-            if (oldUserSection) {
-                oldUserSection.style.display = 'none';
-            }
             if (sidebarToggle) sidebarToggle.style.display = 'block';
             if (userDisplayName) userDisplayName.textContent = displayName + (isAdmin ? ' 👑' : '');
             if (sidebarUserDisplayName) {
                 sidebarUserDisplayName.textContent = displayName + (isAdmin ? ' 👑' : '');
                 console.log('✅ Sidebar display name set to:', displayName + (isAdmin ? ' 👑' : ''));
             }
-            
-            // Also update the legacy sidebarUsername element (Guest placeholder) - handled below at line 5420
             
             // Load user's saved preferences on login
             if (window.chessGame) {
@@ -5415,10 +5408,6 @@ if (auth) {
             // Update player name in game UI
             const playerName = document.getElementById('playerName');
             if (playerName) playerName.textContent = displayName;
-            
-            // Update sidebar username
-            const sidebarUsername = document.getElementById('sidebarUsername');
-            if (sidebarUsername) sidebarUsername.textContent = displayName + (isAdmin ? ' 👑' : '');
             
             // Update sidebar ELO/Rating
             const sidebarELO = document.getElementById('sidebarELO');
@@ -5474,18 +5463,12 @@ if (auth) {
             const sidebarUserProfile = document.getElementById('sidebarUserProfile');
             const sidebarToggle = document.getElementById('sidebarToggle');
             if (userProfile) userProfile.style.display = 'none';
-            if (sidebarUserProfile) sidebarUserProfile.style.display = 'none';
-            // Show the old "Guest" user section when logged out
-            const oldUserSection = document.getElementById('oldUserSection');
-            if (oldUserSection) {
-                oldUserSection.style.display = '';
-            }
+            // Don't hide sidebarUserProfile - it shows default "Guest" text when logged out
             if (sidebarToggle) sidebarToggle.style.display = 'none';
             hideAdminPanel();
-            // Hide sidebar when logout
-            const sidebar = document.getElementById('sidebarMenu');
-            if (sidebar) sidebar.style.left = '-300px';
-            // Reset sidebar ELO
+            // Reset sidebar user info to defaults
+            const sidebarUserDisplayName = document.getElementById('sidebarUserDisplayName');
+            if (sidebarUserDisplayName) sidebarUserDisplayName.textContent = 'Guest';
             const sidebarELO = document.getElementById('sidebarELO');
             if (sidebarELO) sidebarELO.textContent = 'Rating: ---';
         }
@@ -6118,14 +6101,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update all displays
         const userDisplayName = document.getElementById('userDisplayName');
         const sidebarUserDisplayName = document.getElementById('sidebarUserDisplayName');
-        const sidebarUsername = document.getElementById('sidebarUsername');
         const playerName = document.getElementById('playerName');
         
         const displayName = newName + (isAdmin ? ' 👑' : '');
         
         if (userDisplayName) userDisplayName.textContent = displayName;
         if (sidebarUserDisplayName) sidebarUserDisplayName.textContent = displayName;
-        if (sidebarUsername) sidebarUsername.textContent = displayName;
         if (playerName) playerName.textContent = newName;
         
         // Close modal
