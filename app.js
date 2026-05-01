@@ -75,8 +75,12 @@ class ChessGame {
                 }
                 sound.volume = sound.volume || 1.0;
                 sound.currentTime = 0;
-                sound.play().catch(() => {});
-            } catch (e) {}
+                sound.play().catch(() => {
+                    // Silent fail if sound can't play (browser policy)
+                });
+            } catch (e) {
+                // Silent fail if sound file doesn't exist
+            }
         }.bind(this);
         
         // Background music methods for Blitz/Bullet
@@ -1717,13 +1721,13 @@ class ChessGame {
             if (this.timerMode !== 'infinite') {
                 this.startTimer();
             }
-            console.log('Making bot move after 500ms delay...');
+// console.log('Making bot move after 500ms delay...');
             setTimeout(() => {
-                console.log('Executing bot move now...');
+// console.log('Executing bot move now...');
                 this.makeBotMove();
             }, 500);
         } else {
-            console.log('Player is white, player moves first');
+// console.log('Player is white, player moves first');
             this.currentTurn = 'player';
             // Show correct message based on game mode
             if (this.gameMode === 'practice') {
@@ -1884,10 +1888,10 @@ class ChessGame {
     }
 
     renderBoard() {
-        console.log('Rendering board...');
+// console.log('Rendering board...');
         this.board.innerHTML = '';
         const position = this.chess.board();
-        console.log('Chess position:', position);
+// console.log('Chess position:', position);
 
         // Render coordinates
         this.renderCoordinates();
@@ -1962,7 +1966,7 @@ class ChessGame {
             }
         }
 
-        console.log('Board rendered with 64 squares');
+// console.log('Board rendered with 64 squares');
         this.showLegalMoves();
         
         // Apply saved board theme after rendering
@@ -2036,7 +2040,7 @@ class ChessGame {
                 
                 // Check for hanging piece in practice mode
                 if (this.gameMode === 'practice') {
-                    console.log("Checking for hanging piece in practice mode...");                    const hangingPiece = this.detectHangingPiece();
+// console.log("Checking for hanging piece in practice mode...");                    const hangingPiece = this.detectHangingPiece();
                     if (hangingPiece) {
                         // Show popup asking if they want to undo
                         this.showHangingPiecePopup(hangingPiece, fenBefore);
@@ -2092,8 +2096,8 @@ class ChessGame {
 
     // Drag and Drop Handlers
     handleDragStart(e, square) {
-        console.log('  - gameOver:', this.gameOver, 'gameStarted:', this.gameStarted);
-        console.log('  - playerColor:', this.playerColor, 'turn:', this.chess.turn());
+// console.log('  - gameOver:', this.gameOver, 'gameStarted:', this.gameStarted);
+// console.log('  - playerColor:', this.playerColor, 'turn:', this.chess.turn());
         
         if (this.gameOver || !this.gameStarted) {
             e.preventDefault();
@@ -2152,7 +2156,7 @@ class ChessGame {
         const sourceSquare = this.draggedPiece;
         if (!sourceSquare) return;
         
-        console.log(' Dropped from', sourceSquare, 'to', targetSquare);
+// console.log(' Dropped from', sourceSquare, 'to', targetSquare);
         
         // Attempt the move
         const piece = this.chess.get(sourceSquare);
@@ -2269,7 +2273,7 @@ class ChessGame {
         // If opponent can capture 2 or more pieces, it's a fork - don't show warning
         // because there's no good move anyway
         if (hangingPieces.length >= 2) {
-            console.log(' Fork detected - multiple pieces hanging, no warning shown');
+// console.log(' Fork detected - multiple pieces hanging, no warning shown');
             return null;
         }
         
@@ -2278,7 +2282,7 @@ class ChessGame {
             // Sort by piece value (queen > rook > bishop/knight > pawn)
             const pieceValues = { q: 9, r: 5, b: 3, n: 3, p: 1, k: 0 };
             hangingPieces.sort((a, b) => pieceValues[b.piece.type] - pieceValues[a.piece.type]);
-            console.log(' Hanging piece detected:', hangingPieces[0].pieceName, 'on', hangingPieces[0].square);
+// console.log(' Hanging piece detected:', hangingPieces[0].pieceName, 'on', hangingPieces[0].square);
             return hangingPieces[0]; // Return the most valuable hanging piece
         }
         
@@ -2415,10 +2419,10 @@ class ChessGame {
     }
 
     async makeBotMove() {
-        console.log('🤖 makeBotMove called!');
-        console.log('gameOver:', this.gameOver, 'gameStarted:', this.gameStarted);
-        console.log('stockfish engine:', this.stockfish);
-        console.log('selectedBot:', this.selectedBot);
+// console.log('🤖 makeBotMove called!');
+// console.log('gameOver:', this.gameOver, 'gameStarted:', this.gameStarted);
+// console.log('stockfish engine:', this.stockfish);
+// console.log('selectedBot:', this.selectedBot);
         
         if (this.gameOver || !this.gameStarted) {
             return;
@@ -2440,8 +2444,8 @@ class ChessGame {
         this.statusDisplay.textContent = `${botName} is thinking...`;
 
         const fen = this.chess.fen();
-        console.log('Current FEN:', fen);
-        console.log('Sending position to stockfish...');
+// console.log('Current FEN:', fen);
+// console.log('Sending position to stockfish...');
         
         const listener = (event) => {
             const match = event.data.match(/^bestmove\s+(\S+)/);
@@ -2514,7 +2518,7 @@ class ChessGame {
                 depth = 15 + Math.floor((this.engineElo - 2000) / 100);
             }
             depth = Math.min(20, Math.max(1, depth));
-            console.log(`Practice mode - ELO: ${this.engineElo}, Depth: ${depth}`);
+// console.log(`Practice mode - ELO: ${this.engineElo}, Depth: ${depth}`);
             this.stockfish.postMessage(`go depth ${depth}`);
         } else {
             // Boss battle mode: Use fixed depth per bot
@@ -2522,7 +2526,7 @@ class ChessGame {
             // mrs.Tong: depth 10 (intermediate-advanced level)
             // The Tester: depth 8 (neutral level for rating)
             const depth = this.selectedBot === 'mrstong' ? 10 : (this.selectedBot === 'tester' ? 8 : 16);
-            console.log(`Boss battle - Bot: ${this.selectedBot}, Depth: ${depth}`);
+// console.log(`Boss battle - Bot: ${this.selectedBot}, Depth: ${depth}`);
             this.stockfish.postMessage(`go depth ${depth}`);
         }
         
@@ -2549,7 +2553,9 @@ class ChessGame {
     }
     
     async analyzeAllMoves() {
+        console.log('⏳ analyzeAllMoves called!');
         if (this.selectedBot !== 'tester' || !this.ratingData.pendingMoves || this.ratingData.pendingMoves.length === 0) {
+            console.log('⚠️ analyzeAllMoves: skipping - not tester or no pending moves');
             return;
         }
         
@@ -2583,7 +2589,7 @@ class ChessGame {
                 
                 if (isForced) {
                     forcedMoves++;
-                    console.log(`🔒 Move ${i + 1}: ${moveData.san} - FORCED (skipped from rating)`);
+// console.log(`🔒 Move ${i + 1}: ${moveData.san} - FORCED (skipped from rating)`);
                     continue; // Skip this move from analysis
                 }
                                 // Get position evaluation before the move (from White's perspective)
@@ -2615,7 +2621,7 @@ class ChessGame {
                     centipawnLoss = Math.max(0, evalAfter - evalBefore);
                 }
                 
-                console.log(`Move ${i + 1}: ${moveData.san} | ${isWhiteTurn ? 'White' : 'Black'} | Eval: ${evalBefore} → ${evalAfter} | CPL: ${centipawnLoss}`);
+// console.log(`Move ${i + 1}: ${moveData.san} | ${isWhiteTurn ? 'White' : 'Black'} | Eval: ${evalBefore} → ${evalAfter} | CPL: ${centipawnLoss}`);
                 
                 totalCentipawnLoss += centipawnLoss;
                 
@@ -2644,7 +2650,7 @@ class ChessGame {
                         if (wasSacrifice && !isCapture && !hasCheck) {
                             isBrilliant = true;
                             brilliantMoves++;
-                            console.log(`✨ BRILLIANT MOVE: ${moveData.san} (sacrifice + quiet)`);
+// console.log(`✨ BRILLIANT MOVE: ${moveData.san} (sacrifice + quiet)`);
                         }
                     }
                 }
@@ -2668,7 +2674,7 @@ class ChessGame {
                     }
                 }
                 
-                console.log(`Move ${i + 1}: ${moveData.san} - CPL: ${centipawnLoss}${isBrilliant ? ' ✨BRILLIANT' : ''}`);
+// console.log(`Move ${i + 1}: ${moveData.san} - CPL: ${centipawnLoss}${isBrilliant ? ' ✨BRILLIANT' : ''}`);
             } catch (error) {
                 console.error(`Error analyzing move ${i + 1}:`, error);
                 // Assume moderate error if analysis fails
@@ -2687,16 +2693,16 @@ class ChessGame {
         this.ratingData.moveCount = moveCount;
         this.ratingData.result = playerLost ? 'loss' : (playerWon ? 'win' : 'draw');
         
-        console.log('📊 Analysis Complete:');
-        console.log('  - Total centipawn loss:', totalCentipawnLoss);
-        console.log('  - Average CPL:', Math.round(totalCentipawnLoss / moveCount));
-        console.log('  - 🔒 Forced moves:', forcedMoves, '(not rated)');
-        console.log('  - ✨ Brilliant moves:', brilliantMoves);
-        console.log('  - ⭐ Best moves:', bestMoves);
-        console.log('  - 👍 Good moves:', goodMoves);
-        console.log('  - ⚡ Inaccuracies:', inaccuracies);
-        console.log('  - Mistakes:', mistakes);
-        console.log('  - Blunders:', blunders);
+// console.log('📊 Analysis Complete:');
+// console.log('  - Total centipawn loss:', totalCentipawnLoss);
+// console.log('  - Average CPL:', Math.round(totalCentipawnLoss / moveCount));
+// console.log('  - 🔒 Forced moves:', forcedMoves, '(not rated)');
+// console.log('  - ✨ Brilliant moves:', brilliantMoves);
+// console.log('  - ⭐ Best moves:', bestMoves);
+// console.log('  - 👍 Good moves:', goodMoves);
+// console.log('  - ⚡ Inaccuracies:', inaccuracies);
+// console.log('  - Mistakes:', mistakes);
+// console.log('  - Blunders:', blunders);
         
         // Calculate ELO based on comprehensive metrics
         // Range: 200-3000
@@ -2715,35 +2721,37 @@ class ChessGame {
         
         // Factor 2: Move quality (centipawn loss)
         const avgCentipawnLoss = totalCentipawnLoss / moveCount;
-        console.log(' Average CPL:', avgCentipawnLoss);
+// console.log(' Average CPL:', avgCentipawnLoss);
         
         // Scale ELO based on average centipawn loss
-        // 0 CPL = 3000 ELO (perfect play)
-        // 50 CPL = 2500 ELO (master)
-        // 100 CPL = 2000 ELO (expert)
-        // 200 CPL = 1500 ELO (intermediate)
-        // 300 CPL = 1000 ELO (beginner)
-        // 500+ CPL = 400 ELO (novice)
+        // Lower CPL = higher ELO (better player)
+        // 0-20 CPL = 2800+ ELO (Grandmaster)
+        // 20-50 CPL = 2400 ELO (Master)
+        // 50-100 CPL = 2000 ELO (Expert)
+        // 100-200 CPL = 1500 ELO (Intermediate)
+        // 200-350 CPL = 1000 ELO (Beginner)
+        // 350-500 CPL = 600 ELO (Novice)
+        // 500+ CPL = 300 ELO (Very beginner)
         
-        if (avgCentipawnLoss < 30) {
-            estimatedELO = Math.max(estimatedELO, 2700); // Grandmaster level
-        } else if (avgCentipawnLoss < 60) {
-            estimatedELO = Math.max(estimatedELO, 2300); // Master level
+        if (avgCentipawnLoss < 20) {
+            estimatedELO = Math.min(estimatedELO + 800, 3000); // Grandmaster level
+        } else if (avgCentipawnLoss < 50) {
+            estimatedELO = Math.min(estimatedELO + 600, 2800); // Master level
         } else if (avgCentipawnLoss < 100) {
-            estimatedELO = Math.max(estimatedELO, 1900); // Expert
-        } else if (avgCentipawnLoss < 150) {
-            estimatedELO = Math.max(estimatedELO, 1500); // Intermediate
-        } else if (avgCentipawnLoss < 250) {
-            estimatedELO = Math.max(estimatedELO, 1100); // Beginner
-        } else if (avgCentipawnLoss < 400) {
-            estimatedELO = Math.max(estimatedELO, 600); // Novice
+            estimatedELO = Math.min(estimatedELO + 300, 2400); // Expert
+        } else if (avgCentipawnLoss < 200) {
+            estimatedELO = Math.min(estimatedELO + 100, 1800); // Intermediate
+        } else if (avgCentipawnLoss < 350) {
+            estimatedELO = Math.max(estimatedELO - 200, 800); // Beginner
+        } else if (avgCentipawnLoss < 500) {
+            estimatedELO = Math.max(estimatedELO - 500, 500); // Novice
         } else {
-            estimatedELO = Math.max(estimatedELO, 300); // Very beginner
+            estimatedELO = Math.max(estimatedELO - 800, 200); // Very beginner
         }
         
         // Factor 3: Blunder rate
         const blunderRate = blunders / moveCount;
-        console.log('📉 Blunder rate:', (blunderRate * 100).toFixed(1) + '%');
+// console.log('📉 Blunder rate:', (blunderRate * 100).toFixed(1) + '%');
         
         if (blunderRate > 0.4) {
             estimatedELO -= 500; // Very high blunder rate
@@ -2757,7 +2765,7 @@ class ChessGame {
         
         // Factor 4: Best move rate
         const bestMoveRate = bestMoves / moveCount;
-        console.log('🎯 Best move rate:', (bestMoveRate * 100).toFixed(1) + '%');
+// console.log('🎯 Best move rate:', (bestMoveRate * 100).toFixed(1) + '%');
         
         if (bestMoveRate > 0.7) {
             estimatedELO += 400; // Exceptional accuracy
@@ -2787,13 +2795,13 @@ class ChessGame {
         
         this.ratingData.estimatedELO = estimatedELO;
         
-        console.log('\n🏆 FINAL ELO ESTIMATION:');
-        console.log('  - Estimated ELO:', estimatedELO);
-        console.log('  - Move count:', moveCount);
-        console.log('  - Game result:', this.ratingData.result);
-        console.log('  - Avg centipawn loss:', Math.round(avgCentipawnLoss));
-        console.log('  - Blunders:', blunders);
-        console.log('  - Best moves:', bestMoves);
+// console.log('\n🏆 FINAL ELO ESTIMATION:');
+// console.log('  - Estimated ELO:', estimatedELO);
+// console.log('  - Move count:', moveCount);
+// console.log('  - Game result:', this.ratingData.result);
+// console.log('  - Avg centipawn loss:', Math.round(avgCentipawnLoss));
+// console.log('  - Blunders:', blunders);
+// console.log('  - Best moves:', bestMoves);
         
         // Store the estimate
         localStorage.setItem('testerEstimatedELO', estimatedELO.toString());
@@ -3175,13 +3183,18 @@ class ChessGame {
     }
     
     showRatingModal() {
+        console.log('🟢 showRatingModal called!');
+        console.log('📊 ratingData.estimatedELO:', this.ratingData.estimatedELO);
+        console.log('📊 ratingData.moveCount:', this.ratingData.moveCount);
         
         const result = this.calculateELO();
         if (!result) {
+            console.error('❌ calculateELO returned null!');
             alert('Not enough moves to estimate ELO. Play at least 3 moves.');
             return;
         }
         
+        console.log('✅ Rating result:', result);
         
         const ratingResult = document.getElementById('ratingResult');
         ratingResult.innerHTML = `
@@ -3565,10 +3578,11 @@ class ChessGame {
     }
 
     updateStatus() {
-        console.log('updateStatus called, game_over:', this.chess.game_over());
+// console.log('updateStatus called, game_over:', this.chess.game_over());
         if (this.chess.game_over()) {
-            console.log('Game is over! Calling handleGameOver');
+// console.log('Game is over! Calling handleGameOver');
             this.gameOver = true;
+            // Call handleGameOver() which will run async analysis for The Tester
             this.handleGameOver();
             return;
         }
@@ -3580,7 +3594,7 @@ class ChessGame {
         const turn = this.chess.turn() === this.playerColor ? 'Your' : (this.gameMode === 'practice' ? "Engine's" : botName);
         const inCheck = this.chess.in_check() ? ' - CHECK!' : '';
         
-        console.log('updateStatus - chess.turn():', this.chess.turn(), 'playerColor:', this.playerColor, 'display turn:', turn);
+// console.log('updateStatus - chess.turn():', this.chess.turn(), 'playerColor:', this.playerColor, 'display turn:', turn);
         this.statusDisplay.textContent = `${turn} turn${inCheck}`;
         
         // Update opening display
@@ -3596,6 +3610,7 @@ class ChessGame {
     }
 
     async handleGameOver() {
+        console.log('🔴 handleGameOver called! selectedBot:', this.selectedBot, 'gameMode:', this.gameMode);
         // Stop the timer when game ends
         this.stopTimer();
         
@@ -3645,15 +3660,15 @@ class ChessGame {
         modal.style.display = 'flex';
 
         // Show rating modal for The Tester
-        console.log('handleGameOver - checking if tester, selectedBot:', this.selectedBot);
+        console.log('🔵 handleGameOver - checking if tester, selectedBot:', this.selectedBot);
         if (this.selectedBot === 'tester') {
-            console.log('The Tester game over! pendingMoves:', this.ratingData.pendingMoves?.length || 0);
+            console.log('✅ The Tester game over! pendingMoves:', this.ratingData.pendingMoves?.length || 0);
             
             try {
-                console.log('Starting analyzeAllMoves...');
+                console.log('⏳ Starting analyzeAllMoves...');
                 await this.analyzeAllMoves();
-                console.log('analyzeAllMoves completed');
-                console.log('Estimated ELO:', this.ratingData.estimatedELO);
+                console.log('✅ analyzeAllMoves completed');
+                console.log('📊 Estimated ELO:', this.ratingData.estimatedELO);
                 
                 // Check if we have enough data
                 if (!this.ratingData.estimatedELO) {
@@ -3664,24 +3679,24 @@ class ChessGame {
                 
                 // Show rating modal after a delay (after game over modal is visible)
                 setTimeout(() => {
-                    console.log('Showing rating modal now...');
+                    console.log('🟢 Showing rating modal now...');
                     this.showRatingModal();
                     
                     // After showing rating, calculate ELO boost
                     const estimatedELO = this.ratingData.estimatedELO || 1200;
                     setTimeout(() => {
-                        console.log('Applying ELO boost...');
+                        console.log('🟡 Applying ELO boost for:', estimatedELO);
                         this.calculateELOBoost(estimatedELO);
                     }, 2000);
                 }, 1000);
             } catch (error) {
-                console.error('Error during ELO analysis:', error);
+                console.error('❌ Error during ELO analysis:', error);
                 console.error('Error stack:', error.stack);
                 // Show error message
                 alert('Error calculating ELO: ' + error.message);
             }
         } else {
-            console.log('Not The Tester, skipping ELO analysis');
+            console.log('⚪ Not The Tester, skipping ELO analysis');
         }
 
         // Auto-analyze when game ends
@@ -3763,7 +3778,7 @@ class ChessGame {
         const playAgainBtn = document.getElementById('playAgain');
         if (playAgainBtn) {
             playAgainBtn.addEventListener('click', () => {
-                console.log('🔄 Play Again button clicked');
+// console.log('🔄 Play Again button clicked');
                 this.showSections([], ['gameOverModal']);
                 
                 // Save current settings before reset
@@ -4099,13 +4114,13 @@ class ChessGame {
         };
         
         window.selectBoss = (boss) => {
-            console.log('selectBoss called with:', boss);
+// console.log('selectBoss called with:', boss);
             window.chessGame.selectedBot = boss;
-            console.log('Set selectedBot to:', window.chessGame.selectedBot);
+// console.log('Set selectedBot to:', window.chessGame.selectedBot);
             
             // Update the selected bot display at the top
             const selectedDisplay = document.getElementById('selectedBotDisplay');
-            console.log('Found selectedDisplay:', !!selectedDisplay);
+// console.log('Found selectedDisplay:', !!selectedDisplay);
             if (selectedDisplay) {
                 const botInfo = {
                     god: { emoji: '🤖', name: 'THE ONE ABOVE ALL', info: 'Expert | 2800+' },
@@ -4114,13 +4129,13 @@ class ChessGame {
                 };
                 
                 const info = botInfo[boss] || botInfo.god;
-                console.log('Updating display to:', info.name);
+// console.log('Updating display to:', info.name);
                 selectedDisplay.innerHTML = `
                     <div style="font-size: 48px; margin-bottom: 8px;">${info.emoji}</div>
                     <div style="color: #fff; font-weight: 700; font-size: 18px; margin-bottom: 4px;">${info.name}</div>
                     <div style="color: rgba(255, 255, 255, 0.6); font-size: 14px;">${info.info}</div>
                 `;
-                console.log('Display updated');
+// console.log('Display updated');
             }
             
             // Update boss card selection
@@ -4134,7 +4149,7 @@ class ChessGame {
             }
             
             // Check if ready to enable button
-            console.log('Calling checkBossBattleReady');
+// console.log('Calling checkBossBattleReady');
             window.chessGame.checkBossBattleReady();
         };
         
@@ -4191,7 +4206,7 @@ class ChessGame {
                     colorSelect = document.getElementById('sidebarColorSelect');
                 }
                 
-                console.log('Time value:', timeSelect?.value);
+// console.log('Time value:', timeSelect?.value);
                 
                 if (window.chessGame && window.chessGame.selectedBot && timeSelect && timeSelect.value) {
                     window.chessGame.timerMode = timeSelect.value;
@@ -4200,7 +4215,7 @@ class ChessGame {
                         window.chessGame.playerColor = Math.random() < 0.5 ? 'w' : 'b';
                     }
                     
-                    console.log('Game settings:', {
+// console.log('Game settings:', {
                         bot: window.chessGame.selectedBot,
                         time: window.chessGame.timerMode,
                         color: window.chessGame.playerColor
@@ -4221,14 +4236,14 @@ class ChessGame {
         
         // Practice start button
         const practiceBtn = document.getElementById('startPracticeBtn');
-        console.log('Practice button found:', practiceBtn);
+// console.log('Practice button found:', practiceBtn);
         if (practiceBtn) {
             practiceBtn.addEventListener('click', () => {
             const elo = parseInt(document.getElementById('engineEloSlider').value);
             const timeMode = document.getElementById('practiceTimeSelect').value;
             const colorSelect = document.getElementById('practiceColorSelect').value;
             
-            console.log('Starting practice - ELO:', elo, 'Time:', timeMode, 'Color:', colorSelect);
+// console.log('Starting practice - ELO:', elo, 'Time:', timeMode, 'Color:', colorSelect);
             
             // Close practice section first
             closePracticeSection();
@@ -4239,7 +4254,7 @@ class ChessGame {
             // Set game configuration
             this.gameMode = 'practice';
             this.engineElo = elo;
-            console.log('Engine ELO set to:', elo);
+// console.log('Engine ELO set to:', elo);
             this.selectedBot = null;
             this.playerColor = colorSelect === 'random' ? (Math.random() < 0.5 ? 'w' : 'b') : colorSelect;
             
@@ -4265,7 +4280,7 @@ class ChessGame {
             
             if (this.stockfish) {
                 this.stockfish.postMessage(`setoption name Skill Level value ${skillLevel}`);
-                console.log(`Stockfish Skill Level set to: ${skillLevel} (for ELO ${elo})`);
+// console.log(`Stockfish Skill Level set to: ${skillLevel} (for ELO ${elo})`);
             }
             
             // Reset and initialize game
@@ -4324,7 +4339,7 @@ class ChessGame {
             this.updateBotDisplay();
             this.startGame();
             
-            console.log('Practice game started! ELO:', this.engineElo, 'Color:', this.playerColor);
+// console.log('Practice game started! ELO:', this.engineElo, 'Color:', this.playerColor);
             });
         } else {
             console.error('Practice button not found!');
@@ -4357,11 +4372,11 @@ class ChessGame {
         // Annotation popup buttons
         document.getElementById('retryMoveBtn').addEventListener('click', () => {
             if (this.pendingRetryIndex !== undefined) {
-                console.log('Retrying from move index:', this.pendingRetryIndex);
+// console.log('Retrying from move index:', this.pendingRetryIndex);
                 this.navToMove(this.pendingRetryIndex);
                 document.getElementById('annotationPopup').style.display = 'none';
             } else {
-                console.log('No pending retry index set');
+// console.log('No pending retry index set');
             }
         });
         document.getElementById('closeAnnotationBtn').addEventListener('click', () => {
@@ -4603,19 +4618,19 @@ class ChessGame {
     }
 
     showPositionAtMove(index) {
-        console.log('showPositionAtMove called for index:', index);
+// console.log('showPositionAtMove called for index:', index);
         
         // Use original analysis data if available (to support multiple replays)
         const analyses = this.originalMoveAnalyses || this.moveAnalyses;
         const analysis = analyses[index];
-        console.log('Analysis:', analysis);
+// console.log('Analysis:', analysis);
         
         // Check if this is a bot move (not player's move)
         const isWhiteMove = index % 2 === 0;
         const isPlayerMove = (isWhiteMove && this.playerColor === 'w') || (!isWhiteMove && this.playerColor === 'b');
         
         if (!isPlayerMove) {
-            console.log('This is a bot move, showing bot move modal');
+// console.log('This is a bot move, showing bot move modal');
             this.showBotMoveModal(analysis);
             return;
         }
@@ -4625,14 +4640,14 @@ class ChessGame {
                              analysis.classification === 'inaccuracy' ||
                              analysis.classification === 'missedWin';
         
-        console.log('isImprovable:', isImprovable, 'has suggestedMove:', !!analysis.suggestedMove);
+// console.log('isImprovable:', isImprovable, 'has suggestedMove:', !!analysis.suggestedMove);
         
         if (isImprovable && analysis.suggestedMove) {
-            console.log('Showing replay dialog for', analysis.classification);
+// console.log('Showing replay dialog for', analysis.classification);
             // Show popup for improvable moves with suggested move
             this.showBlunderReplayDialog(index, analysis);
         } else {
-            console.log('Replaying normally without dialog');
+// console.log('Replaying normally without dialog');
             // For good moves, just replay normally
             this.replayToMove(index, false);
         }
@@ -4681,7 +4696,7 @@ class ChessGame {
     }
 
     showBlunderReplayDialog(index, analysis) {
-        console.log('showBlunderReplayDialog called');
+// console.log('showBlunderReplayDialog called');
         const modal = document.getElementById('blunderReplayModal');
         const message = document.getElementById('blunderReplayMessage');
         
@@ -4711,9 +4726,9 @@ class ChessGame {
             Suggested: <strong style="color: #4CAF50;">${analysis.suggestedMove}</strong>
         `;
         
-        console.log('Showing modal...');
+// console.log('Showing modal...');
         modal.style.display = 'flex';
-        console.log('Modal display set to flex');
+// console.log('Modal display set to flex');
         
         // Store the index for button handlers
         this.pendingReplayIndex = index;
@@ -4831,9 +4846,9 @@ class ChessGame {
         arrow.appendChild(svg);
         boardWrapper.appendChild(arrow);
         
-        console.log('Arrow drawn from', from, 'to', to);
-        console.log('From coordinates:', fromX, fromY);
-        console.log('To coordinates:', toX, toY);
+// console.log('Arrow drawn from', from, 'to', to);
+// console.log('From coordinates:', fromX, fromY);
+// console.log('To coordinates:', toX, toY);
     }
 
     removeSuggestionArrow() {
@@ -4851,13 +4866,13 @@ class ChessGame {
             const tempChess = new Chess(positionFen);
             const moves = tempChess.moves({ verbose: true });
             
-            console.log('Parsing suggested move:', sanMove, 'for FEN:', positionFen);
-            console.log('Available moves:', moves.map(m => m.san));
+// console.log('Parsing suggested move:', sanMove, 'for FEN:', positionFen);
+// console.log('Available moves:', moves.map(m => m.san));
             
             // Try to find the move that matches the SAN notation
             for (const move of moves) {
                 if (move.san === sanMove) {
-                    console.log('Found matching move:', move.from, '->', move.to);
+// console.log('Found matching move:', move.from, '->', move.to);
                     return { from: move.from, to: move.to };
                 }
             }
@@ -5038,7 +5053,7 @@ class ChessGame {
     
     showAnnotationPopup(moveIndex, symbol, classification) {
         if (!this.analysisMode) {
-            console.log('Not in analysis mode, cannot show popup');
+// console.log('Not in analysis mode, cannot show popup');
             return;
         }
         
@@ -5081,7 +5096,7 @@ class ChessGame {
         // Store the move index for retry
         this.pendingRetryIndex = moveIndex;
         
-        console.log(`Showing popup for move ${moveIndex}: ${classification}`);
+// console.log(`Showing popup for move ${moveIndex}: ${classification}`);
     }
     
     navToMove(index) {
@@ -5311,7 +5326,7 @@ class ChessGame {
             clearInterval(this.timerInterval);
         }
         
-        console.log('Game ended in victory!');
+// console.log('Game ended in victory!');
     }
     
     resetGame() {
@@ -5422,7 +5437,7 @@ class ChessGame {
         if (wasPracticeMode) {
             this.gameMode = 'practice';
             this.engineElo = savedEngineElo;
-            console.log(`Restored practice mode with ELO ${savedEngineElo}`);
+// console.log(`Restored practice mode with ELO ${savedEngineElo}`);
             
             // Reconfigure Stockfish for practice mode
             if (this.stockfish && savedEngineElo) {
@@ -5440,7 +5455,7 @@ class ChessGame {
                 }
                 skillLevel = Math.max(0, Math.min(20, skillLevel));
                 this.stockfish.postMessage(`setoption name Skill Level value ${skillLevel}`);
-                console.log(`Restored Stockfish Skill Level: ${skillLevel}`);
+// console.log(`Restored Stockfish Skill Level: ${skillLevel}`);
             }
         }
     }
@@ -5468,7 +5483,7 @@ try {
     auth = firebase.auth();
     // Use Realtime Database instead of Firestore
     db = firebase.database();
-    console.log('Firebase initialized');
+// console.log('Firebase initialized');
 } catch (error) {
     console.error('Firebase initialization error:', error);
     auth = null;
@@ -5485,7 +5500,7 @@ if (auth) {
             currentUser = user;
             // Check if user is admin
             isAdmin = user.email === 'zaptin507@gmail.com';
-            console.log('User logged in:', user.email, isAdmin ? '(ADMIN)' : '');
+// console.log('User logged in:', user.email, isAdmin ? '(ADMIN)' : '');
             
             // Set display name for admin (The One Above All) or use stored name
             if (isAdmin && !localStorage.getItem('displayName')) {
@@ -5574,7 +5589,7 @@ if (auth) {
         } else {
             currentUser = null;
             isAdmin = false;
-            console.log('User logged out');
+// console.log('User logged out');
             const userProfile = document.getElementById('userProfile');
             const sidebarUserProfile = document.getElementById('sidebarUserProfile');
             const sidebarToggle = document.getElementById('sidebarToggle');
@@ -5680,7 +5695,7 @@ function selectBoardTheme(theme) {
     // Apply theme to chessboard
     applyBoardTheme(theme);
     
-    console.log('Board theme changed to:', theme);
+// console.log('Board theme changed to:', theme);
 }
 
 function applyBoardTheme(theme) {
@@ -5736,12 +5751,12 @@ function applyBoardTheme(theme) {
 }
 
 function applyPieceStyle(style) {
-    console.log('🎨 Applying piece style:', style);
+// console.log('🎨 Applying piece style:', style);
     
     // Use setTimeout to ensure DOM is ready
     setTimeout(() => {
         const svgElements = document.querySelectorAll('.piece svg');
-        console.log('Found', svgElements.length, 'SVG pieces to style');
+// console.log('Found', svgElements.length, 'SVG pieces to style');
         
         svgElements.forEach((el, index) => {
             // Reset all styles first
@@ -5815,7 +5830,7 @@ ChessGame.prototype.applyBoardTheme = function(theme) {
         sq.style.backgroundColor = colors.dark;
     });
     
-    console.log('🎨 Board theme applied:', theme);
+// console.log('🎨 Board theme applied:', theme);
 };
 
 ChessGame.prototype.applyPieceStyle = function(style) {
@@ -5864,7 +5879,7 @@ ChessGame.prototype.showProfileStats = function() {
     // Show modal
     this.showSections(['profileStatsModal'], [], 'flex');
     
-    console.log('👤 Profile stats modal opened');
+// console.log('👤 Profile stats modal opened');
 };
 
 // Helper to close profile dropdown
@@ -5963,7 +5978,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await auth.signInWithEmailAndPassword(email, password);
                 const authModal = document.getElementById('authModal');
                 if (authModal) authModal.style.display = 'none';
-                console.log('Login successful');
+// console.log('Login successful');
             } catch (error) {
                 if (errorDiv) {
                     errorDiv.textContent = error.message;
@@ -6228,7 +6243,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.closeProfileEditModal();
         
         // Show success message
-        console.log('Profile name updated to:', newName);
+// console.log('Profile name updated to:', newName);
     };
     
     // Event listeners for modal
@@ -6274,10 +6289,10 @@ if (savedTheme) {
 }
 
 window.addEventListener('load', () => {
-    console.log('Page loaded, initializing chess game...');
+// console.log('Page loaded, initializing chess game...');
     try {
         chessGame = new ChessGame();
-        console.log('Chess game initialized successfully');
+// console.log('Chess game initialized successfully');
         
         // Load saved board and piece preferences immediately
         chessGame.loadPreferences();
