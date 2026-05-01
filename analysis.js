@@ -41,7 +41,7 @@ class ChessAnalyzer {
         });
     }
 
-    async analyzeMove(move, fenBefore, fenAfter) {
+    async analyzeMove(move, fenBefore, fenAfter, moveIndex = -1) {
         const evalBefore = await this.evaluatePosition(fenBefore);
         const evalAfter = await this.evaluatePosition(fenAfter);
 
@@ -57,6 +57,7 @@ class ChessAnalyzer {
         const isHangingCapture = this.detectHangingCapture(move, fenBefore);
         const isBlunderPiece = this.detectBlunder(move, fenBefore, fenAfter);
         const missedCheckmate = await this.detectMissedCheckmate(fenBefore);
+        const isBook = this.detectBookMove(move.san, moveIndex);
 
         // If it's a mistake, blunder, or inaccuracy, find the best move using Magnus-level analysis
         // Also check for blunder pieces or hanging captures that might be classified as blunders
@@ -84,12 +85,27 @@ class ChessAnalyzer {
 
         // ====== PROPER CHESS.COM MOVE CLASSIFICATION ======
         
+        // 0. BOOK MOVE (📖): Follows standard opening theory
+        //    Checked first — a move can be both book AND good/great/excellent
+        if (isBook && actualEvalChange >= -20) {
+            // Book move that doesn't lose the position
+            classification = 'book';
+            description = '📖 Book move — follows opening theory';
+        }
         // 1. BRILLIANT (!!): A good piece sacrifice that improves or maintains a winning position
         //    MUST be a sacrifice AND maintain/improve position
-        if (isSacrifice && actualEvalChange > -50) {
+        else if (isSacrifice && actualEvalChange > -50) {
             // Sacrifice that doesn't lose eval (maintains or improves position)
             classification = 'brilliant';
             description = '!! Brilliant! Excellent sacrifice';
+        }
+        // 1b. MISSED WIN (🎯): Had a clear checkmate but missed it
+        else if (missedCheckmate) {
+            classification = 'missedWin';
+            description = '🎯 Missed win! You had a forced checkmate';
+            if (suggestedMove) {
+                description += `. Checkmate was: ${suggestedMove}`;
+            }
         }
         // 2. BLUNDER (??): Major mistakes - BE VERY STRICT
         //    - Lost 2+ pawns
@@ -271,6 +287,30 @@ class ChessAnalyzer {
         });
     }
 
+    detectBookMove(moveSan, moveIndex) {
+        // Only check book moves in the opening phase (first 15 moves)
+        if (moveIndex < 0 || moveIndex > 14) return false;
+        if (!moveSan) return false;
+        
+        // Normalize move for comparison (remove check/checkmate symbols)
+        const normalizedMove = moveSan.replace(/[+#]$/, '');
+        
+        // Check against all openings in the database
+        const openings = Object.values(chessOpenings);
+        for (const opening of openings) {
+            if (!opening.moves || !Array.isArray(opening.moves)) continue;
+            // Check if this move index matches the opening's expected move
+            if (moveIndex < opening.moves.length) {
+                const expectedMove = opening.moves[moveIndex];
+                // Compare case-insensitive, trim whitespace
+                if (normalizedMove.toLowerCase() === expectedMove.toLowerCase()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     detectSacrifice(move, fenAfter) {
         const pieceValues = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
         
@@ -335,18 +375,24 @@ class ChessAnalyzer {
 
     generateAnalysisReport(moveAnalyses) {
         const summary = {
+            book: 0,
             best: 0,
             missedWin: 0,
             brilliant: 0,
             great: 0,
+            excellent: 0,
+            good: 0,
             inaccuracy: 0,
             mistake: 0,
-            blunder: 0,
-            good: 0
+            blunder: 0
         };
 
         moveAnalyses.forEach(analysis => {
-            summary[analysis.classification]++;
+            if (summary.hasOwnProperty(analysis.classification)) {
+                summary[analysis.classification]++;
+            } else {
+                summary.good++;
+            }
         });
 
         return summary;

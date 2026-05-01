@@ -4138,7 +4138,8 @@ class ChessGame {
                 const analysis = await this.analyzer.analyzeMove(
                     moveData.move,
                     moveData.fenBefore,
-                    moveData.fenAfter
+                    moveData.fenAfter,
+                    i  // Pass move index for book move detection
                 );
                 
                 this.moveAnalyses.push(analysis);
@@ -4216,9 +4217,11 @@ class ChessGame {
         analysisContent.innerHTML = '';
 
         const classificationIcons = {
+            'book': '📖',
             'best': '⭐',
             'brilliant': '✨',
             'great': '👍',
+            'excellent': '👏',
             'good': '✓',
             'inaccuracy': '⚡',
             'mistake': '⚠️',
@@ -4227,9 +4230,11 @@ class ChessGame {
         };
 
         const classificationColors = {
+            'book': '#8B7355',
             'best': '#00ff00',
             'brilliant': '#9c27b0',
             'great': '#4CAF50',
+            'excellent': '#00BCD4',
             'good': '#2196F3',
             'inaccuracy': '#ffc107',
             'mistake': '#ff9800',
@@ -4287,9 +4292,7 @@ class ChessGame {
                     <div style="font-size: 12px; color: #888; margin-top: 2px;">${analysis.description}</div>
                     ${suggestedHTML}
                 </div>
-                <div style="background: ${color}; padding: 4px 8px; border-radius: 4px; color: white; font-size: 11px; font-weight: bold; text-transform: uppercase;">
-                    ${analysis.classification}
-                </div>
+                <div class="analysis-badge" style="background: ${color};">${analysis.classification}</div>
             `;
             
             analysisContent.appendChild(moveDiv);
@@ -4305,10 +4308,12 @@ class ChessGame {
         summaryDiv.innerHTML = `
             <h4 style="color: #fff; margin-bottom: 10px;">Summary</h4>
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 13px;">
+                <div style="color: #8B7355;">📖 Book Moves: ${summary.book || 0}</div>
                 <div style="color: #00ff00;">⭐ Best Moves: ${summary.best || 0}</div>
-                <div style="color: #FFD700;">🎯 Missed Wins: ${summary.missedWin || 0}</div>
                 <div style="color: #9c27b0;">✨ Brilliant: ${summary.brilliant}</div>
+                <div style="color: #FFD700;">🎯 Missed Wins: ${summary.missedWin || 0}</div>
                 <div style="color: #4CAF50;">👍 Great: ${summary.great}</div>
+                <div style="color: #00BCD4;">👏 Excellent: ${summary.excellent || 0}</div>
                 <div style="color: #2196F3;">✓ Good: ${summary.good}</div>
                 <div style="color: #ffc107;">⚡ Inaccuracies: ${summary.inaccuracy || 0}</div>
                 <div style="color: #ff9800;">⚠️ Mistakes: ${summary.mistake}</div>
