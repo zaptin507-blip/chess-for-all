@@ -3695,7 +3695,42 @@ class ChessGame {
         // Make gameInstance available globally for other functions
         window.chessGame = this;
         
-        document.getElementById('newGame').addEventListener('click', () => this.resetGame());
+        document.getElementById('newGame').addEventListener('click', () => {
+            // Save practice mode settings
+            const wasPracticeMode = this.gameMode === 'practice';
+            const savedEngineElo = this.engineElo;
+            const savedTimerMode = this.timerMode;
+            
+            this.resetGame();
+            
+            // Restore practice mode if it was practice mode
+            if (wasPracticeMode) {
+                this.gameMode = 'practice';
+                this.engineElo = savedEngineElo;
+                this.timerMode = savedTimerMode;
+                
+                // Reconfigure Stockfish
+                if (this.stockfish && savedEngineElo) {
+                    let skillLevel;
+                    if (savedEngineElo <= 800) {
+                        skillLevel = Math.floor((savedEngineElo - 400) / 200);
+                    } else if (savedEngineElo <= 1200) {
+                        skillLevel = 3 + Math.floor((savedEngineElo - 800) / 133);
+                    } else if (savedEngineElo <= 1600) {
+                        skillLevel = 7 + Math.floor((savedEngineElo - 1200) / 133);
+                    } else if (savedEngineElo <= 2000) {
+                        skillLevel = 11 + Math.floor((savedEngineElo - 1600) / 133);
+                    } else {
+                        skillLevel = 15 + Math.floor((savedEngineElo - 2000) / 160);
+                    }
+                    skillLevel = Math.max(0, Math.min(20, skillLevel));
+                    this.stockfish.postMessage(`setoption name Skill Level value ${skillLevel}`);
+                }
+                
+                // Start a new practice game
+                this.startGame();
+            }
+        });
         const playAgainBtn = document.getElementById('playAgain');
         if (playAgainBtn) {
             playAgainBtn.addEventListener('click', () => {
@@ -3703,6 +3738,8 @@ class ChessGame {
                 this.showSections([], ['gameOverModal']);
                 
                 // Save current settings before reset
+                const wasPracticeMode = this.gameMode === 'practice';
+                const savedEngineElo = this.engineElo;
                 const savedBot = this.selectedBot;
                 const savedTimerMode = this.timerMode;
                 const savedPlayerColor = this.playerColor;
@@ -3711,7 +3748,13 @@ class ChessGame {
                 this.resetGame();
                 
                 // Restore settings
-                this.selectedBot = savedBot;
+                if (wasPracticeMode) {
+                    this.gameMode = 'practice';
+                    this.engineElo = savedEngineElo;
+                    this.selectedBot = null; // Practice mode doesn't use selectedBot
+                } else {
+                    this.selectedBot = savedBot;
+                }
                 this.timerMode = savedTimerMode;
                 this.playerColor = savedPlayerColor;
                 
@@ -6082,14 +6125,25 @@ class ChessGame {
     resetGame() {
         // Stop and reset timer
         this.stopTimer();
-        this.playerTime = 0;
-        this.botTime = 0;
-        this.timerMode = null;
         this.currentTurn = null;
+        
+        // Save practice mode settings before reset
+        const wasPracticeMode = this.gameMode === 'practice';
+        const savedEngineElo = this.engineElo;
+        
+        // Don't reset timerMode to null - keep it if it was set
+        // Only reset timer values if starting fresh
+        if (!this.timerMode) {
+            this.playerTime = 0;
+            this.botTime = 0;
+        }
+        
         this.updateTimerDisplay();
         
-        // Reset bot selection
-        this.selectedBot = null;
+        // Reset bot selection (but not in practice mode)
+        if (!wasPracticeMode) {
+            this.selectedBot = null;
+        }
         
         this.chess.reset();
         this.selectedSquare = null;
@@ -6171,6 +6225,32 @@ class ChessGame {
             goodMoves: 0,
             brilliantMoves: 0
         };
+        
+        // Restore practice mode settings if it was practice mode
+        if (wasPracticeMode) {
+            this.gameMode = 'practice';
+            this.engineElo = savedEngineElo;
+            console.log(`Restored practice mode with ELO ${savedEngineElo}`);
+            
+            // Reconfigure Stockfish for practice mode
+            if (this.stockfish && savedEngineElo) {
+                let skillLevel;
+                if (savedEngineElo <= 800) {
+                    skillLevel = Math.floor((savedEngineElo - 400) / 200);
+                } else if (savedEngineElo <= 1200) {
+                    skillLevel = 3 + Math.floor((savedEngineElo - 800) / 133);
+                } else if (savedEngineElo <= 1600) {
+                    skillLevel = 7 + Math.floor((savedEngineElo - 1200) / 133);
+                } else if (savedEngineElo <= 2000) {
+                    skillLevel = 11 + Math.floor((savedEngineElo - 1600) / 133);
+                } else {
+                    skillLevel = 15 + Math.floor((savedEngineElo - 2000) / 160);
+                }
+                skillLevel = Math.max(0, Math.min(20, skillLevel));
+                this.stockfish.postMessage(`setoption name Skill Level value ${skillLevel}`);
+                console.log(`Restored Stockfish Skill Level: ${skillLevel}`);
+            }
+        }
     }
 }
 
