@@ -1642,6 +1642,12 @@ class ChessGame {
             // No time limit for infinite mode
             this.playerTime = Infinity;
             this.botTime = Infinity;
+        } else {
+            // Default to infinite if no valid timer mode selected
+            console.warn('No valid timer mode selected, defaulting to infinite');
+            this.playerTime = Infinity;
+            this.botTime = Infinity;
+            this.timerMode = 'infinite';
         }
         
         this.updateTimerDisplay();
