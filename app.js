@@ -92,6 +92,15 @@ class ChessGame {
                 // Create audio context
                 this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 
+                // Resume audio context if suspended (required by modern browsers)
+                if (this.audioContext.state === 'suspended') {
+                    this.audioContext.resume().then(() => {
+                        console.log('✅ AudioContext resumed');
+                    }).catch(err => {
+                        console.error('Failed to resume AudioContext:', err);
+                    });
+                }
+                
                 // Create gain node for volume control
                 this.musicGainNode = this.audioContext.createGain();
                 this.musicGainNode.gain.value = 0.15; // Lower volume so it doesn't overpower
@@ -101,6 +110,7 @@ class ChessGame {
                 this.createIntenseLoop();
                 
                 this.musicPlaying = true;
+                console.log('🎵 Background music started for', this.timerMode, 'mode');
             } catch (e) {
                 console.error('Music error:', e);
             }
