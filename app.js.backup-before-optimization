@@ -1262,7 +1262,7 @@ class ChessGame {
         try {
             const stockfish = new Worker('stockfish.js');
             stockfish.postMessage('uci');
-            // Don't set Skill Level here - it will be set dynamically based on ELO
+            stockfish.postMessage('setoption name Skill Level value 20');
             stockfish.postMessage('setoption name Hash value 128');
             return stockfish;
         } catch (error) {
@@ -1319,9 +1319,9 @@ class ChessGame {
     }
 
     setupDropdowns() {
-        const timeSelect = document.getElementById('sidebarTimeSelect');
-        const colorSelect = document.getElementById('sidebarColorSelect');
-        const startGameBtn = document.getElementById('sidebarStartGameBtn');        
+        const timeSelect = document.getElementById('timeSelect');
+        const colorSelect = document.getElementById('colorSelect');
+        const startGameBtn = document.getElementById('startGameBtn');        
         // Listen for changes on all dropdowns
         timeSelect.addEventListener('change', () => this.checkAllSelected());
         colorSelect.addEventListener('change', () => this.checkAllSelected());
@@ -1449,9 +1449,9 @@ class ChessGame {
         // Determine which UI we're using
         if (chessSidebar && chessSidebar.style.display !== 'none') {
             // Chess.com sidebar
-            timeSelect = chessSidebar.querySelector('#sidebarTimeSelect');
-            colorSelect = chessSidebar.querySelector('#sidebarColorSelect');
-            startBtn = chessSidebar.querySelector('#sidebarStartGameBtn');
+            timeSelect = chessSidebar.querySelector('#timeSelect');
+            colorSelect = chessSidebar.querySelector('#colorSelect');
+            startBtn = chessSidebar.querySelector('#startGameBtn');
         } else if (playSection && playSection.style.display !== 'none') {
             // Boss Battle section
             timeSelect = playSection.querySelector('#timeSelect');
@@ -1459,9 +1459,9 @@ class ChessGame {
             startBtn = document.getElementById('startGameBtn');
         } else {
             // Fallback
-            timeSelect = document.getElementById('sidebarTimeSelect');
-            colorSelect = document.getElementById('sidebarColorSelect');
-            startBtn = document.getElementById('sidebarStartGameBtn');
+            timeSelect = document.getElementById('timeSelect');
+            colorSelect = document.getElementById('colorSelect');
+            startBtn = document.getElementById('startGameBtn');
         }
         
         if (this.selectedBot && timeSelect && timeSelect.value) {
@@ -1480,9 +1480,9 @@ class ChessGame {
     }
     
     checkAllSelected() {
-        const timeSelect = document.getElementById('sidebarTimeSelect');
-        const colorSelect = document.getElementById('sidebarColorSelect');
-        const startGameBtn = document.getElementById('sidebarStartGameBtn');
+        const timeSelect = document.getElementById('timeSelect');
+        const colorSelect = document.getElementById('colorSelect');
+        const startGameBtn = document.getElementById('startGameBtn');
         
         // Enable start button only if all selections are made
         // Check bot selection via selectedBot property instead of dropdown
@@ -1499,8 +1499,8 @@ class ChessGame {
     }
     
     startGameFromDropdown() {
-        const timeSelect = document.getElementById('sidebarTimeSelect');
-        const colorSelect = document.getElementById('sidebarColorSelect');
+        const timeSelect = document.getElementById('timeSelect');
+        const colorSelect = document.getElementById('colorSelect');
         
         // Set game parameters
         this.timerMode = timeSelect.value;
@@ -1629,22 +1629,25 @@ class ChessGame {
         }
         
         // Initialize timers based on selected mode
-        if (this.timerMode === 'infinite' || !['bullet', 'blitz', 'rapid', 'classical'].includes(this.timerMode)) {
+        if (this.timerMode === 'bullet') {
+            this.playerTime = 60; // 1 minute
+            this.botTime = 60;
+        } else if (this.timerMode === 'blitz') {
+            this.playerTime = 300; // 5 minutes
+            this.botTime = 300;
+        } else if (this.timerMode === 'rapid') {
+            this.playerTime = 600; // 10 minutes
+            this.botTime = 600;
+        } else if (this.timerMode === 'infinite') {
+            // No time limit for infinite mode
+            this.playerTime = Infinity;
+            this.botTime = Infinity;
+        } else {
+            // Default to infinite if no valid timer mode selected
+            console.warn('No valid timer mode selected, defaulting to infinite');
             this.playerTime = Infinity;
             this.botTime = Infinity;
             this.timerMode = 'infinite';
-        } else if (this.timerMode === 'bullet') {
-            this.playerTime = 60;
-            this.botTime = 60;
-        } else if (this.timerMode === 'blitz') {
-            this.playerTime = 300;
-            this.botTime = 300;
-        } else if (this.timerMode === 'rapid') {
-            this.playerTime = 600;
-            this.botTime = 600;
-        } else if (this.timerMode === 'classical') {
-            this.playerTime = 1800;
-            this.botTime = 1800;
         }
         
         this.updateTimerDisplay();
@@ -1790,11 +1793,6 @@ class ChessGame {
     }
 
     handlePlayerTimeout() {
-        // Don't timeout in practice mode with infinite time
-        if (this.gameMode === 'practice' && this.timerMode === 'infinite') {
-            return;
-        }
-        
         this.stopTimer();
         this.gameOver = true;
         
@@ -1818,11 +1816,6 @@ class ChessGame {
     }
 
     handleBotTimeout() {
-        // Don't timeout in practice mode with infinite time
-        if (this.gameMode === 'practice' && this.timerMode === 'infinite') {
-            return;
-        }
-        
         this.stopTimer();
         this.gameOver = true;
         
@@ -3716,8 +3709,8 @@ class ChessGame {
                 this.playerColor = savedPlayerColor;
                 
                 // Update UI to show saved selections
-                const timeSelect = document.getElementById('sidebarTimeSelect');
-                const colorSelect = document.getElementById('sidebarColorSelect');
+                const timeSelect = document.getElementById('timeSelect');
+                const colorSelect = document.getElementById('colorSelect');
                 if (timeSelect && savedTimerMode) timeSelect.value = savedTimerMode;
                 if (colorSelect && savedPlayerColor) colorSelect.value = savedPlayerColor;
                 
@@ -4091,11 +4084,9 @@ class ChessGame {
         }
         
         // Boss battle start button - handle BOTH Chess.com sidebar and Boss Battle section
-        const sidebarStartBtn = document.getElementById('sidebarStartGameBtn');
-        const playStartBtn = document.getElementById('startGameBtn');
+        const allStartBtns = document.querySelectorAll('#startGameBtn');
         
-        [sidebarStartBtn, playStartBtn].forEach(btn => {
-            if (!btn) return;
+        allStartBtns.forEach(btn => {
             btn.onclick = function(e) {
                 e.preventDefault();
                 
@@ -4108,15 +4099,17 @@ class ChessGame {
                 const sidebarVisible = chessSidebar && chessSidebar.offsetParent !== null;
                 const playVisible = playSection && playSection.offsetParent !== null;
                 
+                console.log('Sidebar visible:', sidebarVisible, 'Play visible:', playVisible);
+                
                 if (sidebarVisible) {
-                    timeSelect = document.getElementById('sidebarTimeSelect');
-                    colorSelect = document.getElementById('sidebarColorSelect');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
                 } else if (playVisible) {
                     timeSelect = document.getElementById('timeSelect');
                     colorSelect = document.getElementById('colorSelect');
                 } else {
-                    timeSelect = document.getElementById('sidebarTimeSelect');
-                    colorSelect = document.getElementById('sidebarColorSelect');
+                    timeSelect = document.getElementById('timeSelect');
+                    colorSelect = document.getElementById('colorSelect');
                 }
                 
                 console.log('Time value:', timeSelect?.value);
@@ -4171,31 +4164,6 @@ class ChessGame {
             this.selectedBot = null;
             this.playerColor = colorSelect === 'random' ? (Math.random() < 0.5 ? 'w' : 'b') : colorSelect;
             
-            // Set Stockfish Skill Level based on ELO
-            // ELO 400-800: Skill Level 0-2
-            // ELO 800-1200: Skill Level 3-6
-            // ELO 1200-1600: Skill Level 7-10
-            // ELO 1600-2000: Skill Level 11-14
-            // ELO 2000-2800: Skill Level 15-20
-            let skillLevel;
-            if (elo <= 800) {
-                skillLevel = Math.floor((elo - 400) / 200); // 0-2
-            } else if (elo <= 1200) {
-                skillLevel = 3 + Math.floor((elo - 800) / 133); // 3-6
-            } else if (elo <= 1600) {
-                skillLevel = 7 + Math.floor((elo - 1200) / 133); // 7-10
-            } else if (elo <= 2000) {
-                skillLevel = 11 + Math.floor((elo - 1600) / 133); // 11-14
-            } else {
-                skillLevel = 15 + Math.floor((elo - 2000) / 160); // 15-20
-            }
-            skillLevel = Math.max(0, Math.min(20, skillLevel)); // Clamp between 0-20
-            
-            if (this.stockfish) {
-                this.stockfish.postMessage(`setoption name Skill Level value ${skillLevel}`);
-                console.log(`Stockfish Skill Level set to: ${skillLevel} (for ELO ${elo})`);
-            }
-            
             // Reset and initialize game
             this.resetGame();
             
@@ -4220,7 +4188,7 @@ class ChessGame {
             }
             
             // Show/hide timers based on mode
-            if (this.timerMode === 'infinite') {
+            if (this.timeMode === 'infinite') {
                 document.getElementById('botTimer').style.display = 'none';
                 document.getElementById('playerTimer').style.display = 'none';
             } else {
@@ -4250,8 +4218,8 @@ class ChessGame {
         }
         
         // Enable start button when time and color are selected
-        document.getElementById('sidebarTimeSelect').addEventListener('change', () => this.checkBossBattleReady());
-        document.getElementById('sidebarColorSelect').addEventListener('change', () => this.checkBossBattleReady());
+        document.getElementById('timeSelect').addEventListener('change', () => this.checkBossBattleReady());
+        document.getElementById('colorSelect').addEventListener('change', () => this.checkBossBattleReady());
         
         // Rating modal close button
         document.getElementById('closeRatingModal').addEventListener('click', () => {
@@ -6154,10 +6122,10 @@ class ChessGame {
         
         // Keep config panel hidden (using sidebar menu instead)
         // Don't show gameConfigPanel - it's hidden now
-        document.getElementById('sidebarTimeSelect').value = '';
-        document.getElementById('sidebarColorSelect').value = '';
-        document.getElementById('sidebarStartGameBtn').disabled = true;
-        document.getElementById('sidebarStartGameBtn').style.opacity = '0.5';
+        document.getElementById('timeSelect').value = '';
+        document.getElementById('colorSelect').value = '';
+        document.getElementById('startGameBtn').disabled = true;
+        document.getElementById('startGameBtn').style.opacity = '0.5';
         
         // Close rating modal and reset data
         document.getElementById('ratingModal').style.display = 'none';
@@ -6784,12 +6752,14 @@ document.addEventListener('DOMContentLoaded', () => {
         logoutBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             e.stopPropagation();
+            console.log('🚪 Logout button clicked');
             
             try {
                 closeProfileDropdown();
                 
                 if (auth) {
                     await auth.signOut();
+                    console.log('✅ Logout successful');
                     alert('You have been logged out successfully.');
                 } else {
                     console.error('❌ Firebase auth not initialized');
