@@ -598,8 +598,13 @@ function renderOpeningCard(opening) {
 
 // Show opening detail modal
 window.showOpeningDetail = (openingId) => {
+    console.log('🔵 showOpeningDetail called with:', openingId);
     const opening = chessOpenings[openingId];
-    if (!opening) return;
+    if (!opening) {
+        console.error('❌ Opening not found:', openingId);
+        return;
+    }
+    console.log('✅ Opening found:', opening.name);
 
     const modal = document.createElement('div');
     modal.id = 'openingDetailModal';
@@ -862,10 +867,16 @@ function showMessage(text, color) {
 
 // Render all openings
 window.renderLearnSection = () => {
+    console.log('🟢 renderLearnSection called');
     const learnSection = document.getElementById('learnSection');
-    if (!learnSection) return;
+    if (!learnSection) {
+        console.error('❌ learnSection element not found!');
+        return;
+    }
+    console.log('✅ learnSection element found');
 
     const openings = Object.values(chessOpenings);
+    console.log('📚 Total openings:', openings.length);
     
     let html = `
         <div style="padding: 20px;">
