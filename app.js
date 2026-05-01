@@ -3537,7 +3537,9 @@ class ChessGame {
                 // Hide sidebar and start
                 const chessSidebar = document.getElementById('chessSidebar');
                 if (chessSidebar) chessSidebar.style.display = 'none';
-                document.getElementById('sidebarMenu').style.left = '0';
+                if (window.innerWidth > 768) {
+                    document.getElementById('sidebarMenu').style.left = '0';
+                }
                 
                 this.startGame();
             }
@@ -3821,17 +3823,24 @@ class ChessGame {
         };
         
         window.showPlaySection = () => {
+            const isMobile = window.innerWidth <= 768;
             // Don't show the left playSection anymore - use Chess.com sidebar instead
             // document.getElementById('playSection').style.display = 'block';
             document.getElementById('sidebarMenu').style.left = '-180px';
+            if (isMobile) {
+                document.getElementById('sidebarMenu').classList.remove('sidebar-open');
+            }
             // Show Chess.com-style right sidebar for Boss Battle
             const chessSidebar = document.getElementById('chessSidebar');
             if (chessSidebar) chessSidebar.style.display = 'block';
         };
         
         window.closePlaySection = () => {
+            const isMobile = window.innerWidth <= 768;
             document.getElementById('playSection').style.display = 'none';
-            document.getElementById('sidebarMenu').style.left = '0';
+            if (!isMobile) {
+                document.getElementById('sidebarMenu').style.left = '0';
+            }
             // Hide Chess.com-style right sidebar when closing Boss Battle
             const chessSidebar = document.getElementById('chessSidebar');
             if (chessSidebar) chessSidebar.style.display = 'none';
@@ -3842,16 +3851,23 @@ class ChessGame {
         };
         
         window.showPracticeSection = () => {
+            const isMobile = window.innerWidth <= 768;
             document.getElementById('practiceSection').style.display = 'block';
             document.getElementById('sidebarMenu').style.left = '-180px';
+            if (isMobile) {
+                document.getElementById('sidebarMenu').classList.remove('sidebar-open');
+            }
             // Hide Chess.com-style right sidebar
             const chessSidebar = document.getElementById('chessSidebar');
             if (chessSidebar) chessSidebar.style.display = 'none';
         };
         
         window.closePracticeSection = () => {
+            const isMobile = window.innerWidth <= 768;
             document.getElementById('practiceSection').style.display = 'none';
-            document.getElementById('sidebarMenu').style.left = '0';
+            if (!isMobile) {
+                document.getElementById('sidebarMenu').style.left = '0';
+            }
             // Show Chess.com-style right sidebar
             const chessSidebar = document.getElementById('chessSidebar');
             if (chessSidebar) chessSidebar.style.display = 'block';
@@ -3862,8 +3878,12 @@ class ChessGame {
         };
         
         window.showLearnSection = () => {
+            const isMobile = window.innerWidth <= 768;
             document.getElementById('learnSection').style.display = 'block';
             document.getElementById('sidebarMenu').style.left = '-180px';
+            if (isMobile) {
+                document.getElementById('sidebarMenu').classList.remove('sidebar-open');
+            }
             // Render the openings
             if (window.renderLearnSection) {
                 window.renderLearnSection();
@@ -3982,7 +4002,9 @@ class ChessGame {
                     // Hide both UIs
                     if (chessSidebar) chessSidebar.style.display = 'none';
                     if (playSection) playSection.style.display = 'none';
-                    document.getElementById('sidebarMenu').style.left = '0';
+                    if (window.innerWidth > 768) {
+                        document.getElementById('sidebarMenu').style.left = '0';
+                    }
                     
                     window.chessGame.updateBotDisplay();
                     window.chessGame.startGame();
@@ -5386,12 +5408,16 @@ function toggleSidebar() {
     const sidebar = document.getElementById('sidebarMenu');
     const toggle = document.getElementById('sidebarToggle');
     
-    if (sidebar.style.left === '0px') {
-        sidebar.style.left = '-300px';
+    if (sidebar.classList.contains('sidebar-open')) {
+        // Close sidebar
+        sidebar.classList.remove('sidebar-open');
         toggle.style.left = '10px';
+        toggle.textContent = '☰';
     } else {
-        sidebar.style.left = '0px';
-        toggle.style.left = '310px';
+        // Open sidebar
+        sidebar.classList.add('sidebar-open');
+        toggle.style.left = '230px';
+        toggle.textContent = '✕';
     }
 }
 // Board & Piece Preference Methods
@@ -5877,6 +5903,26 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.addEventListener('load', () => {
+    // ---- Mobile initialization ----
+    if (window.innerWidth <= 768) {
+        const sidebarMenu = document.getElementById('sidebarMenu');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        
+        // Ensure sidebar starts hidden on mobile
+        if (sidebarMenu) {
+            sidebarMenu.classList.remove('sidebar-open');
+            // Remove any inline left style so CSS takes over
+            sidebarMenu.style.left = '';
+        }
+        
+        // Ensure hamburger toggle is visible
+        if (sidebarToggle) {
+            sidebarToggle.style.display = 'block';
+            sidebarToggle.textContent = '☰';
+            sidebarToggle.style.left = '10px';
+        }
+    }
+    
     try {
         chessGame = new ChessGame();
         

@@ -813,16 +813,18 @@ body {
     color: #fff;
 }
 
-/* Responsive Design */
+/* ===== RESPONSIVE DESIGN ===== */
+
+/* Tablet / Small Desktop (≤1200px) */
 @media (max-width: 1200px) {
-    .sidebar {
-        width: 280px;
-        min-width: 260px;
-        max-width: 280px;
+    .container {
+        flex-direction: column;
     }
     
-    .game-wrapper {
-        max-width: calc(100vw - 320px);
+    .sidebar {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
     }
     
     #chessboard {
@@ -831,6 +833,7 @@ body {
     }
 }
 
+/* Tablet / Large Phone (≤1024px) */
 @media (max-width: 1024px) {
     .sidebar {
         width: 240px;
@@ -858,48 +861,6 @@ body {
     }
 }
 
-@media (max-width: 768px) {
-    body {
-        padding: 5px;
-    }
-    
-    .container {
-        flex-direction: column;
-        gap: 10px;
-    }
-    
-    .game-wrapper {
-        max-width: 100%;
-        order: 2;
-    }
-    
-    .sidebar {
-        width: 100%;
-        max-width: 100%;
-        min-width: 100%;
-        max-height: 300px;
-        order: 1;
-    }
-    
-    #chessboard {
-        width: min(95vw, calc(100vh - 400px));
-        height: min(95vw, calc(100vh - 400px));
-    }
-    
-    .player-info {
-        padding: 8px;
-    }
-    
-    .player-info h3 {
-        font-size: 14px;
-    }
-    
-    .avatar {
-        width: 35px;
-        height: 35px;
-    }
-}
-
 .move-with-annotation {
     display: flex;
     align-items: center;
@@ -914,103 +875,391 @@ body {
     margin: -2px -5px;
 }
 
-/* ===== MOBILE RESPONSIVE STYLES ===== */
+/* ===== PHONE RESPONSIVE — MAJOR OVERHAUL ===== */
 @media (max-width: 768px) {
-    /* Hide left sidebar on mobile */
-    #sidebarMenu {
-        width: 60px !important;
-        overflow: hidden;
+    /* ---- Override inline styles that break mobile ---- */
+    .container[style*="margin-left"] {
+        margin-left: 0 !important;
     }
     
-    #sidebarMenu .menu-item span:not(:first-child) {
-        display: none;
+    /* Body — allow scrolling */
+    body {
+        padding: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        display: block;
     }
     
-    /* Adjust container margin for smaller sidebar */
+    /* Container — stack vertically, full width */
     .container {
-        margin-left: 60px !important;
+        flex-direction: column !important;
+        gap: 0;
+        width: 100%;
+        max-width: 100vw;
+        padding: 50px 0 20px 0;
+        height: auto;
+        min-height: 100vh;
+        align-items: center;
     }
     
-    /* Reduce Chess.com sidebar width on mobile */
-    #chessSidebar {
+    /* ---- Left sidebar menu — overlay slide-out ---- */
+    #sidebarMenu {
         width: 220px !important;
+        left: -240px !important;
+        position: fixed !important;
+        z-index: 9998 !important;
+        transition: left 0.3s ease;
     }
     
-    /* Make chessboard responsive */
-    #chessboard {
-        width: min(95vw, 95vh, 400px) !important;
-        height: min(95vw, 95vh, 400px) !important;
+    #sidebarMenu.sidebar-open {
+        left: 0 !important;
     }
     
-    /* Stack player info vertically on small screens */
+    /* Hamburger toggle — always visible on mobile */
+    #sidebarToggle {
+        display: block !important;
+        position: fixed;
+        left: 10px;
+        top: 10px;
+        z-index: 9997;
+        width: 44px;
+        height: 44px;
+        border-radius: 8px;
+        background: rgba(118, 150, 86, 0.95);
+        border: none;
+        color: #fff;
+        font-size: 22px;
+        cursor: pointer;
+    }
+    
+    /* ---- Chess.com overlay sidebar — hidden on mobile ---- */
+    #chessSidebar {
+        display: none !important;
+    }
+    
+    /* ---- Game wrapper — full width, board-first ---- */
+    .game-wrapper {
+        order: 1;
+        width: 100%;
+        max-width: 100vw;
+        padding: 4px;
+        flex: none;
+    }
+    
+    /* ---- Player info bars — compact ---- */
     .player-info {
-        flex-direction: column;
-        text-align: center;
-        padding: 8px;
+        max-width: 100%;
+        padding: 6px 10px;
+        gap: 6px;
+        margin-bottom: 4px;
     }
     
     .player-info h3 {
-        font-size: 14px;
-    }
-    
-    .timer-display {
-        font-size: 16px;
-    }
-    
-    /* Adjust game wrapper */
-    .game-wrapper {
-        max-width: 100%;
-        padding: 5px;
-    }
-    
-    /* Smaller avatars on mobile */
-    .avatar {
-        width: 40px;
-        height: 40px;
-        font-size: 22px;
-    }
-    
-    /* Adjust font sizes */
-    body {
         font-size: 13px;
     }
     
-    /* Make sidebar fit better on mobile */
+    .avatar {
+        width: 32px;
+        height: 32px;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+    
+    .timer-display {
+        font-size: 15px;
+    }
+    
+    .rating {
+        font-size: 11px;
+    }
+    
+    /* ---- Chessboard — maximize screen usage ---- */
+    #chessboard {
+        width: min(96vw, 96vw, 600px);
+        height: min(96vw, 96vw, 600px);
+        max-width: 100vw;
+        max-height: none;
+        border-radius: 4px;
+    }
+    
+    /* Chessboard wrapper — hide rank/file labels on mobile */
+    .ranks-left, .files-bottom {
+        font-size: 8px;
+    }
+    
+    .board-wrapper {
+        grid-template-columns: 20px auto;
+        grid-template-rows: auto 20px;
+        gap: 1px;
+    }
+    
+    /* ---- Right sidebar — stacked below board ---- */
     .sidebar {
+        order: 2;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        max-height: none;
+        position: static;
+        border-radius: 0;
+        padding: 10px 12px;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.03);
+    }
+    
+    .game-status h2 {
+        font-size: 14px;
+        padding: 8px;
+    }
+    
+    .controls {
+        gap: 6px !important;
+        margin-top: 8px !important;
+    }
+    
+    .controls .btn {
+        font-size: 11px !important;
+        padding: 10px 4px !important;
+        min-height: 42px !important;
+        max-height: 48px !important;
+    }
+    
+    /* ---- Move history — compact scrollable ---- */
+    .move-history {
+        max-height: 200px;
+    }
+    
+    .moves-list {
+        max-height: 180px;
         padding: 10px;
+        font-size: 13px;
+    }
+    
+    /* ---- Analysis panel — compact ---- */
+    .analysis-panel {
+        max-height: 250px;
+        margin-top: 10px;
+    }
+    
+    /* ---- Navigation controls — bigger touch targets ---- */
+    .nav-btn {
+        padding: 10px 14px;
+        font-size: 18px;
+        min-width: 40px;
+        min-height: 40px;
+    }
+    
+    /* ---- Eval graph — compact ---- */
+    .eval-graph canvas {
+        height: 60px;
+    }
+    
+    /* ---- Modals — full screen with scroll ---- */
+        /* ---- Play / Practice / Learn section overlays — full width on mobile ---- */
+        #playSection,
+        #practiceSection {
+            width: 100vw !important;
+            left: 0 !important;
+            z-index: 9999 !important;
+        }
+        
+        #learnSection {
+            width: 100vw !important;
+            left: 0 !important;
+        }
+        
+        /* Chess.com sidebar — when shown by JS, cover full screen */
+        #chessSidebar[style*="display: block"],
+        #chessSidebar[style*="display:block"] {
+            width: 100vw !important;
+            max-width: 100vw;
+            z-index: 9999 !important;
+        }
+        
+        /* ---- Modals — full screen with scroll ---- */
+        .modal {
+        align-items: flex-start;
+        padding: 20px 0;
+    }
+    
+    .modal-content {
+        max-width: 94vw;
+        padding: 25px 18px;
+        margin: 20px auto;
+        border-radius: 12px;
+    }
+    
+    .modal-content h2 {
+        font-size: 24px;
+    }
+    
+    .modal-content p {
+        font-size: 15px;
+    }
+    
+    /* Game over modal buttons */
+    #gameOverModal .modal-content button {
+        width: 100%;
+        margin-bottom: 8px;
+        padding: 12px;
+        font-size: 15px;
+    }
+    
+    /* Analysis in game over modal */
+    #gameAnalysis {
+        max-height: 180px;
+        padding: 12px;
+    }
+    
+    /* ---- Profile dropdown — adjust position ---- */
+    #profileDropdown {
+        bottom: 100px;
+        right: 5px;
+        width: 220px;
+    }
+    
+    /* ---- Corner indicator — move up ---- */
+    #cornerIndicator {
+        bottom: 70px;
+        right: 5px;
+    }
+    
+    /* ---- Bot chat — compact ---- */
+    .chat-messages {
+        height: 150px;
+    }
+    
+    .chat-input {
+        font-size: 14px;
+    }
+    
+    /* ---- Admin panel — adjust ---- */
+    .admin-panel {
+        top: 50px;
+        right: 5px;
+        min-width: 180px;
+        max-width: 90vw;
+    }
+    
+    /* ---- Tutorial modal — full width ---- */
+    #chessTutorialModal > div {
+        max-width: 100% !important;
+        width: 95% !important;
+        margin: 10px !important;
+        padding: 15px !important;
+    }
+    
+    /* ---- Piece style & board theme modals ---- */
+    #boardThemeModal > div,
+    #pieceStyleModal > div {
+        max-width: 95vw;
+        width: 95%;
     }
 }
 
-/* Extra small screens (phones) */
+/* Extra Small Phones (≤480px) */
 @media (max-width: 480px) {
-    #chessSidebar {
-        width: 180px !important;
-        padding: 10px;
+    #sidebarMenu {
+        width: 200px !important;
+        left: -220px !important;
     }
     
     #chessboard {
-        width: min(98vw, 50vh, 350px) !important;
-        height: min(98vw, 50vh, 350px) !important;
+        width: min(98vw, 98vw, 500px);
+        height: min(98vw, 98vw, 500px);
     }
     
-    .container {
-        margin-left: 50px !important;
-    }
-    
-    #sidebarMenu {
-        width: 50px !important;
+    .player-info {
+        padding: 4px 8px;
+        gap: 4px;
     }
     
     .player-info h3 {
         font-size: 12px;
     }
     
+    .avatar {
+        width: 28px;
+        height: 28px;
+        font-size: 15px;
+    }
+    
+    .timer-display {
+        font-size: 13px;
+    }
+    
+    .controls .btn {
+        font-size: 10px !important;
+        padding: 8px 2px !important;
+        min-height: 38px !important;
+    }
+    
+    .sidebar {
+        padding: 8px 8px;
+    }
+    
+    .game-status h2 {
+        font-size: 13px;
+        padding: 6px;
+    }
+    
+    .moves-list {
+        max-height: 150px;
+        font-size: 12px;
+        padding: 8px;
+    }
+    
+    .modal-content {
+        padding: 20px 14px;
+    }
+    
+    .modal-content h2 {
+        font-size: 20px;
+    }
+    
+    .modal-content p {
+        font-size: 14px;
+    }
+    
+    /* Smaller hamburger */
+    #sidebarToggle {
+        width: 38px;
+        height: 38px;
+        left: 6px;
+        top: 8px;
+        font-size: 20px;
+    }
+    
+    .container {
+        padding-top: 44px;
+    }
+    
+    /* Bot option text in chess sidebar */
     .bot-option div:last-child div:first-child {
         font-size: 13px !important;
     }
     
     .bot-option div:last-child div:last-child {
         font-size: 11px !important;
+    }
+    
+    #profileDropdown {
+        bottom: 80px;
+        width: 200px;
+    }
+    
+    .captured-pieces .piece-icon {
+        font-size: 14px;
+    }
+    
+    .nav-btn {
+        padding: 8px 10px;
+        font-size: 16px;
+    }
+    
+    /* Annotation popup */
+    #annotationPopup .modal-content {
+        padding: 15px 10px;
     }
 }
 
