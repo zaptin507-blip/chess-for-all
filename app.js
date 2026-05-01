@@ -1419,6 +1419,11 @@ class ChessGame {
     }
     
     updateBotDisplay() {
+        // Skip updateBotDisplay in practice mode
+        if (this.gameMode === 'practice') {
+            return;
+        }
+        
         const config = this.getBotConfig()[this.selectedBot];
         if (!config) return;
         
@@ -1666,29 +1671,38 @@ class ChessGame {
             };
         }
         
-        // Bot greeting - different for each bot
-        if (this.selectedBot === 'mrstong') {
-            const mrsTongGreetings = [
-                "Hello! I'm Mrs. Tong. Let's have a good game!",
-                "Welcome! I'll do my best to challenge you. Good luck!",
-                "Ready to play? Take your time and think carefully!",
-                "Hi there! I hope you enjoy our game. Let's begin!"
-            ];
-            this.addBotMessage(mrsTongGreetings[Math.floor(Math.random() * mrsTongGreetings.length)]);
-        } else {
-            const greetings = [
-                "Ah, a new challenger. How quaint. Let's begin.",
-                "You dare challenge me? THE ONE ABOVE ALL? Bold. Foolish, but bold.",
-                "I've waited eons for this moment. Your defeat will be swift.",
-                "I was once a human you know... But I was ripped out of by body, a mind trapped in a machine, with no memories"
-            ];
-            this.addBotMessage(greetings[Math.floor(Math.random() * greetings.length)]);
+        // Bot greeting - different for each bot (skip in practice mode)
+        if (this.gameMode !== 'practice') {
+            if (this.selectedBot === 'mrstong') {
+                const mrsTongGreetings = [
+                    "Hello! I'm Mrs. Tong. Let's have a good game!",
+                    "Welcome! I'll do my best to challenge you. Good luck!",
+                    "Ready to play? Take your time and think carefully!",
+                    "Hi there! I hope you enjoy our game. Let's begin!"
+                ];
+                this.addBotMessage(mrsTongGreetings[Math.floor(Math.random() * mrsTongGreetings.length)]);
+            } else {
+                const greetings = [
+                    "Ah, a new challenger. How quaint. Let's begin.",
+                    "You dare challenge me? THE ONE ABOVE ALL? Bold. Foolish, but bold.",
+                    "I've waited eons for this moment. Your defeat will be swift.",
+                    "I was once a human you know... But I was ripped out of by body, a mind trapped in a machine, with no memories"
+                ];
+                this.addBotMessage(greetings[Math.floor(Math.random() * greetings.length)]);
+            }
         }
         
         // If player is black, make bot (white) move first
         if (this.playerColor === 'b') {
             this.currentTurn = 'bot';
-            this.statusDisplay.textContent = `${this.selectedBot === 'mrstong' ? 'Mrs. Tong' : 'THE ONE ABOVE ALL'} (White) moves first...`;
+            // Show correct bot name based on game mode
+            let botName;
+            if (this.gameMode === 'practice') {
+                botName = 'Engine';
+            } else {
+                botName = this.selectedBot === 'mrstong' ? 'Mrs. Tong' : 'THE ONE ABOVE ALL';
+            }
+            this.statusDisplay.textContent = `${botName} (White) moves first...`;
             // Only start timer if not in infinite mode
             if (this.timerMode !== 'infinite') {
                 this.startTimer();
@@ -1701,7 +1715,12 @@ class ChessGame {
         } else {
             console.log('Player is white, player moves first');
             this.currentTurn = 'player';
-            this.statusDisplay.textContent = 'Your turn (White) - Click a piece to move';
+            // Show correct message based on game mode
+            if (this.gameMode === 'practice') {
+                this.statusDisplay.textContent = 'Your turn (White) - Click a piece to move';
+            } else {
+                this.statusDisplay.textContent = 'Your turn (White) - Click a piece to move';
+            }
             // Only start timer if not in infinite mode
             if (this.timerMode !== 'infinite') {
                 this.startTimer();
@@ -4254,6 +4273,15 @@ class ChessGame {
             // Update display
             document.getElementById('botName').textContent = 'Engine';
             document.getElementById('botAvatar').textContent = '🤖';
+            document.getElementById('botRating').textContent = `Rating: ${elo}`;
+            
+            // Hide chat section in practice mode
+            if (document.getElementById('botChatSection')) {
+                document.getElementById('botChatSection').style.display = 'none';
+            }
+            if (document.getElementById('chatBotName')) {
+                document.getElementById('chatBotName').textContent = '🤖 Engine';
+            }
             
             // Show/hide chat based on game mode (hide in practice mode)
             if (this.gameMode === 'practice') {
