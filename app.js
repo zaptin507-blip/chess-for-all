@@ -3497,14 +3497,16 @@ class ChessGame {
         window.chessGame = this;
         
         document.getElementById('newGame').addEventListener('click', () => {
-            // Save practice mode settings
+            // Save all settings before reset
             const wasPracticeMode = this.gameMode === 'practice';
             const savedEngineElo = this.engineElo;
             const savedTimerMode = this.timerMode;
+            const savedBot = this.selectedBot;
+            const savedPlayerColor = this.playerColor;
             
             this.resetGame();
             
-            // Restore practice mode if it was practice mode
+            // Restore settings
             if (wasPracticeMode) {
                 this.gameMode = 'practice';
                 this.engineElo = savedEngineElo;
@@ -3515,8 +3517,28 @@ class ChessGame {
                     const skillLevel = this.getSkillLevel(savedEngineElo);
                     this.stockfish.postMessage(`setoption name Skill Level value ${skillLevel}`);
                 }
+            } else if (savedBot) {
+                // Restore regular game settings
+                this.selectedBot = savedBot;
+                this.timerMode = savedTimerMode;
+                this.playerColor = savedPlayerColor;
+            }
+            
+            // Always try to start if we have a valid configuration
+            if (wasPracticeMode || savedBot) {
+                // Update UI dropdowns to match saved settings
+                const timeSelect = document.getElementById('sidebarTimeSelect');
+                const colorSelect = document.getElementById('sidebarColorSelect');
+                if (timeSelect && savedTimerMode) timeSelect.value = savedTimerMode;
+                if (colorSelect && savedPlayerColor) colorSelect.value = savedPlayerColor;
                 
-                // Start a new practice game
+                this.updateBotDisplay();
+                
+                // Hide sidebar and start
+                const chessSidebar = document.getElementById('chessSidebar');
+                if (chessSidebar) chessSidebar.style.display = 'none';
+                document.getElementById('sidebarMenu').style.left = '0';
+                
                 this.startGame();
             }
         });
