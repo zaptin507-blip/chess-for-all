@@ -688,7 +688,7 @@
         
         <!-- Bottom User Section - Chess.com Style Profile -->
         <!-- Hidden by default; shown only when logged in via auth callback -->
-        <div id="sidebarUserProfile" style="display: none; padding: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: linear-gradient(155deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.10) 100%);">
+        <div id="sidebarUserProfile" style="display: none; flex-direction: column; padding: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: linear-gradient(155deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.10) 100%);">
             <!-- Clickable profile avatar + name + ELO -->
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px; cursor: pointer; padding: 6px; border-radius: 8px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'" onclick="if(window.chessGame){window.chessGame.showProfileStats();event.stopPropagation();}">
                 <div style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 8px; overflow: hidden; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; position: relative;">
