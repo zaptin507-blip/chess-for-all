@@ -3220,6 +3220,28 @@ class ChessGame {
         }
     }
 
+    // Build annotated move HTML with optional clickable badge
+    buildAnnotatedMoveHtml(moveSan, moveIndex) {
+        if (!moveSan || !this.annotations || !this.annotations[moveIndex]) {
+            return moveSan || '';
+        }
+        
+        const classification = this.annotations[moveIndex];
+        const annot = this.getAnnotationSymbol(classification);
+        if (!annot) return moveSan;
+        
+        const badgeClass = annot.class;
+        const symbol = annot.symbol;
+        
+        // Only bad moves get clickable badges for retry via event delegation in init()
+        const BAD_MOVES = ['blunder', 'mistake', 'inaccuracy', 'missedWin'];
+        if (BAD_MOVES.includes(classification)) {
+            return `<span class="move-with-annotation">${moveSan}<span class="move-annotation ${badgeClass}" data-move-index="${moveIndex}">${symbol}</span></span>`;
+        }
+        
+        return `<span class="move-with-annotation">${moveSan}<span class="move-annotation ${badgeClass}">${symbol}</span></span>`;
+    }
+
     updateMoveList() {
         const history = this.chess.history();
         this.movesList.innerHTML = '';
@@ -3235,36 +3257,10 @@ class ChessGame {
             }
 
             // White move with annotation
-            let whiteMoveHtml = history[i];
-            if (this.annotations && this.annotations[i]) {
-                const annot = this.getAnnotationSymbol(this.annotations[i]);
-                if (annot) {
-                    // Only make bad moves clickable (blunder, mistake, inaccuracy)
-                    const isBadMove = ['blunder', 'mistake', 'inaccuracy', 'missedWin'].includes(this.annotations[i]);
-                    if (isBadMove) {
-                        whiteMoveHtml = `<span class="move-with-annotation">${history[i]}<span class="move-annotation ${annot.class}" data-move-index="${i}" onclick="chessGame.showAnnotationPopup(${i}, '${annot.symbol}', '${this.annotations[i]}')">${annot.symbol}</span></span>`;
-                    } else {
-                        // Good moves - just show symbol, not clickable
-                        whiteMoveHtml = `<span class="move-with-annotation">${history[i]}<span class="move-annotation ${annot.class}">${annot.symbol}</span></span>`;
-                    }
-                }
-            }
+            const whiteMoveHtml = this.buildAnnotatedMoveHtml(history[i], i);
 
             // Black move with annotation
-            let blackMoveHtml = history[i + 1] || '';
-            if (this.annotations && this.annotations[i + 1]) {
-                const annot = this.getAnnotationSymbol(this.annotations[i + 1]);
-                if (annot) {
-                    // Only make bad moves clickable (blunder, mistake, inaccuracy)
-                    const isBadMove = ['blunder', 'mistake', 'inaccuracy', 'missedWin'].includes(this.annotations[i + 1]);
-                    if (isBadMove) {
-                        blackMoveHtml = `<span class="move-with-annotation">${history[i + 1]}<span class="move-annotation ${annot.class}" data-move-index="${i + 1}" onclick="chessGame.showAnnotationPopup(${i + 1}, '${annot.symbol}', '${this.annotations[i + 1]}')">${annot.symbol}</span></span>`;
-                    } else {
-                        // Good moves - just show symbol, not clickable
-                        blackMoveHtml = `<span class="move-with-annotation">${history[i + 1]}<span class="move-annotation ${annot.class}">${annot.symbol}</span></span>`;
-                    }
-                }
-            }
+            const blackMoveHtml = this.buildAnnotatedMoveHtml(history[i + 1], i + 1);
 
             moveRow.innerHTML = `
                 <span class="move-number">${moveNumber}.</span>
@@ -3545,6 +3541,49 @@ class ChessGame {
         }());
     }
 
+    // Shared game restart logic — used by both New Game and Play Again buttons
+    restartWithSettings({ practiceMode, engineElo, bot, timerMode, playerColor }) {
+        this.resetGame();
+        
+        // Restore game mode settings
+        if (practiceMode) {
+            this.gameMode = 'practice';
+            this.engineElo = engineElo;
+            this.selectedBot = null; // Practice mode doesn't use selectedBot
+            
+            // Reconfigure Stockfish for practice mode
+            if (this.stockfish && engineElo) {
+                const skillLevel = this.getSkillLevel(engineElo);
+                this.stockfish.postMessage(`setoption name Skill Level value ${skillLevel}`);
+            }
+        } else if (bot) {
+            this.selectedBot = bot;
+        }
+        
+        if (timerMode) this.timerMode = timerMode;
+        if (playerColor) this.playerColor = playerColor;
+        
+        // Update UI dropdowns to match restored settings
+        const timeSelect = document.getElementById('sidebarTimeSelect');
+        const colorSelect = document.getElementById('sidebarColorSelect');
+        if (timeSelect && timerMode) timeSelect.value = timerMode;
+        if (colorSelect && playerColor) colorSelect.value = playerColor;
+        
+        this.updateBotDisplay();
+        
+        // Hide chess.com sidebar if visible
+        const chessSidebar = document.getElementById('chessSidebar');
+        if (chessSidebar) chessSidebar.style.display = 'none';
+        
+        // Only reposition sidebar menu on desktop (mobile uses overlay)
+        if (window.innerWidth > 768) {
+            const sidebarMenu = document.getElementById('sidebarMenu');
+            if (sidebarMenu) sidebarMenu.style.left = '0';
+        }
+        
+        this.startGame();
+    }
+
     setupEventListeners() {
         // Save reference to 'this' for use in window functions
         const gameInstance = this;
@@ -3553,51 +3592,22 @@ class ChessGame {
         window.chessGame = this;
         
         document.getElementById('newGame').addEventListener('click', () => {
-            // Save all settings before reset
             const wasPracticeMode = this.gameMode === 'practice';
             const savedEngineElo = this.engineElo;
             const savedTimerMode = this.timerMode;
             const savedBot = this.selectedBot;
             const savedPlayerColor = this.playerColor;
             
-            this.resetGame();
-            
-            // Restore settings
-            if (wasPracticeMode) {
-                this.gameMode = 'practice';
-                this.engineElo = savedEngineElo;
-                this.timerMode = savedTimerMode;
-                
-                // Reconfigure Stockfish
-                if (this.stockfish && savedEngineElo) {
-                    const skillLevel = this.getSkillLevel(savedEngineElo);
-                    this.stockfish.postMessage(`setoption name Skill Level value ${skillLevel}`);
-                }
-            } else if (savedBot) {
-                // Restore regular game settings
-                this.selectedBot = savedBot;
-                this.timerMode = savedTimerMode;
-                this.playerColor = savedPlayerColor;
-            }
-            
-            // Always try to start if we have a valid configuration
             if (wasPracticeMode || savedBot) {
-                // Update UI dropdowns to match saved settings
-                const timeSelect = document.getElementById('sidebarTimeSelect');
-                const colorSelect = document.getElementById('sidebarColorSelect');
-                if (timeSelect && savedTimerMode) timeSelect.value = savedTimerMode;
-                if (colorSelect && savedPlayerColor) colorSelect.value = savedPlayerColor;
-                
-                this.updateBotDisplay();
-                
-                // Hide sidebar and start
-                const chessSidebar = document.getElementById('chessSidebar');
-                if (chessSidebar) chessSidebar.style.display = 'none';
-                if (window.innerWidth > 768) {
-                    document.getElementById('sidebarMenu').style.left = '0';
-                }
-                
-                this.startGame();
+                this.restartWithSettings({
+                    practiceMode: wasPracticeMode,
+                    engineElo: savedEngineElo,
+                    bot: savedBot,
+                    timerMode: savedTimerMode,
+                    playerColor: savedPlayerColor
+                });
+            } else {
+                this.resetGame();
             }
         });
         const playAgainBtn = document.getElementById('playAgain');
@@ -3605,38 +3615,19 @@ class ChessGame {
             playAgainBtn.addEventListener('click', () => {
                 this.showSections([], ['gameOverModal']);
                 
-                // Save current settings before reset
                 const wasPracticeMode = this.gameMode === 'practice';
                 const savedEngineElo = this.engineElo;
                 const savedBot = this.selectedBot;
                 const savedTimerMode = this.timerMode;
                 const savedPlayerColor = this.playerColor;
                 
-                // Reset the game
-                this.resetGame();
-                
-                // Restore settings
-                if (wasPracticeMode) {
-                    this.gameMode = 'practice';
-                    this.engineElo = savedEngineElo;
-                    this.selectedBot = null; // Practice mode doesn't use selectedBot
-                } else {
-                    this.selectedBot = savedBot;
-                }
-                this.timerMode = savedTimerMode;
-                this.playerColor = savedPlayerColor;
-                
-                // Update UI to show saved selections
-                const timeSelect = document.getElementById('sidebarTimeSelect');
-                const colorSelect = document.getElementById('sidebarColorSelect');
-                if (timeSelect && savedTimerMode) timeSelect.value = savedTimerMode;
-                if (colorSelect && savedPlayerColor) colorSelect.value = savedPlayerColor;
-                
-                // Update bot display
-                this.updateBotDisplay();
-                
-                // Start the game immediately
-                this.startGame();
+                this.restartWithSettings({
+                    practiceMode: wasPracticeMode,
+                    engineElo: savedEngineElo,
+                    bot: wasPracticeMode ? null : savedBot,
+                    timerMode: savedTimerMode,
+                    playerColor: savedPlayerColor
+                });
             });
         } else {
             console.error('❌ playAgain button not found in DOM');
