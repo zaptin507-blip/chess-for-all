@@ -687,7 +687,7 @@
         
         <!-- Bottom User Section - Chess.com Style Profile -->
         <div id="sidebarUserProfile" style="padding: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: rgba(0, 0, 0, 0.2);">
-            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; cursor: pointer; padding: 8px; border-radius: 8px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; cursor: pointer; padding: 8px; border-radius: 8px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'" onclick="if(window.chessGame){window.chessGame.showProfileStats();event.stopPropagation();}">
                 <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #769656 0%, #5a7a3a 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;">♟️</div>
                 <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1;">
                     <span id="sidebarUserDisplayName" style="cursor: pointer; font-weight: 700; font-size: 14px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Guest</span>

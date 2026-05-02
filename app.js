@@ -5283,9 +5283,13 @@ try {
 let currentUser = null;
 let isAdmin = false;
 
+console.log('🧪 DEBUG: auth status:', !!auth);
 if (auth) {
+    console.log('🧪 DEBUG: Setting up auth.onAuthStateChanged');
     auth.onAuthStateChanged((user) => {
+        console.log('🧪 DEBUG: Auth state changed. user present:', !!user);
         if (user) {
+            console.log('🧪 DEBUG: Auth callback fired - USER LOGGED IN:', user.email);
             currentUser = user;
             // Check if user is admin
             isAdmin = user.email === 'zaptin507@gmail.com';
@@ -5354,15 +5358,31 @@ if (auth) {
             
             // Make sidebar profile clickable → opens Chess.com-style stats modal
             const sidebarProfileClickable = document.getElementById('sidebarUserProfile');
+            console.log('🧪 DEBUG: Attaching profile click handler. Element found:', !!sidebarProfileClickable);
+            console.log('🧪 DEBUG: window.chessGame exists:', !!window.chessGame);
+            console.log('🧪 DEBUG: showProfileStats exists:', !!(window.chessGame && window.chessGame.showProfileStats));
             if (sidebarProfileClickable) {
                 sidebarProfileClickable.addEventListener('click', (e) => {
+                    console.log('🧪 DEBUG: Sidebar profile CLICKED!', e.target.tagName, e.target.id);
                     // Don't trigger if user clicked one of the action buttons
                     const excludedButtons = ['#sidebarFriendsBtn', '#sidebarMailBtn', '#sidebarNotifBtn', '#sidebarSettingsBtn'];
                     const clickedExcluded = excludedButtons.some(sel => e.target.closest(sel));
+                    console.log('🧪 DEBUG: Click excluded by action button:', clickedExcluded);
                     if (!clickedExcluded) {
-                        window.chessGame.showProfileStats();
+                        if (window.chessGame && typeof window.chessGame.showProfileStats === 'function') {
+                            console.log('🧪 DEBUG: Calling showProfileStats()');
+                            window.chessGame.showProfileStats();
+                        } else {
+                            console.error('❌ DEBUG: window.chessGame.showProfileStats not available!', {
+                                chessGame: !!window.chessGame,
+                                showProfileStats: typeof (window.chessGame || {}).showProfileStats
+                            });
+                        }
                     }
                 });
+                console.log('🧪 DEBUG: Click handler attached successfully');
+            } else {
+                console.error('❌ DEBUG: sidebarUserProfile element NOT found in DOM!');
             }
             
             // Close profile dropdown when clicking outside
@@ -5408,6 +5428,8 @@ if (auth) {
             if (sidebarELO) sidebarELO.textContent = 'Rating: ---';
         }
     });
+} else {
+    console.error('❌ DEBUG: Firebase auth is NOT initialized — profile click handler will NOT be attached');
 }
 
 // Admin panel functions
@@ -5548,6 +5570,7 @@ ChessGame.prototype.applyPieceStyle = function(style) {
 
 // Show chess.com-style profile stats modal
 ChessGame.prototype.showProfileStats = function() {
+    console.log('🧪 DEBUG: showProfileStats() called!');
     const currentELO = safeStorage.getInt('userELO', 0);
     const displayName = safeStorage.get('displayName', 'Player');
     const gamesPlayed = safeStorage.getInt('gamesPlayed', 0);
@@ -5557,16 +5580,37 @@ ChessGame.prototype.showProfileStats = function() {
     const winRate = gamesPlayed > 0 ? Math.round((wins / gamesPlayed) * 100) : 0;
     
     // Update modal content
-    document.getElementById('profileStatsName').textContent = displayName;
-    document.getElementById('profileStatsELO').textContent = currentELO > 0 ? `Rating: ${currentELO}` : 'Rating: Unrated';
-    document.getElementById('profileStatsGames').textContent = gamesPlayed;
-    document.getElementById('profileStatsWinRate').textContent = `${winRate}%`;
-    document.getElementById('profileStatsWins').textContent = wins;
-    document.getElementById('profileStatsLosses').textContent = losses;
-    document.getElementById('profileStatsDraws').textContent = draws;
+    const nameEl = document.getElementById('profileStatsName');
+    const eloEl = document.getElementById('profileStatsELO');
+    const gamesEl = document.getElementById('profileStatsGames');
+    const wrEl = document.getElementById('profileStatsWinRate');
+    const winsEl = document.getElementById('profileStatsWins');
+    const lossesEl = document.getElementById('profileStatsLosses');
+    const drawsEl = document.getElementById('profileStatsDraws');
+    const modalEl = document.getElementById('profileStatsModal');
+    
+    console.log('🧪 DEBUG: Modal elements:', {
+        name: !!nameEl, elo: !!eloEl, games: !!gamesEl,
+        winRate: !!wrEl, wins: !!winsEl, losses: !!lossesEl, draws: !!drawsEl, modal: !!modalEl
+    });
+    
+    if (nameEl) nameEl.textContent = displayName;
+    if (eloEl) eloEl.textContent = currentELO > 0 ? `Rating: ${currentELO}` : 'Rating: Unrated';
+    if (gamesEl) gamesEl.textContent = gamesPlayed;
+    if (wrEl) wrEl.textContent = `${winRate}%`;
+    if (winsEl) winsEl.textContent = wins;
+    if (lossesEl) lossesEl.textContent = losses;
+    if (drawsEl) drawsEl.textContent = draws;
     
     // Show modal
+    console.log('🧪 DEBUG: Calling showSections to display profileStatsModal');
     this.showSections(['profileStatsModal'], [], 'flex');
+    
+    // Verify it showed up
+    setTimeout(() => {
+        const m = document.getElementById('profileStatsModal');
+        console.log('🧪 DEBUG: Modal display after show:', m ? m.style.display : 'null');
+    }, 100);
     
 };
 
