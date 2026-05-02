@@ -5412,20 +5412,30 @@ if (auth) {
                 // showAdminPanel();
             }
         } else {
+            const wasLoggedIn = currentUser !== null;
+            console.log('🧪 DEBUG: Auth else branch. wasLoggedIn:', wasLoggedIn, 'currentUser:', !!currentUser);
             currentUser = null;
             isAdmin = false;
             const userProfile = document.getElementById('userProfile');
             const sidebarUserProfile = document.getElementById('sidebarUserProfile');
             const sidebarToggle = document.getElementById('sidebarToggle');
             if (userProfile) userProfile.style.display = 'none';
-            // Don't hide sidebarUserProfile - it shows default "Guest" text when logged out
+            // Don't hide sidebarUserProfile — it shows default "Guest" text when logged out
             if (sidebarToggle) sidebarToggle.style.display = 'none';
             hideAdminPanel();
-            // Reset sidebar user info to defaults
-            const sidebarUserDisplayName = document.getElementById('sidebarUserDisplayName');
-            if (sidebarUserDisplayName) sidebarUserDisplayName.textContent = 'Guest';
-            const sidebarELO = document.getElementById('sidebarELO');
-            if (sidebarELO) sidebarELO.textContent = 'Rating: ---';
+            // Only reset to Guest on actual logout, not during initial null callback
+            // (Firebase fires null first, then the real user — we don't want to overwrite)
+            if (wasLoggedIn) {
+                const sidebarUserDisplayName = document.getElementById('sidebarUserDisplayName');
+                if (sidebarUserDisplayName) {
+                    sidebarUserDisplayName.textContent = 'Guest';
+                    console.log('🧪 DEBUG: Reset display name to Guest (actual logout)');
+                }
+                const sidebarELO = document.getElementById('sidebarELO');
+                if (sidebarELO) sidebarELO.textContent = 'Rating: ---';
+            } else {
+                console.log('🧪 DEBUG: Skipped Guest reset — initial null callback, waiting for real user');
+            }
         }
     });
 } else {
