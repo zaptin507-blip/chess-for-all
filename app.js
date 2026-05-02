@@ -5294,7 +5294,7 @@ if (auth) {
             if (isAdmin && !safeStorage.get('displayName')) {
                 safeStorage.set('displayName', 'The One Above All');
             }
-            const displayName = safeStorage.get('displayName') || user.email.split('@')[0];
+            const displayName = safeStorage.get('displayName') || (user.email ? user.email.split('@')[0] : null) || 'Player';
             
             console.log('👤 User logged in:', user.email);
             console.log('📝 Display name:', displayName);
@@ -5352,23 +5352,27 @@ if (auth) {
                 }
             }
             
-            // Add click handler to user profile to show profile dropdown
-            const userProfileElement = document.getElementById('userProfile');
-            if (userProfileElement) {
-                userProfileElement.addEventListener('click', (e) => {
-                    const excludedButtons = ['#profileFriendsBtn', '#profileMailBtn', '#profileNotifBtn', '#profileSettingsBtn', '#sidebarFriendsBtn', '#sidebarMailBtn', '#sidebarNotifBtn', '#sidebarSettingsBtn'];
-                    const clickedExcludedButton = excludedButtons.some(selector => e.target.closest(selector));
-                    if (!clickedExcludedButton) {
-                        toggleProfileDropdown();
+            // Make sidebar profile clickable → opens Chess.com-style stats modal
+            const sidebarProfileClickable = document.getElementById('sidebarUserProfile');
+            if (sidebarProfileClickable) {
+                sidebarProfileClickable.addEventListener('click', (e) => {
+                    // Don't trigger if user clicked one of the action buttons
+                    const excludedButtons = ['#sidebarFriendsBtn', '#sidebarMailBtn', '#sidebarNotifBtn', '#sidebarSettingsBtn'];
+                    const clickedExcluded = excludedButtons.some(sel => e.target.closest(sel));
+                    if (!clickedExcluded) {
+                        window.chessGame.showProfileStats();
                     }
                 });
             }
             
-            // Close dropdown when clicking outside
+            // Close profile dropdown when clicking outside
             document.addEventListener('click', (e) => {
                 const dropdown = document.getElementById('profileDropdown');
-                const profile = document.getElementById('userProfile');
-                if (dropdown && profile && !dropdown.contains(e.target) && !profile.contains(e.target)) {
+                const profile = document.getElementById('sidebarUserProfile');
+                const settingsBtn = document.getElementById('sidebarSettingsBtn');
+                if (dropdown && profile && settingsBtn && 
+                    !dropdown.contains(e.target) && 
+                    !settingsBtn.contains(e.target)) {
                     closeProfileDropdown();
                 }
             });
@@ -5845,6 +5849,36 @@ document.addEventListener('DOMContentLoaded', () => {
     if (closeProfileStats) {
         closeProfileStats.addEventListener('click', () => {
             window.chessGame.showSections([], ['profileStatsModal']);
+        });
+    }
+    
+    // Close profile stats modal when clicking outside content
+    const profileStatsModal = document.getElementById('profileStatsModal');
+    if (profileStatsModal) {
+        profileStatsModal.addEventListener('click', (e) => {
+            if (e.target === profileStatsModal) {
+                window.chessGame.showSections([], ['profileStatsModal']);
+            }
+        });
+    }
+    
+    // Logout from Profile Stats Modal
+    const logoutFromStats = document.getElementById('logoutFromStats');
+    if (logoutFromStats) {
+        logoutFromStats.addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                if (auth) {
+                    document.getElementById('profileStatsModal').style.display = 'none';
+                    await auth.signOut();
+                    alert('You have been logged out successfully.');
+                } else {
+                    alert('Error: Authentication service not available.');
+                }
+            } catch (error) {
+                console.error('❌ Logout error:', error);
+                alert('Logout failed: ' + error.message);
+            }
         });
     }
     
