@@ -5647,8 +5647,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (currentUser) {
                 // Already logged in, show logout confirmation
                 if (confirm('Do you want to logout?')) {
-                    if (window.chessGame) {
-                        window.chessGame.logout();
+                    if (auth) {
+                        auth.signOut();
+                        // UI reset handled by onAuthStateChanged(null) callback
                     }
                 }
             } else {
@@ -5818,7 +5819,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (auth) {
                     await auth.signOut();
-                    alert('You have been logged out successfully.');
+                    // UI reset handled by onAuthStateChanged(null) callback
+                    // No alert() — it blocks the event loop and prevents the callback from firing
                 } else {
                     console.error('❌ Firebase auth not initialized');
                     alert('Error: Authentication service not available.');
@@ -5925,7 +5927,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (auth) {
                     document.getElementById('profileStatsModal').style.display = 'none';
                     await auth.signOut();
-                    alert('You have been logged out successfully.');
+                    // UI reset handled by onAuthStateChanged(null) callback
                 } else {
                     alert('Error: Authentication service not available.');
                 }
