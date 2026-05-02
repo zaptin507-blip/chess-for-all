@@ -688,22 +688,26 @@
         
         <!-- Bottom User Section - Chess.com Style Profile -->
         <!-- Hidden by default; shown only when logged in via auth callback -->
-        <div id="sidebarUserProfile" style="display: none; padding: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: rgba(0, 0, 0, 0.2);">
+        <div id="sidebarUserProfile" style="display: none; padding: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: linear-gradient(155deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.10) 100%);">
             <!-- Clickable profile avatar + name + ELO -->
-            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px; cursor: pointer; padding: 8px; border-radius: 8px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'" onclick="if(window.chessGame){window.chessGame.showProfileStats();event.stopPropagation();}">
-                <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #769656 0%, #5a7a3a 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;">♟️</div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px; cursor: pointer; padding: 6px; border-radius: 8px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'" onclick="if(window.chessGame){window.chessGame.showProfileStats();event.stopPropagation();}">
+                <div style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 8px; overflow: hidden; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; position: relative;">
+                    <div style="background: #4a7ed4;"></div><div style="background: #f0f0f0;"></div>
+                    <div style="background: #f0f0f0;"></div><div style="background: #4a7ed4;"></div>
+                    <span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 22px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); pointer-events: none;">♟</span>
+                </div>
                 <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1;">
-                    <span id="sidebarUserDisplayName" style="font-weight: 700; font-size: 14px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></span>
-                    <span id="sidebarELO" style="color: rgba(255,255,255,0.6); font-size: 12px;"></span>
+                    <span id="sidebarUserDisplayName" style="font-weight: 700; font-size: 13px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></span>
+                    <span id="sidebarELO" style="color: rgba(255,255,255,0.5); font-size: 11px;"></span>
                 </div>
             </div>
             
             <!-- Action icons — compact horizontal row below profile, icon-only -->
-            <div style="display: flex; justify-content: space-around; padding: 4px 0;">
-                <button id="sidebarFriendsBtn" style="background: none; border: none; color: rgba(255,255,255,0.5); font-size: 18px; cursor: pointer; padding: 6px 10px; border-radius: 6px; transition: all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'; this.style.color='#fff'" onmouseout="this.style.background='none'; this.style.color='rgba(255,255,255,0.5)'" title="Friends">👥</button>
-                <button id="sidebarMailBtn" style="background: none; border: none; color: rgba(255,255,255,0.5); font-size: 18px; cursor: pointer; padding: 6px 10px; border-radius: 6px; transition: all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'; this.style.color='#fff'" onmouseout="this.style.background='none'; this.style.color='rgba(255,255,255,0.5)'" title="Messages">✉️</button>
-                <button id="sidebarNotifBtn" style="background: none; border: none; color: rgba(255,255,255,0.5); font-size: 18px; cursor: pointer; padding: 6px 10px; border-radius: 6px; transition: all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'; this.style.color='#fff'" onmouseout="this.style.background='none'; this.style.color='rgba(255,255,255,0.5)'" title="Notifications">🔔</button>
-                <button id="sidebarSettingsBtn" style="background: none; border: none; color: rgba(255,255,255,0.5); font-size: 18px; cursor: pointer; padding: 6px 10px; border-radius: 6px; transition: all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'; this.style.color='#fff'" onmouseout="this.style.background='none'; this.style.color='rgba(255,255,255,0.5)'" title="Settings">⚙️</button>
+            <div style="display: flex; justify-content: space-around; padding: 2px 0;">
+                <button id="sidebarFriendsBtn" style="background: none; border: none; color: #4CAF50; font-size: 18px; cursor: pointer; padding: 6px 10px; border-radius: 6px; transition: all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'; this.style.color='#fff'" onmouseout="this.style.background='none'; this.style.color='#4CAF50'" title="Friends">👥</button>
+                <button id="sidebarMailBtn" style="background: none; border: none; color: rgba(255,255,255,0.35); font-size: 18px; cursor: pointer; padding: 6px 10px; border-radius: 6px; transition: all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'; this.style.color='#fff'" onmouseout="this.style.background='none'; this.style.color='rgba(255,255,255,0.35)'" title="Messages">✉️</button>
+                <button id="sidebarNotifBtn" style="background: none; border: none; color: rgba(255,255,255,0.35); font-size: 18px; cursor: pointer; padding: 6px 10px; border-radius: 6px; transition: all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'; this.style.color='#fff'" onmouseout="this.style.background='none'; this.style.color='rgba(255,255,255,0.35)'" title="Notifications">🔔</button>
+                <button id="sidebarSettingsBtn" style="background: none; border: none; color: rgba(255,255,255,0.35); font-size: 18px; cursor: pointer; padding: 6px 10px; border-radius: 6px; transition: all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'; this.style.color='#fff'" onmouseout="this.style.background='none'; this.style.color='rgba(255,255,255,0.35)'" title="Settings">⚙️</button>
             </div>
         </div>
     </div>
