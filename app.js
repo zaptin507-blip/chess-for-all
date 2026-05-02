@@ -5412,30 +5412,16 @@ if (auth) {
                 // showAdminPanel();
             }
         } else {
-            const wasLoggedIn = currentUser !== null;
-            console.log('🧪 DEBUG: Auth else branch. wasLoggedIn:', wasLoggedIn, 'currentUser:', !!currentUser);
             currentUser = null;
             isAdmin = false;
             const userProfile = document.getElementById('userProfile');
             const sidebarUserProfile = document.getElementById('sidebarUserProfile');
             const sidebarToggle = document.getElementById('sidebarToggle');
             if (userProfile) userProfile.style.display = 'none';
-            // Don't hide sidebarUserProfile — it shows default "Guest" text when logged out
+            // Hide profile section — no "Guest" label, just remove profile functions
+            if (sidebarUserProfile) sidebarUserProfile.style.display = 'none';
             if (sidebarToggle) sidebarToggle.style.display = 'none';
             hideAdminPanel();
-            // Only reset to Guest on actual logout, not during initial null callback
-            // (Firebase fires null first, then the real user — we don't want to overwrite)
-            if (wasLoggedIn) {
-                const sidebarUserDisplayName = document.getElementById('sidebarUserDisplayName');
-                if (sidebarUserDisplayName) {
-                    sidebarUserDisplayName.textContent = 'Guest';
-                    console.log('🧪 DEBUG: Reset display name to Guest (actual logout)');
-                }
-                const sidebarELO = document.getElementById('sidebarELO');
-                if (sidebarELO) sidebarELO.textContent = 'Rating: ---';
-            } else {
-                console.log('🧪 DEBUG: Skipped Guest reset — initial null callback, waiting for real user');
-            }
         }
     });
 } else {
@@ -5834,33 +5820,53 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('❌ Logout button not found in DOM');
     }
     
-    // Profile Edit Button
-    const editProfileBtn = document.getElementById('editProfileBtn');
-    if (editProfileBtn) {
-        editProfileBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            closeProfileDropdown();
-            openProfileEditModal();
-        });
-    }
-    
-    // Board Theme Preference Button
-    const boardPrefBtn = document.getElementById('boardPrefBtn');
-    if (boardPrefBtn) {
-        boardPrefBtn.addEventListener('click', (e) => {
+    // All Settings button
+    const allSettingsBtn = document.getElementById('allSettingsBtn');
+    if (allSettingsBtn) {
+        allSettingsBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             closeProfileDropdown();
             window.chessGame.showSections(['boardThemeModal'], [], 'flex');
         });
     }
     
-    // Piece Style Preference Button
-    const piecePrefBtn = document.getElementById('piecePrefBtn');
-    if (piecePrefBtn) {
-        piecePrefBtn.addEventListener('click', (e) => {
+    // Customize Sidebar button
+    const customizeSidebarBtn = document.getElementById('customizeSidebarBtn');
+    if (customizeSidebarBtn) {
+        customizeSidebarBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             closeProfileDropdown();
             window.chessGame.showSections(['pieceStyleModal'], [], 'flex');
+        });
+    }
+    
+    // Light UI button
+    const lightUIBtn = document.getElementById('lightUIBtn');
+    if (lightUIBtn) {
+        lightUIBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeProfileDropdown();
+            alert('Light UI coming soon!');
+        });
+    }
+    
+    // Collapse button — toggle sidebar
+    const collapseBtn = document.getElementById('collapseBtn');
+    if (collapseBtn) {
+        collapseBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeProfileDropdown();
+            toggleSidebar();
+        });
+    }
+    
+    // Help & Support button
+    const helpSupportBtn = document.getElementById('helpSupportBtn');
+    if (helpSupportBtn) {
+        helpSupportBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeProfileDropdown();
+            showTutorial();
         });
     }
     
