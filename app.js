@@ -1,76 +1,6 @@
-// ===== SAFE STORAGE UTILITY =====
-// Wraps localStorage with try/catch to prevent crashes in:
-// - Safari private browsing (QuotaExceededError)
-// - Storage-disabled browsers
-// - Corrupt localStorage data
-const safeStorage = {
-    get(key, fallback = null) {
-        try {
-            const value = localStorage.getItem(key);
-            return value !== null ? value : fallback;
-        } catch (e) {
-            console.warn('⚠️ localStorage.getItem failed:', e.message);
-            return fallback;
-        }
-    },
-    getInt(key, fallback = 0) {
-        try {
-            const value = localStorage.getItem(key);
-            if (value === null) return fallback;
-            const parsed = parseInt(value);
-            return isNaN(parsed) ? fallback : parsed;
-        } catch (e) {
-            console.warn('⚠️ localStorage.getItem (int) failed:', e.message);
-            return fallback;
-        }
-    },
-    set(key, value) {
-        try {
-            localStorage.setItem(key, String(value));
-            return true;
-        } catch (e) {
-            console.warn('⚠️ localStorage.setItem failed:', e.message);
-            return false;
-        }
-    },
-    setInt(key, value) {
-        try {
-            localStorage.setItem(key, String(value));
-            return true;
-        } catch (e) {
-            console.warn('⚠️ localStorage.setItem (int) failed:', e.message);
-            return false;
-        }
-    },
-    remove(key) {
-        try {
-            localStorage.removeItem(key);
-            return true;
-        } catch (e) {
-            console.warn('⚠️ localStorage.removeItem failed:', e.message);
-            return false;
-        }
-    },
-    getJSON(key, fallback = null) {
-        try {
-            const value = localStorage.getItem(key);
-            if (value === null) return fallback;
-            return JSON.parse(value);
-        } catch (e) {
-            console.warn('⚠️ localStorage.getItem (JSON) failed:', e.message);
-            return fallback;
-        }
-    },
-    setJSON(key, value) {
-        try {
-            localStorage.setItem(key, JSON.stringify(value));
-            return true;
-        } catch (e) {
-            console.warn('⚠️ localStorage.setItem (JSON) failed:', e.message);
-            return false;
-        }
-    }
-};
+import safeStorage from './js/core/storage.js';
+import './js/ui/admin.js';
+import { initMobileSidebar } from './js/ui/sidebar.js';
 
 class ChessGame {
     constructor() {
@@ -173,11 +103,8 @@ class ChessGame {
                 // Resume audio context if suspended (required by modern browsers)
                 // MUST await this before creating music!
                 if (this.audioContext.state === 'suspended') {
-                    console.log('⏳ AudioContext is suspended, resuming...');
                     await this.audioContext.resume();
-                    console.log('✅ AudioContext resumed successfully');
                 } else {
-                    console.log('✅ AudioContext state:', this.audioContext.state);
                 }
                 
                 // Create gain node for volume control
@@ -189,7 +116,6 @@ class ChessGame {
                 this.createIntenseLoop();
                 
                 this.musicPlaying = true;
-                console.log('🎵 Background music started for', this.timerMode, 'mode');
             } catch (e) {
                 console.error('❌ Music error:', e);
                 console.error('Error stack:', e.stack);
@@ -1624,7 +1550,6 @@ class ChessGame {
         // Start background music for Bullet & Blitz modes
         if (this.timerMode === 'bullet' || this.timerMode === 'blitz') {
             setTimeout(async () => {
-                console.log('🎵 Starting background music for', this.timerMode);
                 await this.startBackgroundMusic();
             }, 500); // Delay slightly to ensure audio context is ready
         }
@@ -2524,15 +2449,9 @@ class ChessGame {
     }
     
     async analyzeAllMoves() {
-        console.log('⏳ analyzeAllMoves called!');
         if (this.selectedBot !== 'tester' || !this.ratingData.pendingMoves || this.ratingData.pendingMoves.length === 0) {
-            console.log('⚠️ analyzeAllMoves: skipping - not tester or no pending moves');
             return;
         }
-        
-        console.log('🎯 Analyzing all moves for ELO estimation...');
-        console.log('📊 Total moves to analyze:', this.ratingData.pendingMoves.length);
-        
         const moveCount = this.ratingData.pendingMoves.length;
         
         // Determine result
@@ -3164,19 +3083,12 @@ class ChessGame {
     }
     
     showRatingModal() {
-        console.log('🟢 showRatingModal called!');
-        console.log('📊 ratingData.estimatedELO:', this.ratingData.estimatedELO);
-        console.log('📊 ratingData.moveCount:', this.ratingData.moveCount);
-        
         const result = this.calculateELO();
         if (!result) {
             console.error('❌ calculateELO returned null!');
             alert('Not enough moves to estimate ELO. Play at least 3 moves.');
             return;
         }
-        
-        console.log('✅ Rating result:', result);
-        
         const ratingResult = document.getElementById('ratingResult');
         ratingResult.innerHTML = `
             <div style="text-align: center; margin-bottom: 20px;">
@@ -3447,7 +3359,6 @@ class ChessGame {
     }
 
     async handleGameOver() {
-        console.log('🔴 handleGameOver called! selectedBot:', this.selectedBot, 'gameMode:', this.gameMode);
         // Stop the timer when game ends
         this.stopTimer();
         
@@ -3501,16 +3412,9 @@ class ChessGame {
         this.saveGameToHistory(gameResult, message, botDisplayName);
 
         // Show rating modal for The Tester
-        console.log('🔵 handleGameOver - checking if tester, selectedBot:', this.selectedBot);
         if (this.selectedBot === 'tester') {
-            console.log('✅ The Tester game over! pendingMoves:', this.ratingData.pendingMoves?.length || 0);
-            
             try {
-                console.log('⏳ Starting analyzeAllMoves...');
                 await this.analyzeAllMoves();
-                console.log('✅ analyzeAllMoves completed');
-                console.log('📊 Estimated ELO:', this.ratingData.estimatedELO);
-                
                 // Check if we have enough data
                 if (!this.ratingData.estimatedELO) {
                     console.error('❌ No ELO estimated!');
@@ -3520,13 +3424,11 @@ class ChessGame {
                 
                 // Show rating modal after a delay (after game over modal is visible)
                 setTimeout(() => {
-                    console.log('🟢 Showing rating modal now...');
                     this.showRatingModal();
                     
                     // After showing rating, calculate ELO boost
                     const estimatedELO = this.ratingData.estimatedELO || 1200;
                     setTimeout(() => {
-                        console.log('🟡 Applying ELO boost for:', estimatedELO);
                         this.calculateELOBoost(estimatedELO);
                     }, 2000);
                 }, 1000);
@@ -3537,7 +3439,6 @@ class ChessGame {
                 alert('Error calculating ELO: ' + error.message);
             }
         } else {
-            console.log('⚪ Not The Tester, skipping ELO analysis');
         }
 
         // Auto-analyze when game ends
@@ -5288,14 +5189,9 @@ try {
 // Auth state observer
 let currentUser = null;
 let isAdmin = false;
-
-console.log('🧪 DEBUG: auth status:', !!auth);
 if (auth) {
-    console.log('🧪 DEBUG: Setting up auth.onAuthStateChanged');
     auth.onAuthStateChanged((user) => {
-        console.log('🧪 DEBUG: Auth state changed. user present:', !!user);
         if (user) {
-            console.log('🧪 DEBUG: Auth callback fired - USER LOGGED IN:', user.email);
             currentUser = user;
             // Check if user is admin
             isAdmin = user.email === 'zaptin507@gmail.com';
@@ -5305,31 +5201,15 @@ if (auth) {
                 safeStorage.set('displayName', 'The One Above All');
             }
             const displayName = safeStorage.get('displayName') || (user.email ? user.email.split('@')[0] : null) || 'Player';
-            
-            console.log('👤 User logged in:', user.email);
-            console.log('📝 Display name:', displayName);
-            console.log('👑 Is admin:', isAdmin);
-            console.log('🎨 localStorage displayName:', safeStorage.get('displayName'));
-            
             // Show user profile (both sidebar and main)
             const userProfile = document.getElementById('userProfile');
             const sidebarUserProfile = document.getElementById('sidebarUserProfile');
             const userDisplayName = document.getElementById('userDisplayName');
             const sidebarUserDisplayName = document.getElementById('sidebarUserDisplayName');
             const sidebarToggle = document.getElementById('sidebarToggle');
-            const adminToggleBtn = document.getElementById('adminToggleBtn');
-            
-            console.log('🔍 Profile elements found:', {
-                userProfile: !!userProfile,
-                sidebarUserProfile: !!sidebarUserProfile,
-                sidebarUserDisplayName: !!sidebarUserDisplayName
-            });
-            
-            if (userProfile) userProfile.style.display = 'flex';
+            const adminToggleBtn = document.getElementById('adminToggleBtn');if (userProfile) userProfile.style.display = 'flex';
             if (sidebarUserProfile) {
                 sidebarUserProfile.style.display = 'flex';
-                console.log('✅ Sidebar profile shown');
-                
                 // Restore saved profile picture to sidebar avatar on page load
                 const savedPic = safeStorage.get('profilePicture', '');
                 if (savedPic && window.chessGame) {
@@ -5340,7 +5220,6 @@ if (auth) {
             if (userDisplayName) userDisplayName.textContent = displayName + (isAdmin ? ' 👑' : '');
             if (sidebarUserDisplayName) {
                 sidebarUserDisplayName.textContent = displayName + (isAdmin ? ' 👑' : '');
-                console.log('✅ Sidebar display name set to:', displayName + (isAdmin ? ' 👑' : ''));
             }
             
             // Load user's saved preferences on login
@@ -5370,19 +5249,13 @@ if (auth) {
             
             // Make sidebar profile clickable → opens Chess.com-style stats modal
             const sidebarProfileClickable = document.getElementById('sidebarUserProfile');
-            console.log('🧪 DEBUG: Attaching profile click handler. Element found:', !!sidebarProfileClickable);
-            console.log('🧪 DEBUG: window.chessGame exists:', !!window.chessGame);
-            console.log('🧪 DEBUG: showProfileStats exists:', !!(window.chessGame && window.chessGame.showProfileStats));
             if (sidebarProfileClickable) {
                 sidebarProfileClickable.addEventListener('click', (e) => {
-                    console.log('🧪 DEBUG: Sidebar profile CLICKED!', e.target.tagName, e.target.id);
                     // Don't trigger if user clicked one of the action buttons
                     const excludedButtons = ['#sidebarFriendsBtn', '#sidebarMailBtn', '#sidebarNotifBtn', '#sidebarSettingsBtn'];
                     const clickedExcluded = excludedButtons.some(sel => e.target.closest(sel));
-                    console.log('🧪 DEBUG: Click excluded by action button:', clickedExcluded);
                     if (!clickedExcluded) {
                         if (window.chessGame && typeof window.chessGame.showProfileStats === 'function') {
-                            console.log('🧪 DEBUG: Calling showProfileStats()');
                             window.chessGame.showProfileStats();
                         } else {
                             console.error('❌ DEBUG: window.chessGame.showProfileStats not available!', {
@@ -5392,7 +5265,6 @@ if (auth) {
                         }
                     }
                 });
-                console.log('🧪 DEBUG: Click handler attached successfully');
             } else {
                 console.error('❌ DEBUG: sidebarUserProfile element NOT found in DOM!');
             }
@@ -5440,76 +5312,7 @@ if (auth) {
     console.error('❌ DEBUG: Firebase auth is NOT initialized — profile click handler will NOT be attached');
 }
 
-// Admin panel functions
-window.toggleAdminPanel = () => {
-    let adminPanel = document.getElementById('adminPanel');
-    
-    if (adminPanel && adminPanel.style.display === 'block') {
-        // Hide panel
-        adminPanel.style.display = 'none';
-        return;
-    }
-    
-    if (!adminPanel) {
-        // Create admin panel as a toggleable window
-        adminPanel = document.createElement('div');
-        adminPanel.id = 'adminPanel';
-        adminPanel.className = 'admin-panel';
-        adminPanel.innerHTML = `
-            <div class="admin-panel-header">
-                <h3 class="admin-panel-title">👑 Admin</h3>
-                <button onclick="document.getElementById('adminPanel').style.display='none'" class="admin-panel-close">&times;</button>
-            </div>
-            <button id="adminInstantWin" class="admin-panel-btn-primary">⚡ Instant Win</button>
-            <button id="adminResetGame" class="admin-panel-btn-secondary">🔄 Reset Game</button>
-        `;
-        document.body.appendChild(adminPanel);
-        
-        // Add event listeners
-        document.getElementById('adminInstantWin').addEventListener('click', () => {
-            if (chessGame) {
-                chessGame.instantWin();
-            }
-        });
-        
-        document.getElementById('adminResetGame').addEventListener('click', () => {
-            if (chessGame) {
-                chessGame.resetGame();
-            }
-        });
-    }
-    
-    adminPanel.style.display = 'block';
-};
 
-function showAdminPanel() {
-    window.toggleAdminPanel();
-}
-
-function hideAdminPanel() {
-    const adminPanel = document.getElementById('adminPanel');
-    if (adminPanel) {
-        adminPanel.style.display = 'none';
-    }
-}
-
-// Sidebar toggle function
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebarMenu');
-    const toggle = document.getElementById('sidebarToggle');
-    
-    if (sidebar.classList.contains('sidebar-open')) {
-        // Close sidebar
-        sidebar.classList.remove('sidebar-open');
-        toggle.style.left = '10px';
-        toggle.textContent = '☰';
-    } else {
-        // Open sidebar
-        sidebar.classList.add('sidebar-open');
-        toggle.style.left = '230px';
-        toggle.textContent = '✕';
-    }
-}
 // Board & Piece Preference Methods
 ChessGame.prototype.loadPreferences = function() {
     // Load board theme
@@ -5599,7 +5402,6 @@ ChessGame.prototype.applyPieceStyle = function(style) {
 
 // Show chess.com-style profile page (full-page)
 ChessGame.prototype.showProfileStats = function() {
-    console.log('🧪 DEBUG: showProfileStats() called!');
     const currentELO = safeStorage.getInt('userELO', 0);
     const displayName = safeStorage.get('displayName', 'Player');
     const gamesPlayed = safeStorage.getInt('gamesPlayed', 0);
@@ -5714,8 +5516,6 @@ document.querySelectorAll('[data-theme]').forEach(btn => {
 });
     
     // Show profile page (full-page, not a popup)
-    console.log('🧪 DEBUG: Switching to full-page profile view');
-    
     // Hide board area and chess sidebar
     const container = document.querySelector('.container');
     const chessSidebar = document.getElementById('chessSidebar');
@@ -5738,7 +5538,6 @@ document.querySelectorAll('[data-theme]').forEach(btn => {
     // Verify it showed up
     setTimeout(() => {
         const m = document.getElementById('profileStatsModal');
-        console.log('🧪 DEBUG: Profile page display after show:', m ? m.style.display : 'null');
     }, 100);
     
 };
@@ -6352,16 +6151,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 window.addEventListener('load', () => {
     // ---- Mobile initialization ----
-    if (window.innerWidth <= 768) {
-        const sidebarMenu = document.getElementById('sidebarMenu');
-        const sidebarToggle = document.getElementById('sidebarToggle');
-        
-        // Ensure sidebar starts hidden on mobile
-        if (sidebarMenu) {
-            sidebarMenu.classList.remove('sidebar-open');
-            // Remove any inline left style so CSS takes over
-            sidebarMenu.style.left = '';
-        }
+    initMobileSidebar();
         
         // Ensure hamburger toggle is visible
         if (sidebarToggle) {

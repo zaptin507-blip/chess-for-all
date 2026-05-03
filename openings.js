@@ -920,10 +920,9 @@ function renderOpeningCard(opening) {
 
 // Show opening detail modal
 window.showOpeningDetail = (openingId) => {
-    console.log('🔵 showOpeningDetail called with:', openingId);
     const opening = chessOpenings[openingId];
     if (!opening) {
-        console.error('❌ Opening not found:', openingId);
+        console.error('Opening not found:', openingId);
         return;
     }
     console.log('✅ Opening found:', opening.name);

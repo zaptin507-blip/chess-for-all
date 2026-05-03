@@ -1380,3 +1380,92 @@ body {
     text-align: center;
     box-shadow: 0 10px 40px rgba(0,0,0,0.5);
 }
+
+/* ===== OPENINGS & LEARN SECTION ===== */
+.opening-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid transparent;
+    border-radius: 12px;
+    padding: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+
+.opening-card:hover {
+    border-color: #769656;
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.opening-filter-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.opening-filter-btn.active {
+    background: #769656;
+}
+
+.opening-filter-btn.beginner {
+    background: rgba(76, 175, 80, 0.2);
+    border: 1px solid rgba(76, 175, 80, 0.3);
+    color: #4CAF50;
+}
+
+.opening-filter-btn.intermediate {
+    background: rgba(255, 152, 0, 0.2);
+    border: 1px solid rgba(255, 152, 0, 0.3);
+    color: #FF9800;
+}
+
+.opening-filter-btn.advanced {
+    background: rgba(244, 67, 54, 0.2);
+    border: 1px solid rgba(244, 67, 54, 0.3);
+    color: #f44336;
+}
+
+.trainer-info-box {
+    background: rgba(118, 150, 86, 0.1);
+    border: 1px solid rgba(118, 150, 86, 0.3);
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 20px;
+}
+
+.trainer-start-btn {
+    flex: 1;
+    padding: 14px;
+    background: #769656;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.trainer-start-btn:hover {
+    background: #87a865;
+}
+
+/* ===== OPENINGS & LEARN SECTION ===== */
+.opening-card { background: rgba(255,255,255,0.05); border: 2px solid transparent; border-radius: 12px; padding: 18px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
+.opening-card:hover { border-color: #769656; background: rgba(255,255,255,0.08); transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
+.opening-filter-btn { padding: 8px 16px; border: none; border-radius: 6px; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.opening-filter-btn.all { background: #769656; }
+.opening-filter-btn.beginner { background: rgba(76,175,80,0.2); border: 1px solid rgba(76,175,80,0.3); color: #4CAF50; }
+.opening-filter-btn.intermediate { background: rgba(255,152,0,0.2); border: 1px solid rgba(255,152,0,0.3); color: #FF9800; }
+.opening-filter-btn.advanced { background: rgba(244,67,54,0.2); border: 1px solid rgba(244,67,54,0.3); color: #f44336; }
+.trainer-info-box { background: rgba(118,150,86,0.1); border: 1px solid rgba(118,150,86,0.3); border-radius: 10px; padding: 18px; margin-bottom: 20px; }
+.trainer-start-btn { flex: 1; padding: 14px; background: #769656; color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.trainer-start-btn:hover { background: #87a865; }
