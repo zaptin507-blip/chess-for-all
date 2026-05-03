@@ -3903,12 +3903,6 @@ class ChessGame {
         
         window.showPlaySection = () => {
             const isMobile = window.innerWidth <= 768;
-            // Don't show the left playSection anymore - use Chess.com sidebar instead
-            // document.getElementById('playSection').style.display = 'block';
-            document.getElementById('sidebarMenu').style.left = '-180px';
-            if (isMobile) {
-                document.getElementById('sidebarMenu').classList.remove('sidebar-open');
-            }
             // Show Chess.com-style right sidebar for Boss Battle
             const chessSidebar = document.getElementById('chessSidebar');
             if (chessSidebar) chessSidebar.style.display = 'block';
@@ -3917,9 +3911,6 @@ class ChessGame {
         window.closePlaySection = () => {
             const isMobile = window.innerWidth <= 768;
             document.getElementById('playSection').style.display = 'none';
-            if (!isMobile) {
-                document.getElementById('sidebarMenu').style.left = '0';
-            }
             // Hide Chess.com-style right sidebar when closing Boss Battle
             const chessSidebar = document.getElementById('chessSidebar');
             if (chessSidebar) chessSidebar.style.display = 'none';
@@ -3930,23 +3921,14 @@ class ChessGame {
         };
         
         window.showPracticeSection = () => {
-            const isMobile = window.innerWidth <= 768;
             document.getElementById('practiceSection').style.display = 'block';
-            document.getElementById('sidebarMenu').style.left = '-180px';
-            if (isMobile) {
-                document.getElementById('sidebarMenu').classList.remove('sidebar-open');
-            }
             // Hide Chess.com-style right sidebar
             const chessSidebar = document.getElementById('chessSidebar');
             if (chessSidebar) chessSidebar.style.display = 'none';
         };
         
         window.closePracticeSection = () => {
-            const isMobile = window.innerWidth <= 768;
             document.getElementById('practiceSection').style.display = 'none';
-            if (!isMobile) {
-                document.getElementById('sidebarMenu').style.left = '0';
-            }
             // Show Chess.com-style right sidebar
             const chessSidebar = document.getElementById('chessSidebar');
             if (chessSidebar) chessSidebar.style.display = 'block';
@@ -3957,12 +3939,7 @@ class ChessGame {
         };
         
         window.showLearnSection = () => {
-            const isMobile = window.innerWidth <= 768;
             document.getElementById('learnSection').style.display = 'block';
-            document.getElementById('sidebarMenu').style.left = '-180px';
-            if (isMobile) {
-                document.getElementById('sidebarMenu').classList.remove('sidebar-open');
-            }
             // Render the openings
             if (window.renderLearnSection) {
                 window.renderLearnSection();
@@ -4081,9 +4058,6 @@ class ChessGame {
                     // Hide both UIs
                     if (chessSidebar) chessSidebar.style.display = 'none';
                     if (playSection) playSection.style.display = 'none';
-                    if (window.innerWidth > 768) {
-                        document.getElementById('sidebarMenu').style.left = '0';
-                    }
                     
                     window.chessGame.updateBotDisplay();
                     window.chessGame.startGame();
