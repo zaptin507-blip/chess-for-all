@@ -6150,16 +6150,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.addEventListener('load', () => {
-    // ---- Mobile initialization ----
     initMobileSidebar();
-        
-        // Ensure hamburger toggle is visible
-        if (sidebarToggle) {
-            sidebarToggle.style.display = 'block';
-            sidebarToggle.textContent = '☰';
-            sidebarToggle.style.left = '10px';
-        }
-    }
     
     try {
         chessGame = new ChessGame();
