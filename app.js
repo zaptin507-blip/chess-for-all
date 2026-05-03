@@ -3827,18 +3827,67 @@ class ChessGame {
             const draws = safeStorage.getInt('draws', 0);
             const elo = safeStorage.getInt('userELO', 0);
             const gamesPlayed = safeStorage.getInt('gamesPlayed', 0);
+            const displayName = safeStorage.get('displayName', '');
+            const streak = safeStorage.getInt('dailyStreak', 0);
             
-            const preview = document.getElementById('homeStatsPreview');
-            if (preview && gamesPlayed > 0) {
-                preview.style.display = 'block';
-                document.getElementById('homeWins').textContent = wins;
-                document.getElementById('homeLosses').textContent = losses;
-                document.getElementById('homeDraws').textContent = draws;
-                document.getElementById('homeELO').textContent = elo || '—';
-            } else if (preview) {
-                preview.style.display = 'none';
+            // Greeting
+            const greeting = document.getElementById('homeGreeting');
+            if (greeting) {
+                if (displayName) {
+                    greeting.textContent = 'Welcome back, ' + displayName;
+                } else {
+                    greeting.textContent = 'Welcome to Chess';
+                }
             }
-        }
+            
+            // Header stats
+            const headerELO = document.getElementById('homeHeaderELO');
+            if (headerELO) headerELO.textContent = elo || '—';
+            
+            const headerWinRate = document.getElementById('homeHeaderWinRate');
+            if (headerWinRate && gamesPlayed > 0) {
+                const rate = Math.round((wins / gamesPlayed) * 100);
+                headerWinRate.textContent = rate + '% win rate';
+            }
+            
+            // Stats pills
+            const streakEl = document.getElementById('homeStreak');
+            if (streakEl) streakEl.textContent = streak || '0';
+            
+            const gamesTotal = document.getElementById('homeGamesTotal');
+            if (gamesTotal) gamesTotal.textContent = gamesPlayed;
+            
+            const puzzlesEl = document.getElementById('homePuzzles');
+            if (puzzlesEl) puzzlesEl.textContent = safeStorage.getInt('puzzlesSolved', 0);
+            
+            // Stats column
+            const statGames = document.getElementById('homeStatGames');
+            if (statGames) statGames.textContent = gamesPlayed;
+            
+            const statWins = document.getElementById('homeStatWins');
+            if (statWins) statWins.textContent = wins;
+            
+            const statLosses = document.getElementById('homeStatLosses');
+            if (statLosses) statLosses.textContent = losses;
+            
+            const statDraws = document.getElementById('homeStatDraws');
+            if (statDraws) statDraws.textContent = draws;
+            
+            const statWinRate = document.getElementById('homeStatWinRate');
+            if (statWinRate) {
+                if (gamesPlayed > 0) {
+                    statWinRate.textContent = Math.round((wins / gamesPlayed) * 100) + '%';
+                } else {
+                    statWinRate.textContent = '—%';
+                }
+            }
+            
+            // Welcome message: show only for new users (no games played)
+            const welcomeMsg = document.getElementById('homeWelcomeMsg');
+            if (welcomeMsg) {
+                welcomeMsg.style.display = gamesPlayed === 0 ? 'block' : 'none';
+            }
+        };
         
         window.showPlaySection = () => {
             const isMobile = window.innerWidth <= 768;

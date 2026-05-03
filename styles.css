@@ -1078,9 +1078,13 @@ body {
             left: 0 !important;
         }
         
-        #homeSection {
-            width: 100vw !important;
-            left: 0 !important;
+        /* Home dashboard: stack grid vertically on mobile */
+        #homeSection [style*="grid-template-columns"] {
+            grid-template-columns: 1fr !important;
+        }
+        
+        #homeSection #homeBoardPreview {
+            min-height: 180px;
         }
         
         /* Chess.com sidebar — when shown by JS, cover full screen */
