@@ -6391,9 +6391,3 @@ window.addEventListener('load', () => {
         // For non-critical errors (like sound files), the game will still work
     }
 });
-        if (error.message && error.message.includes('Critical')) {
-            alert('Error loading chess game: ' + error.message);
-        }
-        // For non-critical errors (like sound files), the game will still work
-    }
-});
