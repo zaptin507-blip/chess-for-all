@@ -239,6 +239,7 @@ const chessOpenings = {
     sicililian: {
         id: 'sicilian',
         name: 'Sicilian Defense',
+        variation: 'Najdorf Variation',
         eco: 'B20-B99',
         difficulty: 'intermediate',
         category: 'Semi-Open Games',
@@ -255,6 +256,7 @@ const chessOpenings = {
     french: {
         id: 'french',
         name: 'French Defense',
+        variation: 'Winawer Variation',
         eco: 'C00-C19',
         difficulty: 'intermediate',
         category: 'Semi-Open Games',
@@ -271,6 +273,7 @@ const chessOpenings = {
     caroKann: {
         id: 'caroKann',
         name: 'Caro-Kann Defense',
+        variation: 'Advance Variation',
         eco: 'B10-B19',
         difficulty: 'intermediate',
         category: 'Semi-Open Games',
@@ -319,6 +322,7 @@ const chessOpenings = {
     slav: {
         id: 'slav',
         name: 'Slav Defense',
+        variation: 'Exchange Variation',
         eco: 'D10-D49',
         difficulty: 'intermediate',
         category: 'Closed Games',
@@ -336,6 +340,7 @@ const chessOpenings = {
     grunfeld: {
         id: 'grunfeld',
         name: 'Grünfeld Defense',
+        variation: 'Exchange Variation',
         eco: 'D70-D99',
         difficulty: 'advanced',
         category: 'Indian Defenses',
@@ -352,6 +357,7 @@ const chessOpenings = {
     dutch: {
         id: 'dutch',
         name: 'Dutch Defense',
+        variation: 'Leningrad Variation',
         eco: 'A80-A99',
         difficulty: 'advanced',
         category: 'Closed Games',
@@ -400,6 +406,7 @@ const chessOpenings = {
     pirc: {
         id: 'pirc',
         name: 'Pirc Defense',
+        variation: 'Classical Variation',
         eco: 'B07-B09',
         difficulty: 'advanced',
         category: 'Semi-Open Games',
@@ -432,6 +439,7 @@ const chessOpenings = {
     english: {
         id: 'english',
         name: 'English Opening',
+        variation: 'Symmetrical Variation',
         eco: 'A10-A39',
         difficulty: 'advanced',
         category: 'Flank Openings',
@@ -901,6 +909,7 @@ function renderOpeningCard(opening) {
                         <h3 style="color: #fff; margin: 0; font-size: 18px;">${opening.name}</h3>
                         <span style="background: ${difficultyColor}; color: #fff; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase;">${opening.difficulty}</span>
                     </div>
+                    ${opening.variation ? `<div style="color: #769656; font-size: 14px; font-weight: 600; margin-bottom: 6px;">${opening.variation}</div>` : ''}
                     <div style="color: rgba(255, 255, 255, 0.6); font-size: 13px; margin-bottom: 8px;">
                         ${opening.eco} • ${opening.category}
                     </div>
@@ -942,6 +951,7 @@ window.showOpeningDetail = (openingId) => {
                     <h2 style="color: #fff; margin: 0; font-size: 28px;">${opening.name}</h2>
                     <span style="background: ${difficultyColor}; color: #fff; padding: 5px 15px; border-radius: 15px; font-size: 13px; font-weight: 600; text-transform: uppercase;">${opening.difficulty}</span>
                 </div>
+                ${opening.variation ? `<div style="color: #769656; font-size: 18px; font-weight: 600; margin-top: 8px;">${opening.variation}</div>` : ''}
                 <button onclick="document.getElementById('openingDetailModal').remove()" style="background: none; border: none; color: #fff; font-size: 32px; cursor: pointer; padding: 0; width: 40px; height: 40px;">&times;</button>
             </div>
 
