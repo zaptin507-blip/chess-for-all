@@ -9,6 +9,10 @@ class ChessAnalyzer {
     async evaluatePosition(fen, depth = 18) {
         return new Promise((resolve) => {
             let timeout;
+            // Parse side-to-move from FEN (2nd field) instead of using this.chess.turn()
+            // which may not reflect the position being evaluated.
+            const fenParts = fen.split(' ');
+            const sideToMove = fenParts.length > 1 ? fenParts[1] : 'w';
             
             const listener = (event) => {
                 const message = event.data;
@@ -18,12 +22,14 @@ class ChessAnalyzer {
                 if (mateMatch) {
                     clearTimeout(timeout);
                     this.stockfish.removeEventListener('message', listener);
-                    resolve({ mate: parseInt(mateMatch[1]), score: mateMatch[1] > 0 ? 10000 : -10000 });
+                    resolve({ mate: parseInt(mateMatch[1]), score: parseInt(mateMatch[1]) > 0 ? 10000 : -10000 });
                 } else if (match) {
                     const score = parseInt(match[1]);
                     clearTimeout(timeout);
                     this.stockfish.removeEventListener('message', listener);
-                    resolve({ score: this.chess.turn() === 'b' ? -score : score });
+                    // Stockfish reports score from side-to-move perspective.
+                    // Normalize so positive = white advantage.
+                    resolve({ score: sideToMove === 'b' ? -score : score });
                 }
             };
 
@@ -56,31 +62,36 @@ class ChessAnalyzer {
         const isSacrifice = this.detectSacrifice(move, fenAfter);
         const isHangingCapture = this.detectHangingCapture(move, fenBefore);
         const isBlunderPiece = this.detectBlunder(move, fenBefore, fenAfter);
-        const missedCheckmate = await this.detectMissedCheckmate(fenBefore);
+        const missedCheckmateResult = await this.detectMissedCheckmate(fenBefore);
+        const missedCheckmate = missedCheckmateResult.isCheckmate;
         const isBook = this.detectBookMove(move.san, moveIndex);
 
-        // If it's a mistake, blunder, or inaccuracy, find the best move using Magnus-level analysis
-        // Also check for blunder pieces or hanging captures that might be classified as blunders
-        // Generate suggestions for any eval drop that could be improved
-        if (actualEvalChange < -20 || missedCheckmate || isBlunderPiece || isHangingCapture) {
+        // Find the engine's best move with adaptive depth based on move quality.
+        // For bad moves: deep analysis with retries to provide reliable suggested alternatives.
+        // For good moves: shallow check to determine if the player found the engine's top choice (Best Move).
+        if (missedCheckmate && missedCheckmateResult.bestMove) {
+            // We already have the best move from missed-checkmate detection — no extra call needed
+            suggestedMove = missedCheckmateResult.bestMove;
+        } else if (actualEvalChange < -20 || isBlunderPiece || isHangingCapture) {
+            // Bad move — deep analysis with retries for reliable suggestions
             console.log(`Finding best move for ${move.san} (eval change: ${actualEvalChange}, blunderPiece: ${isBlunderPiece}, hangingCapture: ${isHangingCapture})`);
             
-            // Try multiple times to get a suggestion
-            suggestedMove = await this.findBestMove(fenBefore, 15); // Use depth 15 for Magnus-level
+            suggestedMove = await this.findBestMove(fenBefore, 15);
             
-            // If first attempt failed, try again with lower depth
             if (!suggestedMove) {
                 console.log('First attempt failed, trying again with depth 12...');
                 suggestedMove = await this.findBestMove(fenBefore, 12);
             }
             
-            // If still no suggestion, try one more time with minimal depth
             if (!suggestedMove) {
                 console.log('Second attempt failed, trying with depth 8...');
                 suggestedMove = await this.findBestMove(fenBefore, 8);
             }
             
             console.log(`Magnus would play: ${suggestedMove || 'NO MOVE FOUND'}`);
+        } else {
+            // Good move — shallow check for Best Move classification
+            suggestedMove = await this.findBestMove(fenBefore, 8);
         }
 
         // ====== PROPER CHESS.COM MOVE CLASSIFICATION ======
@@ -200,11 +211,11 @@ class ChessAnalyzer {
                             } else {
                                 // If move failed, return the UCI move formatted nicely
                                 console.warn('Move conversion failed, using UCI format:', bestMove);
-                                resolve(this.formatUCIToAlgebraic(bestMove));
+                                resolve(this.formatUCIToAlgebraic(bestMove, fen));
                             }
                         } catch (error) {
                             console.error('Error converting move:', error, bestMove);
-                            resolve(this.formatUCIToAlgebraic(bestMove));
+                            resolve(this.formatUCIToAlgebraic(bestMove, fen));
                         }
                     } else {
                         resolve(null);
@@ -226,16 +237,29 @@ class ChessAnalyzer {
         });
     }
 
-    formatUCIToAlgebraic(uciMove) {
+    formatUCIToAlgebraic(uciMove, fen) {
         // Convert UCI format (e.g., "e2e4") to algebraic (e.g., "e4")
+        // When FEN is provided, use chess.js for proper SAN conversion.
         if (!uciMove || uciMove.length < 4) return uciMove;
         
         const from = uciMove.substring(0, 2);
         const to = uciMove.substring(2, 4);
-        const promotion = uciMove.length > 4 ? uciMove[4] : null;
+        const promotion = uciMove.length > 4 ? uciMove[4] : undefined;
         
-        // Simple conversion - just show the destination square
-        // This isn't perfect but better than showing raw UCI
+        // Try full chess.js conversion if FEN is available
+        if (fen) {
+            try {
+                const tempChess = new Chess(fen);
+                const move = tempChess.move({ from, to, promotion });
+                if (move && move.san) {
+                    return move.san;
+                }
+            } catch (e) {
+                // Fall through to simple conversion below
+            }
+        }
+        
+        // Simple fallback conversion — just show the destination square
         let algebraic = to;
         if (promotion) {
             algebraic += '=' + promotion.toUpperCase();
@@ -266,9 +290,12 @@ class ChessAnalyzer {
                         
                         // Check if the move resulted in checkmate
                         const isCheckmate = moveResult && tempChess.game_over() && tempChess.in_checkmate();
-                        resolve(isCheckmate);
+                        resolve({ 
+                            isCheckmate: isCheckmate,
+                            bestMove: moveResult ? moveResult.san : this.formatUCIToAlgebraic(bestMove, fen)
+                        });
                     } else {
-                        resolve(false);
+                        resolve({ isCheckmate: false, bestMove: null });
                     }
                 }
             };
@@ -279,7 +306,7 @@ class ChessAnalyzer {
             timeout = setTimeout(() => {
                 console.warn('detectMissedCheckmate timed out');
                 this.stockfish.removeEventListener('message', listener);
-                resolve(false);
+                resolve({ isCheckmate: false, bestMove: null });
             }, 8000);
             
             this.stockfish.postMessage(`position fen ${fen}`);
