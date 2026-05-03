@@ -932,9 +932,14 @@ body {
         cursor: pointer;
     }
     
-    /* ---- Chess.com overlay sidebar — hidden on mobile ---- */
+    /* ---- Chess.com overlay sidebar — hidden on mobile until opened ---- */
     #chessSidebar {
         display: none !important;
+    }
+    
+    /* Show close button on chess sidebar for mobile */
+    #closeChessSidebar {
+        display: block !important;
     }
     
     /* ---- Game wrapper — full width, board-first ---- */
@@ -1071,6 +1076,7 @@ body {
         /* Chess.com sidebar — when shown by JS, cover full screen */
         #chessSidebar[style*="display: block"],
         #chessSidebar[style*="display:block"] {
+            display: block !important;
             width: 100vw !important;
             max-width: 100vw;
             z-index: 9999 !important;

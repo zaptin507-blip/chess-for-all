@@ -52,7 +52,9 @@
             <!-- Chess.com Style Sidebar -->
             <div id="chessSidebar" style="position: fixed; right: 0; top: 0; width: 260px; height: 100vh; background: linear-gradient(180deg, #312e2b 0%, #272522 100%); border-left: 1px solid rgba(255, 255, 255, 0.1); padding: 15px; overflow-y: auto; z-index: 1000; box-shadow: -5px 0 20px rgba(0,0,0,0.5);">
                 <!-- Sidebar Header -->
-                <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid rgba(255, 255, 255, 0.1);">
+                <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid rgba(255, 255, 255, 0.1); position: relative;">
+                    <!-- Close button — visible on mobile only -->
+                    <button id="closeChessSidebar" onclick="closePlaySection(); if(window.innerWidth<=768)document.getElementById('sidebarToggle').style.display='block';" style="position: absolute; left: 0; top: 50%; transform: translateY(-50%); background: none; border: none; color: rgba(255,255,255,0.5); font-size: 20px; cursor: pointer; padding: 4px 8px; display: none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">←</button>
                     <div style="font-size: 20px; font-weight: 700; color: #fff; text-align: center;">♟️ Play Bots</div>
                 </div>
                 
