@@ -5727,6 +5727,18 @@ ChessGame.prototype.showProfileStats = function() {
         }
     }
     
+// Highlight current board theme button
+const currentTheme = safeStorage.get('boardTheme', 'green');
+document.querySelectorAll('[data-theme]').forEach(btn => {
+    if (btn.getAttribute('data-theme') === currentTheme) {
+        btn.style.border = '2px solid #fff';
+        btn.style.boxShadow = '0 0 8px rgba(255,255,255,0.3)';
+    } else {
+        btn.style.border = '2px solid rgba(255,255,255,0.2)';
+        btn.style.boxShadow = 'none';
+    }
+});
+    
     // Show profile page (full-page, not a popup)
     console.log('🧪 DEBUG: Switching to full-page profile view');
     
@@ -5861,6 +5873,17 @@ ChessGame.prototype.applyTheme = function(theme) {
     if (this.setBoardTheme) {
         this.setBoardTheme(theme);
     }
+    
+    // Highlight selected theme button in profile
+    document.querySelectorAll('[data-theme]').forEach(btn => {
+        if (btn.getAttribute('data-theme') === theme) {
+            btn.style.border = '2px solid #fff';
+            btn.style.boxShadow = '0 0 8px rgba(255,255,255,0.3)';
+        } else {
+            btn.style.border = '2px solid rgba(255,255,255,0.2)';
+            btn.style.boxShadow = 'none';
+        }
+    });
 };
 
 // Save completed game to history for profile page display
