@@ -33,12 +33,40 @@ const safeStorage = {
             return false;
         }
     },
+    setInt(key, value) {
+        try {
+            localStorage.setItem(key, String(value));
+            return true;
+        } catch (e) {
+            console.warn('⚠️ localStorage.setItem (int) failed:', e.message);
+            return false;
+        }
+    },
     remove(key) {
         try {
             localStorage.removeItem(key);
             return true;
         } catch (e) {
             console.warn('⚠️ localStorage.removeItem failed:', e.message);
+            return false;
+        }
+    },
+    getJSON(key, fallback = null) {
+        try {
+            const value = localStorage.getItem(key);
+            if (value === null) return fallback;
+            return JSON.parse(value);
+        } catch (e) {
+            console.warn('⚠️ localStorage.getItem (JSON) failed:', e.message);
+            return fallback;
+        }
+    },
+    setJSON(key, value) {
+        try {
+            localStorage.setItem(key, JSON.stringify(value));
+            return true;
+        } catch (e) {
+            console.warn('⚠️ localStorage.setItem (JSON) failed:', e.message);
             return false;
         }
     }
@@ -3468,6 +3496,10 @@ class ChessGame {
         document.getElementById('gameOverMessage').textContent = message;
         modal.style.display = 'flex';
 
+        // Save game to history for profile page
+        const gameResult = title === '🎉 Victory!' ? 'win' : title === 'Defeat' ? 'loss' : 'draw';
+        this.saveGameToHistory(gameResult, message, botDisplayName);
+
         // Show rating modal for The Tester
         console.log('🔵 handleGameOver - checking if tester, selectedBot:', this.selectedBot);
         if (this.selectedBot === 'tester') {
@@ -5562,9 +5594,30 @@ ChessGame.prototype.applyPieceStyle = function(style) {
         }
     });
     
+    // Update profile page piece style buttons if visible
+    const cburnettBtn = document.getElementById('profileCburnettBtn');
+    const unicodeBtn = document.getElementById('profileUnicodeBtn');
+    if (cburnettBtn && unicodeBtn) {
+        if (style === 'cburnett') {
+            cburnettBtn.style.background = 'rgba(118,150,86,0.2)';
+            cburnettBtn.style.borderColor = '#769656';
+            cburnettBtn.style.color = '#fff';
+            unicodeBtn.style.background = 'rgba(255,255,255,0.06)';
+            unicodeBtn.style.borderColor = 'rgba(255,255,255,0.12)';
+            unicodeBtn.style.color = 'rgba(255,255,255,0.5)';
+        } else {
+            unicodeBtn.style.background = 'rgba(118,150,86,0.2)';
+            unicodeBtn.style.borderColor = '#769656';
+            unicodeBtn.style.color = '#fff';
+            cburnettBtn.style.background = 'rgba(255,255,255,0.06)';
+            cburnettBtn.style.borderColor = 'rgba(255,255,255,0.12)';
+            cburnettBtn.style.color = 'rgba(255,255,255,0.5)';
+        }
+    }
+    
 };
 
-// Show chess.com-style profile stats modal
+// Show chess.com-style profile page (full-page)
 ChessGame.prototype.showProfileStats = function() {
     console.log('🧪 DEBUG: showProfileStats() called!');
     const currentELO = safeStorage.getInt('userELO', 0);
@@ -5574,29 +5627,99 @@ ChessGame.prototype.showProfileStats = function() {
     const losses = safeStorage.getInt('losses', 0);
     const draws = safeStorage.getInt('draws', 0);
     const winRate = gamesPlayed > 0 ? Math.round((wins / gamesPlayed) * 100) : 0;
+    const userStatus = safeStorage.get('userStatus', '');
+    const joinDate = safeStorage.get('joinDate', 'Mar 7, 2026');
+    const friendsCount = safeStorage.getInt('friendsCount', 0);
+    const viewsCount = safeStorage.getInt('viewsCount', 0);
+    const streak = safeStorage.getInt('dailyStreak', 0);
+    const puzzleRating = safeStorage.getInt('puzzleRating', 0);
     
-    // Update modal content
+    // Load saved profile picture
+    const savedPic = safeStorage.get('profilePicture', '');
+    const avatarImg = document.getElementById('profileAvatarImg');
+    if (avatarImg) {
+        if (savedPic) {
+            avatarImg.src = savedPic;
+        } else {
+            // Default checkered avatar
+            avatarImg.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="50" height="50" fill="%234a7ed4"/><rect x="50" width="50" height="50" fill="%23f0f0f0"/><rect y="50" width="50" height="50" fill="%23f0f0f0"/><rect x="50" y="50" width="50" height="50" fill="%234a7ed4"/><text x="50" y="62" text-anchor="middle" fill="white" font-size="42" font-family="sans-serif">♟</text></svg>');
+        }
+    }
+    
+    // Populate header fields
     const nameEl = document.getElementById('profileStatsName');
-    const eloEl = document.getElementById('profileStatsELO');
+    const joinDateEl = document.getElementById('profileJoinDate');
+    const friendsCountEl = document.getElementById('profileFriendsCount');
+    const viewsCountEl = document.getElementById('profileViewsCount');
+    const statusDisplay = document.getElementById('profileStatusDisplay');
+    const statusInput = document.getElementById('profileStatusInput');
+    const rapidRatingEl = document.getElementById('profileRapidRating');
+    const puzzleRatingEl = document.getElementById('profilePuzzleRating');
+    const streakEl = document.getElementById('profileStreak');
+    
+    if (nameEl) nameEl.textContent = displayName;
+    if (joinDateEl) joinDateEl.textContent = joinDate;
+    if (friendsCountEl) friendsCountEl.textContent = friendsCount;
+    if (viewsCountEl) viewsCountEl.textContent = viewsCount;
+    if (statusDisplay) statusDisplay.textContent = userStatus || 'Enter a status here';
+    if (statusInput) statusInput.value = userStatus;
+    if (rapidRatingEl) rapidRatingEl.textContent = currentELO || '—';
+    if (puzzleRatingEl) puzzleRatingEl.textContent = puzzleRating || '—';
+    if (streakEl) streakEl.textContent = streak;
+    
+    // Rating trend arrows
+    const rapidTrend = document.getElementById('profileRapidTrend');
+    const prevELO = safeStorage.getInt('prevELO', 0);
+    if (rapidTrend && prevELO && currentELO) {
+        const diff = currentELO - prevELO;
+        rapidTrend.textContent = diff >= 0 ? '↑' + diff : '↓' + Math.abs(diff);
+        rapidTrend.style.color = diff >= 0 ? '#4CAF50' : '#f44336';
+    }
+    const puzzleTrend = document.getElementById('profilePuzzleTrend');
+    const prevPuzzle = safeStorage.getInt('prevPuzzleRating', 0);
+    if (puzzleTrend && prevPuzzle && puzzleRating) {
+        const pDiff = puzzleRating - prevPuzzle;
+        puzzleTrend.textContent = pDiff >= 0 ? '↑' + pDiff : '↓' + Math.abs(pDiff);
+        puzzleTrend.style.color = pDiff >= 0 ? '#4CAF50' : '#f44336';
+    }
+    
+    // Populate stats
     const gamesEl = document.getElementById('profileStatsGames');
     const wrEl = document.getElementById('profileStatsWinRate');
     const winsEl = document.getElementById('profileStatsWins');
     const lossesEl = document.getElementById('profileStatsLosses');
     const drawsEl = document.getElementById('profileStatsDraws');
-    const modalEl = document.getElementById('profileStatsModal');
     
-    console.log('🧪 DEBUG: Modal elements:', {
-        name: !!nameEl, elo: !!eloEl, games: !!gamesEl,
-        winRate: !!wrEl, wins: !!winsEl, losses: !!lossesEl, draws: !!drawsEl, modal: !!modalEl
-    });
-    
-    if (nameEl) nameEl.textContent = displayName;
-    if (eloEl) eloEl.textContent = currentELO > 0 ? `Rating: ${currentELO}` : 'Rating: Unrated';
     if (gamesEl) gamesEl.textContent = gamesPlayed;
     if (wrEl) wrEl.textContent = `${winRate}%`;
     if (winsEl) winsEl.textContent = wins;
     if (lossesEl) lossesEl.textContent = losses;
     if (drawsEl) drawsEl.textContent = draws;
+    
+    // Build game history
+    this.buildProfileGameHistory();
+    
+    // Update piece style button states
+    const currentPieceStyle = safeStorage.get('pieceStyle', 'cburnett');
+    const cburnettBtn = document.getElementById('profileCburnettBtn');
+    const unicodeBtn = document.getElementById('profileUnicodeBtn');
+    if (cburnettBtn && unicodeBtn) {
+        if (currentPieceStyle === 'cburnett') {
+            cburnettBtn.style.background = 'rgba(118,150,86,0.2)';
+            cburnettBtn.style.borderColor = '#769656';
+            cburnettBtn.style.color = '#fff';
+            unicodeBtn.style.background = 'rgba(255,255,255,0.06)';
+            unicodeBtn.style.borderColor = 'rgba(255,255,255,0.12)';
+            unicodeBtn.style.color = 'rgba(255,255,255,0.5)';
+        } else {
+            unicodeBtn.style.background = 'rgba(118,150,86,0.2)';
+            unicodeBtn.style.borderColor = '#769656';
+            unicodeBtn.style.color = '#fff';
+            cburnettBtn.style.background = 'rgba(255,255,255,0.06)';
+            cburnettBtn.style.borderColor = 'rgba(255,255,255,0.12)';
+            cburnettBtn.style.color = 'rgba(255,255,255,0.5)';
+        }
+    }
     
     // Show profile page (full-page, not a popup)
     console.log('🧪 DEBUG: Switching to full-page profile view');
@@ -5617,12 +5740,173 @@ ChessGame.prototype.showProfileStats = function() {
     // Show full-page profile
     this.showSections(['profileStatsModal'], [], 'block');
     
+    // Reset to Overview tab
+    this.switchProfileTab('overview', document.querySelector('.profileTab[data-tab="overview"]'));
+    
     // Verify it showed up
     setTimeout(() => {
         const m = document.getElementById('profileStatsModal');
         console.log('🧪 DEBUG: Profile page display after show:', m ? m.style.display : 'null');
     }, 100);
     
+};
+
+// Build game history table on profile page
+ChessGame.prototype.buildProfileGameHistory = function() {
+    const historyEl = document.getElementById('profileGameHistory');
+    if (!historyEl) return;
+    
+    const gameHistory = safeStorage.getJSON('gameHistory', []);
+    if (!gameHistory || gameHistory.length === 0) {
+        historyEl.innerHTML = '<div style="color: rgba(255,255,255,0.3); font-size: 13px; text-align: center; padding: 20px 0;">No games played yet. Start a game to see your history!</div>';
+        return;
+    }
+    
+    const recentGames = gameHistory.slice(-10).reverse();
+    let html = '<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse; font-size: 12px;">';
+    html += '<thead><tr style="color: rgba(255,255,255,0.35); text-align: left; border-bottom: 1px solid rgba(255,255,255,0.06);">';
+    html += '<th style="padding: 8px 6px; font-weight: 500;">Players</th>';
+    html += '<th style="padding: 8px 6px; font-weight: 500;">Result</th>';
+    html += '<th style="padding: 8px 6px; font-weight: 500;">Moves</th>';
+    html += '<th style="padding: 8px 6px; font-weight: 500;">Date</th></tr></thead><tbody>';
+    
+    recentGames.forEach(game => {
+        const playerName = safeStorage.get('displayName', 'You');
+        const playerELO = safeStorage.getInt('userELO', 0);
+        const opponent = game.opponent || 'Bot';
+        const result = game.result || '—';
+        const moves = game.moves || '—';
+        const date = game.date || '—';
+        const resultColor = result === 'win' ? '#4CAF50' : result === 'loss' ? '#f44336' : result === 'draw' ? '#FFC107' : 'rgba(255,255,255,0.5)';
+        const resultIcon = result === 'win' ? '1–0' : result === 'loss' ? '0–1' : result === 'draw' ? '½–½' : '—';
+        
+        html += '<tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">';
+        html += `<td style="padding: 8px 6px;"><span style="color: #fff;">${playerName} (${playerELO})</span><span style="color: rgba(255,255,255,0.3);"> vs </span><span style="color: rgba(255,255,255,0.7);">${opponent}</span></td>`;
+        html += `<td style="padding: 8px 6px; color: ${resultColor}; font-weight: 600;">${resultIcon}</td>`;
+        html += `<td style="padding: 8px 6px; color: rgba(255,255,255,0.5);">${moves}</td>`;
+        html += `<td style="padding: 8px 6px; color: rgba(255,255,255,0.3);">${date}</td>`;
+        html += '</tr>';
+    });
+    
+    html += '</tbody></table></div>';
+    historyEl.innerHTML = html;
+};
+
+// Handle profile picture change
+ChessGame.prototype.handleProfilePictureChange = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const dataUrl = e.target.result;
+        safeStorage.set('profilePicture', dataUrl);
+        const avatarImg = document.getElementById('profileAvatarImg');
+        if (avatarImg) {
+            avatarImg.src = dataUrl;
+        }
+        // Also update sidebar avatar if visible
+        const sidebarAvatar = document.querySelector('#sidebarUserProfile [style*="grid-template-columns"]');
+        if (sidebarAvatar && window.chessGame) {
+            window.chessGame.updateSidebarProfilePic(dataUrl);
+        }
+    };
+    reader.readAsDataURL(file);
+};
+
+// Update sidebar profile picture
+ChessGame.prototype.updateSidebarProfilePic = function(dataUrl) {
+    // The sidebar uses a checkered grid, we can replace its content with an img
+    const profileSection = document.getElementById('sidebarUserProfile');
+    if (!profileSection) return;
+    const avatarContainer = profileSection.querySelector('[style*="grid-template-columns"]');
+    if (avatarContainer && dataUrl) {
+        avatarContainer.innerHTML = `<img src="${dataUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;" alt="Profile">`;
+    }
+};
+
+// Switch profile tabs
+ChessGame.prototype.switchProfileTab = function(tabName, clickedBtn) {
+    // Update tab button styles
+    document.querySelectorAll('.profileTab').forEach(btn => {
+        btn.style.borderBottomColor = 'transparent';
+        btn.style.color = 'rgba(255,255,255,0.45)';
+        btn.style.fontWeight = '500';
+    });
+    if (clickedBtn) {
+        clickedBtn.style.borderBottomColor = '#769656';
+        clickedBtn.style.color = '#fff';
+        clickedBtn.style.fontWeight = '600';
+    }
+    
+    // Show/hide tab content
+    document.querySelectorAll('.profileTabContent').forEach(content => {
+        content.style.display = 'none';
+    });
+    const targetContent = document.getElementById('profileTab' + tabName.charAt(0).toUpperCase() + tabName.slice(1));
+    if (targetContent) {
+        targetContent.style.display = 'block';
+    }
+};
+
+// Apply board theme from profile page
+ChessGame.prototype.applyTheme = function(theme) {
+    safeStorage.set('boardTheme', theme);
+    if (this.setBoardTheme) {
+        this.setBoardTheme(theme);
+    }
+};
+
+// Save completed game to history for profile page display
+ChessGame.prototype.saveGameToHistory = function(result, message, botDisplayName) {
+    const history = safeStorage.getJSON('gameHistory', []);
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const moveCount = this.moveHistory ? this.moveHistory.length : 0;
+    
+    history.push({
+        result: result,
+        opponent: botDisplayName || this.getBotDisplayName(),
+        moves: moveCount,
+        date: dateStr,
+        message: message
+    });
+    
+    // Keep only last 50 games
+    if (history.length > 50) {
+        history.splice(0, history.length - 50);
+    }
+    
+    safeStorage.setJSON('gameHistory', history);
+    
+    // Also save previous ELO for trend tracking
+    const currentELO = safeStorage.getInt('userELO', 0);
+    if (currentELO > 0) {
+        safeStorage.setInt('prevELO', currentELO);
+    }
+    
+    // Track games played
+    const gamesPlayed = safeStorage.getInt('gamesPlayed', 0);
+    safeStorage.setInt('gamesPlayed', gamesPlayed + 1);
+    
+    if (result === 'win') {
+        const wins = safeStorage.getInt('wins', 0);
+        safeStorage.setInt('wins', wins + 1);
+    } else if (result === 'loss') {
+        const losses = safeStorage.getInt('losses', 0);
+        safeStorage.setInt('losses', losses + 1);
+    } else {
+        const draws = safeStorage.getInt('draws', 0);
+        safeStorage.setInt('draws', draws + 1);
+    }
+    
+    // Update views
+    const views = safeStorage.getInt('viewsCount', 0);
+    safeStorage.setInt('viewsCount', views + 1);
+    
+    // Update streak
+    const streak = safeStorage.getInt('dailyStreak', 0);
+    safeStorage.setInt('dailyStreak', streak + 1);
 };
 
 // Helper to close profile dropdown
@@ -6016,12 +6300,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const userDisplayName = document.getElementById('userDisplayName');
         const sidebarUserDisplayName = document.getElementById('sidebarUserDisplayName');
         const playerName = document.getElementById('playerName');
+        const profileStatsName = document.getElementById('profileStatsName');
         
         const displayName = newName + (isAdmin ? ' 👑' : '');
         
         if (userDisplayName) userDisplayName.textContent = displayName;
         if (sidebarUserDisplayName) sidebarUserDisplayName.textContent = displayName;
         if (playerName) playerName.textContent = newName;
+        if (profileStatsName) profileStatsName.textContent = displayName;
         
         // Close modal
         window.closeProfileEditModal();
