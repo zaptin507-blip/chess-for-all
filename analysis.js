@@ -110,7 +110,7 @@ class ChessAnalyzer {
             classification = 'brilliant';
             description = '!! Brilliant! Excellent sacrifice';
         }
-        // 1b. MISSED WIN (🎯): Had a clear checkmate but missed it
+        // 2. MISSED WIN (🎯): Had a clear checkmate but missed it
         else if (missedCheckmate) {
             classification = 'missedWin';
             description = '🎯 Missed win! You had a forced checkmate';
@@ -118,10 +118,20 @@ class ChessAnalyzer {
                 description += `. Checkmate was: ${suggestedMove}`;
             }
         }
-        // 2. BLUNDER (??): Major mistakes - BE VERY STRICT
+        // 3. BEST MOVE (★): The highest-rated move by the engine
+        //    MUST be checked BEFORE blunder/inaccuracy/mistake.
+        //    If the engine's top pick also loses evaluation, the position was simply
+        //    lost and the player found the only reasonable continuation — not a blunder.
+        else if (suggestedMove && suggestedMove === move.san) {
+            // Player played the exact engine top choice
+            classification = 'best';
+            description = '★ Best move';
+        }
+        // 4. BLUNDER (??): Major mistakes - BE VERY STRICT
         //    - Lost 2+ pawns
         //    - OR blundered a piece (isBlunderPiece)
         //    - OR left a piece hanging (isHangingCapture) unless it's a sacrifice
+        //    Only triggers when the player did NOT play the engine's best move (checked above).
         else if (actualEvalChange < -200 || isBlunderPiece || (isHangingCapture && !isSacrifice)) {
             classification = 'blunder';
             description = '?? Blunder!';
@@ -129,32 +139,26 @@ class ChessAnalyzer {
                 description += `. Better was ${suggestedMove}`;
             }
         }
-        // 3. BEST MOVE (★): The highest-rated move by the engine
-        else if (suggestedMove && suggestedMove === move.san) {
-            // Player played the exact engine top choice
-            classification = 'best';
-            description = '★ Best move';
-        }
-        // 4. GREAT (!): Critical moves that significantly impact the game
+        // 5. GREAT (!): Critical moves that significantly impact the game
         //    - Turning losing to equal, or finding the only good move
         else if (actualEvalChange > 100 || (evalBefore.score < -100 && actualEvalChange > -50)) {
             // Either gained 1+ pawn OR was losing but found the only move to stay in game
             classification = 'great';
             description = '! Great move! Critical move found';
         }
-        // 5. EXCELLENT: Very good move, close to the best move
+        // 6. EXCELLENT: Very good move, close to the best move
         else if (actualEvalChange > 50 && actualEvalChange <= 100) {
             // Solid improvement, close to best
             classification = 'excellent';
             description = 'Excellent move';
         }
-        // 6. GOOD: Solid move that maintains the position
+        // 7. GOOD: Solid move that maintains the position
         else if (actualEvalChange >= -20 && actualEvalChange <= 50) {
             // Small change, position maintained
             classification = 'good';
             description = 'Good move';
         }
-        // 7. INACCURACY (?!): Slight advantage lost
+        // 8. INACCURACY (?!): Slight advantage lost
         else if (actualEvalChange < -20 && actualEvalChange >= -80) {
             classification = 'inaccuracy';
             description = '?! Inaccuracy';
@@ -162,7 +166,7 @@ class ChessAnalyzer {
                 description += `. Better was ${suggestedMove}`;
             }
         }
-        // 8. MISTAKE (?): Significant advantage lost
+        // 9. MISTAKE (?): Significant advantage lost
         else if (actualEvalChange < -80 && actualEvalChange >= -200) {
             classification = 'mistake';
             description = '? Mistake!';

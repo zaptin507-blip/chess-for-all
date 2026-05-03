@@ -844,10 +844,12 @@ const chessOpenings = {
 
 // Generate opening board image as SVG
 function generateOpeningBoard(fen, size = 200) {
-    const pieces = {
-        'K': '♔', 'Q': '♕', 'R': '♖', 'B': '♗', 'N': '♘', 'P': '♙',
-        'k': '♚', 'q': '♛', 'r': '♜', 'b': '♝', 'n': '♞', 'p': '♟'
+    // Map FEN piece chars to chess.com-style SVG piece keys
+    const pieceMap = {
+        'K': 'wK', 'Q': 'wQ', 'R': 'wR', 'B': 'wB', 'N': 'wN', 'P': 'wP',
+        'k': 'bK', 'q': 'bQ', 'r': 'bR', 'b': 'bB', 'n': 'bN', 'p': 'bP'
     };
+    const pieceSVG = window.chessGame && window.chessGame.pieceSVG ? window.chessGame.pieceSVG : null;
 
     const rows = fen.split(' ')[0].split('/');
     let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">`;
@@ -870,11 +872,27 @@ function generateOpeningBoard(fen, size = 200) {
             if (char >= '1' && char <= '8') {
                 col += parseInt(char);
             } else {
-                const x = col * squareSize + squareSize / 2;
-                const y = row * squareSize + squareSize / 2;
-                const piece = pieces[char];
-                const fontSize = squareSize * 0.7;
-                svg += `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" font-size="${fontSize}" fill="${char === char.toUpperCase() ? "#fff" : "#000"}" stroke="${char === char.toUpperCase() ? '#000' : '#fff'}" stroke-width="0.5">${piece}</text>`;
+                const x = col * squareSize;
+                const y = row * squareSize;
+                const pieceKey = pieceMap[char];
+                
+                if (pieceSVG && pieceSVG[pieceKey]) {
+                    // Extract inner SVG content from the piece SVG
+                    const svgStr = pieceSVG[pieceKey];
+                    const innerStart = svgStr.indexOf('>') + 1;
+                    const innerEnd = svgStr.lastIndexOf('</svg>');
+                    const innerContent = svgStr.substring(innerStart, innerEnd);
+                    const scale = squareSize / 45; // piece SVG has viewBox 0 0 45 45
+                    svg += `<g transform="translate(${x}, ${y}) scale(${scale})">${innerContent}</g>`;
+                } else {
+                    // Fallback: Unicode text rendering
+                    const fallback = { 'K':'♔','Q':'♕','R':'♖','B':'♗','N':'♘','P':'♙','k':'♚','q':'♛','r':'♜','b':'♝','n':'♞','p':'♟' };
+                    const cx = x + squareSize / 2;
+                    const cy = y + squareSize / 2;
+                    const fs = squareSize * 0.7;
+                    const isWhite = char === char.toUpperCase();
+                    svg += `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="${fs}" fill="${isWhite ? '#fff' : '#000'}" stroke="${isWhite ? '#000' : '#fff'}" stroke-width="0.5">${fallback[char] || '?'}</text>`;
+                }
                 col++;
             }
         }

@@ -3678,15 +3678,31 @@ class ChessGame {
                 }
             }
             
+            // Helper to render SVG piece into a square (chess.com style)
+            const placePiece = (sq, pieceKey) => {
+                const svgCode = window.chessGame && window.chessGame.pieceSVG ? window.chessGame.pieceSVG[pieceKey] : null;
+                if (svgCode) {
+                    sq.element.innerHTML = `<div class="piece" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">${svgCode}</div>`;
+                } else {
+                    sq.element.textContent = pieceKey;
+                }
+            };
+            
+            // Helper to place a move marker dot on a square
+            const placeMarker = (sq, bgColor) => {
+                const m = document.createElement('div');
+                m.style.cssText = `width:12px;height:12px;border-radius:50%;position:absolute;background:${bgColor};`;
+                sq.element.appendChild(m);
+            };
+            
             // Position piece and show movement based on type
-            let piece, validMoves, explanationText;
+            let explanationText;
             
             switch(pieceType) {
                 case 'king':
-                    piece = '♔';
                     // Place king on e4 (row 4, col 4 in 0-indexed from top)
                     const kingRow = 4, kingCol = 4;
-                    squares.find(s => s.row === kingRow && s.col === kingCol).element.textContent = piece;
+                    placePiece(squares.find(s => s.row === kingRow && s.col === kingCol), 'wK');
                     // Show valid moves (1 square in any direction)
                     const kingMoves = [
                         [3, 3], [3, 4], [3, 5],
@@ -3695,75 +3711,66 @@ class ChessGame {
                     ];
                     kingMoves.forEach(([r, c]) => {
                         if (r >= 0 && r < 8 && c >= 0 && c < 8) {
-                            const marker = document.createElement('div');
-                            marker.style.width = '12px';
-                            marker.style.height = '12px';
-                            marker.style.borderRadius = '50%';
-                            marker.style.backgroundColor = 'rgba(118, 150, 86, 0.6)';
-                            squares.find(s => s.row === r && s.col === c).element.appendChild(marker);
+                            placeMarker(squares.find(s => s.row === r && s.col === c), 'rgba(118,150,86,0.6)');
                         }
                     });
                     explanationText = '♔ <strong>King</strong> on e4 can move to any adjacent square (green dots). It moves 1 square in any direction - horizontally, vertically, or diagonally.';
                     break;
                     
                 case 'queen':
-                    piece = '♕';
                     const queenRow = 3, queenCol = 3;
-                    squares.find(s => s.row === queenRow && s.col === queenCol).element.textContent = piece;
+                    placePiece(squares.find(s => s.row === queenRow && s.col === queenCol), 'wQ');
                     // Show queen moves (all directions)
                     for (let i = 0; i < 8; i++) {
                         // Horizontal
-                        if (i !== queenCol) squares.find(s => s.row === queenRow && s.col === i).element.innerHTML += '<div style="width:12px;height:12px;border-radius:50%;background:rgba(118,150,86,0.6);position:absolute;"></div>';
+                        if (i !== queenCol) placeMarker(squares.find(s => s.row === queenRow && s.col === i), 'rgba(118,150,86,0.6)');
                         // Vertical
-                        if (i !== queenRow) squares.find(s => s.row === i && s.col === queenCol).element.innerHTML += '<div style="width:12px;height:12px;border-radius:50%;background:rgba(118,150,86,0.6);position:absolute;"></div>';
+                        if (i !== queenRow) placeMarker(squares.find(s => s.row === i && s.col === queenCol), 'rgba(118,150,86,0.6)');
                         // Diagonals
                         if (queenRow + (i - queenRow) >= 0 && queenRow + (i - queenRow) < 8 && i >= 0 && i < 8 && i !== queenCol) {
-                            squares.find(s => s.row === queenRow + (i - queenRow) && s.col === i).element.innerHTML += '<div style="width:12px;height:12px;border-radius:50%;background:rgba(118,150,86,0.6);position:absolute;"></div>';
+                            placeMarker(squares.find(s => s.row === queenRow + (i - queenRow) && s.col === i), 'rgba(118,150,86,0.6)');
                         }
                         if (queenRow - (i - queenRow) >= 0 && queenRow - (i - queenRow) < 8 && i >= 0 && i < 8 && i !== queenCol) {
-                            squares.find(s => s.row === queenRow - (i - queenRow) && s.col === i).element.innerHTML += '<div style="width:12px;height:12px;border-radius:50%;background:rgba(118,150,86,0.6);position:absolute;"></div>';
+                            placeMarker(squares.find(s => s.row === queenRow - (i - queenRow) && s.col === i), 'rgba(118,150,86,0.6)');
                         }
                     }
                     explanationText = '♕ <strong>Queen</strong> on d5 can move any number of squares in any direction - horizontal, vertical, or diagonal. The most powerful piece!';
                     break;
                     
                 case 'rook':
-                    piece = '♖';
                     const rookRow = 3, rookCol = 3;
-                    squares.find(s => s.row === rookRow && s.col === rookCol).element.textContent = piece;
+                    placePiece(squares.find(s => s.row === rookRow && s.col === rookCol), 'wR');
                     // Show rook moves (horizontal and vertical)
                     for (let i = 0; i < 8; i++) {
-                        if (i !== rookCol) squares.find(s => s.row === rookRow && s.col === i).element.innerHTML += '<div style="width:12px;height:12px;border-radius:50%;background:rgba(118,150,86,0.6);position:absolute;"></div>';
-                        if (i !== rookRow) squares.find(s => s.row === i && s.col === rookCol).element.innerHTML += '<div style="width:12px;height:12px;border-radius:50%;background:rgba(118,150,86,0.6);position:absolute;"></div>';
+                        if (i !== rookCol) placeMarker(squares.find(s => s.row === rookRow && s.col === i), 'rgba(118,150,86,0.6)');
+                        if (i !== rookRow) placeMarker(squares.find(s => s.row === i && s.col === rookCol), 'rgba(118,150,86,0.6)');
                     }
                     explanationText = '♖ <strong>Rook</strong> on d5 can move any number of squares horizontally or vertically (green dots). Very powerful in open positions!';
                     break;
                     
                 case 'bishop':
-                    piece = '♗';
                     const bishopRow = 3, bishopCol = 3;
-                    squares.find(s => s.row === bishopRow && s.col === bishopCol).element.textContent = piece;
+                    placePiece(squares.find(s => s.row === bishopRow && s.col === bishopCol), 'wB');
                     // Show bishop moves (diagonals only)
                     for (let i = -7; i <= 7; i++) {
                         if (i === 0) continue;
                         // Diagonal 1: row+i, col+i
                         const r1 = bishopRow + i, c1 = bishopCol + i;
                         if (r1 >= 0 && r1 < 8 && c1 >= 0 && c1 < 8) {
-                            squares.find(s => s.row === r1 && s.col === c1).element.innerHTML += '<div style="width:12px;height:12px;border-radius:50%;background:rgba(118,150,86,0.6);position:absolute;"></div>';
+                            placeMarker(squares.find(s => s.row === r1 && s.col === c1), 'rgba(118,150,86,0.6)');
                         }
                         // Diagonal 2: row+i, col-i
                         const r2 = bishopRow + i, c2 = bishopCol - i;
                         if (r2 >= 0 && r2 < 8 && c2 >= 0 && c2 < 8) {
-                            squares.find(s => s.row === r2 && s.col === c2).element.innerHTML += '<div style="width:12px;height:12px;border-radius:50%;background:rgba(118,150,86,0.6);position:absolute;"></div>';
+                            placeMarker(squares.find(s => s.row === r2 && s.col === c2), 'rgba(118,150,86,0.6)');
                         }
                     }
                     explanationText = '♗ <strong>Bishop</strong> on d5 can move any number of squares diagonally (green dots). Each bishop stays on its color (light or dark squares).';
                     break;
                     
                 case 'knight':
-                    piece = '♘';
                     const knightRow = 3, knightCol = 3;
-                    squares.find(s => s.row === knightRow && s.col === knightCol).element.textContent = piece;
+                    placePiece(squares.find(s => s.row === knightRow && s.col === knightCol), 'wN');
                     // Show knight moves (L-shape)
                     const knightMoves = [
                         [1, 2], [1, -2], [-1, 2], [-1, -2],
@@ -3772,25 +3779,24 @@ class ChessGame {
                     knightMoves.forEach(([dr, dc]) => {
                         const r = knightRow + dr, c = knightCol + dc;
                         if (r >= 0 && r < 8 && c >= 0 && c < 8) {
-                            squares.find(s => s.row === r && s.col === c).element.innerHTML += '<div style="width:12px;height:12px;border-radius:50%;background:rgba(118,150,86,0.6);position:absolute;"></div>';
+                            placeMarker(squares.find(s => s.row === r && s.col === c), 'rgba(118,150,86,0.6)');
                         }
                     });
                     explanationText = '♘ <strong>Knight</strong> on d5 moves in an "L" shape: 2 squares in one direction, then 1 square perpendicular (green dots). The ONLY piece that can jump over others!';
                     break;
                     
                 case 'pawn':
-                    piece = '♙';
                     const pawnRow = 6, pawnCol = 4; // e2
-                    squares.find(s => s.row === pawnRow && s.col === pawnCol).element.textContent = piece;
+                    placePiece(squares.find(s => s.row === pawnRow && s.col === pawnCol), 'wP');
                     // Show pawn moves (forward 1 or 2 squares)
-                    squares.find(s => s.row === 5 && s.col === 4).element.innerHTML += '<div style="width:12px;height:12px;border-radius:50%;background:rgba(118,150,86,0.6);position:absolute;"></div>';
-                    squares.find(s => s.row === 4 && s.col === 4).element.innerHTML += '<div style="width:12px;height:12px;border-radius:50%;background:rgba(118,150,86,0.6);position:absolute;"></div>';
+                    placeMarker(squares.find(s => s.row === 5 && s.col === 4), 'rgba(118,150,86,0.6)');
+                    placeMarker(squares.find(s => s.row === 4 && s.col === 4), 'rgba(118,150,86,0.6)');
                     // Show capture moves (diagonal)
                     if (pawnCol - 1 >= 0) {
-                        squares.find(s => s.row === 5 && s.col === 3).element.innerHTML += '<div style="width:12px;height:12px;border-radius:50%;background:rgba(244,67,54,0.6);position:absolute;"></div>';
+                        placeMarker(squares.find(s => s.row === 5 && s.col === 3), 'rgba(244,67,54,0.6)');
                     }
                     if (pawnCol + 1 < 8) {
-                        squares.find(s => s.row === 5 && s.col === 5).element.innerHTML += '<div style="width:12px;height:12px;border-radius:50%;background:rgba(244,67,54,0.6);position:absolute;"></div>';
+                        placeMarker(squares.find(s => s.row === 5 && s.col === 5), 'rgba(244,67,54,0.6)');
                     }
                     explanationText = '♙ <strong>Pawn</strong> on e2: <span style="color:#769656;">● Green dots</span> = move forward (1 or 2 squares on first move). <span style="color:#f44336;">● Red dots</span> = capture diagonally. Pawns move forward but capture diagonally!';
                     break;
