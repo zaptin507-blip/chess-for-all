@@ -1252,4 +1252,9 @@ window.filterOpenings = (difficulty) => {
 // Close learn section
 window.closeLearnSection = () => {
     document.getElementById('learnSection').style.display = 'none';
+    // Return to home screen
+    const homeSection = document.getElementById('homeSection');
+    if (homeSection) homeSection.style.display = 'block';
+    const container = document.querySelector('.container');
+    if (container) container.style.display = 'none';
 };

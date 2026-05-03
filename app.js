@@ -3802,8 +3802,52 @@ class ChessGame {
             boardContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         };
         
+        window.showHomeSection = () => {
+            const homeSection = document.getElementById('homeSection');
+            if (homeSection) homeSection.style.display = 'block';
+            // Hide game content
+            const container = document.querySelector('.container');
+            if (container) container.style.display = 'none';
+            // Hide overlays
+            document.getElementById('playSection').style.display = 'none';
+            document.getElementById('practiceSection').style.display = 'none';
+            document.getElementById('learnSection').style.display = 'none';
+            const chessSidebar = document.getElementById('chessSidebar');
+            if (chessSidebar) chessSidebar.style.display = 'none';
+            // Hide profile page
+            const profilePage = document.getElementById('profileStatsModal');
+            if (profilePage) profilePage.style.display = 'none';
+            // Populate home stats if logged in
+            window.updateHomeStats();
+        };
+        
+        window.updateHomeStats = function() {
+            const wins = safeStorage.getInt('wins', 0);
+            const losses = safeStorage.getInt('losses', 0);
+            const draws = safeStorage.getInt('draws', 0);
+            const elo = safeStorage.getInt('userELO', 0);
+            const gamesPlayed = safeStorage.getInt('gamesPlayed', 0);
+            
+            const preview = document.getElementById('homeStatsPreview');
+            if (preview && gamesPlayed > 0) {
+                preview.style.display = 'block';
+                document.getElementById('homeWins').textContent = wins;
+                document.getElementById('homeLosses').textContent = losses;
+                document.getElementById('homeDraws').textContent = draws;
+                document.getElementById('homeELO').textContent = elo || '—';
+            } else if (preview) {
+                preview.style.display = 'none';
+            }
+        }
+        
         window.showPlaySection = () => {
             const isMobile = window.innerWidth <= 768;
+            // Hide home section
+            const homeSection = document.getElementById('homeSection');
+            if (homeSection) homeSection.style.display = 'none';
+            // Show game container if hidden
+            const container = document.querySelector('.container');
+            if (container) container.style.display = '';
             // Show Chess.com-style right sidebar for Boss Battle
             const chessSidebar = document.getElementById('chessSidebar');
             if (chessSidebar) chessSidebar.style.display = 'block';

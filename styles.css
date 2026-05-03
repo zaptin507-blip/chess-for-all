@@ -1073,6 +1073,16 @@ body {
             left: 0 !important;
         }
         
+        #homeSection {
+            width: 100vw !important;
+            left: 0 !important;
+        }
+        
+        #homeSection {
+            width: 100vw !important;
+            left: 0 !important;
+        }
+        
         /* Chess.com sidebar — when shown by JS, cover full screen */
         #chessSidebar[style*="display: block"],
         #chessSidebar[style*="display:block"] {
