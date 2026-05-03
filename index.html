@@ -556,60 +556,69 @@
         </div>
     </div>
     
-    <!-- Profile Stats Modal (Chess.com Style) -->
-    <div id="profileStatsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.85); z-index: 10002; justify-content: center; align-items: center;">
-        <div style="max-width: 600px; width: 90%; background: linear-gradient(135deg, #312e2b 0%, #272522 100%); border: 2px solid #769656; border-radius: 12px; padding: 0; box-shadow: 0 0 30px rgba(118, 150, 86, 0.3); overflow: hidden;">
-            <!-- Header -->
-            <div style="background: linear-gradient(135deg, #769656 0%, #5a7a3a 100%); padding: 30px; text-align: center; position: relative;">
-                <button id="closeProfileStats" style="position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.3); border: none; color: #fff; font-size: 24px; cursor: pointer; padding: 5px 10px; border-radius: 50%; width: 35px; height: 35px; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.5)'" onmouseout="this.style.background='rgba(0,0,0,0.3)'">&times;</button>
-                <div style="width: 80px; height: 80px; background: rgba(255,255,255,0.2); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-size: 40px; border: 3px solid rgba(255,255,255,0.4);">👤</div>
-                <h2 id="profileStatsName" style="color: #fff; margin: 0; font-size: 28px; font-weight: 700;">The One Above All</h2>
-                <div id="profileStatsELO" style="color: rgba(255,255,255,0.9); font-size: 20px; margin-top: 8px; font-weight: 600;">Rating: Unrated</div>
+    <!-- Profile Stats Page (Full-page Chess.com Style) -->
+    <div id="profileStatsModal" style="display: none; position: fixed; left: 180px; top: 0; right: 0; bottom: 0; background: linear-gradient(180deg, #312e2b 0%, #272522 100%); z-index: 1000; overflow-y: auto;">
+        <!-- Top Bar -->
+        <div style="display: flex; align-items: center; padding: 12px 24px; background: rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.06);">
+            <button id="closeProfileStats" style="background: none; border: none; color: rgba(255,255,255,0.6); font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 6px; transition: all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.06)'; this.style.color='#fff'" onmouseout="this.style.background='none'; this.style.color='rgba(255,255,255,0.6)'">← Back to Game</button>
+            <span style="flex: 1; text-align: center; color: #fff; font-weight: 600; font-size: 15px;">Profile</span>
+            <div style="width: 80px;"></div>
+        </div>
+        
+        <!-- Content -->
+        <div style="max-width: 700px; margin: 0 auto; padding: 30px 24px;">
+            <!-- Header Profile Info -->
+            <div style="text-align: center; padding: 30px 0 20px;">
+                <div style="width: 80px; height: 80px; margin: 0 auto 15px; border-radius: 16px; overflow: hidden; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; position: relative; box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
+                    <div style="background: #4a7ed4;"></div><div style="background: #f0f0f0;"></div>
+                    <div style="background: #f0f0f0;"></div><div style="background: #4a7ed4;"></div>
+                    <span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 48px; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.5); pointer-events: none;">♟</span>
+                </div>
+                <h2 id="profileStatsName" style="color: #fff; margin: 0; font-size: 24px; font-weight: 700;">The One Above All</h2>
+                <div id="profileStatsELO" style="color: rgba(255,255,255,0.6); font-size: 16px; margin-top: 4px;">Rating: Unrated</div>
             </div>
             
             <!-- Stats Grid -->
-            <div style="padding: 30px;">
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 25px;">
-                    <div style="background: rgba(118, 150, 86, 0.1); border: 1px solid rgba(118, 150, 86, 0.3); border-radius: 8px; padding: 20px; text-align: center;">
-                        <div style="color: rgba(255,255,255,0.6); font-size: 12px; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px;">Games Played</div>
-                        <div id="profileStatsGames" style="color: #fff; font-size: 32px; font-weight: 700;">0</div>
-                    </div>
-                    <div style="background: rgba(118, 150, 86, 0.1); border: 1px solid rgba(118, 150, 86, 0.3); border-radius: 8px; padding: 20px; text-align: center;">
-                        <div style="color: rgba(255,255,255,0.6); font-size: 12px; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px;">Win Rate</div>
-                        <div id="profileStatsWinRate" style="color: #769656; font-size: 32px; font-weight: 700;">0%</div>
-                    </div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
+                <div style="background: rgba(118, 150, 86, 0.08); border: 1px solid rgba(118, 150, 86, 0.2); border-radius: 10px; padding: 24px; text-align: center;">
+                    <div style="color: rgba(255,255,255,0.5); font-size: 11px; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px;">Games Played</div>
+                    <div id="profileStatsGames" style="color: #fff; font-size: 36px; font-weight: 700;">0</div>
                 </div>
-                
-                <!-- Record -->
-                <div style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 20px; margin-bottom: 20px;">
-                    <div style="color: rgba(255,255,255,0.6); font-size: 12px; text-transform: uppercase; margin-bottom: 15px; letter-spacing: 1px;">Record</div>
-                    <div style="display: flex; justify-content: space-around; text-align: center;">
-                        <div>
-                            <div style="color: #4CAF50; font-size: 28px; font-weight: 700;" id="profileStatsWins">0</div>
-                            <div style="color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 5px;">Wins</div>
-                        </div>
-                        <div style="width: 1px; background: rgba(255,255,255,0.1);"></div>
-                        <div>
-                            <div style="color: #f44336; font-size: 28px; font-weight: 700;" id="profileStatsLosses">0</div>
-                            <div style="color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 5px;">Losses</div>
-                        </div>
-                        <div style="width: 1px; background: rgba(255,255,255,0.1);"></div>
-                        <div>
-                            <div style="color: #FFC107; font-size: 28px; font-weight: 700;" id="profileStatsDraws">0</div>
-                            <div style="color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 5px;">Draws</div>
-                        </div>
-                    </div>
+                <div style="background: rgba(118, 150, 86, 0.08); border: 1px solid rgba(118, 150, 86, 0.2); border-radius: 10px; padding: 24px; text-align: center;">
+                    <div style="color: rgba(255,255,255,0.5); font-size: 11px; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px;">Win Rate</div>
+                    <div id="profileStatsWinRate" style="color: #769656; font-size: 36px; font-weight: 700;">0%</div>
                 </div>
-                
-                <!-- Quick Actions -->
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-                    <button id="profileEditFromStats" style="padding: 12px; background: rgba(118, 150, 86, 0.2); border: 1px solid #769656; color: #fff; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(118, 150, 86, 0.3)'" onmouseout="this.style.background='rgba(118, 150, 86, 0.2)'">✏️ Edit Profile</button>
-                    <button id="profilePreferences" style="padding: 12px; background: rgba(118, 150, 86, 0.2); border: 1px solid #769656; color: #fff; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(118, 150, 86, 0.3)'" onmouseout="this.style.background='rgba(118, 150, 86, 0.2)'">🎨 Preferences</button>
-                </div>
-                
-                <!-- Logout -->
-                <button id="logoutFromStats" style="width: 100%; margin-top: 10px; padding: 12px; background: rgba(244, 67, 54, 0.15); border: 1px solid rgba(244, 67, 54, 0.3); color: #ff6b6b; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(244, 67, 54, 0.25)'" onmouseout="this.style.background='rgba(244, 67, 54, 0.15)'">🚪 Logout</button>
             </div>
+            
+            <!-- Record -->
+            <div style="background: rgba(255,255,255,0.04); border-radius: 10px; padding: 24px; margin-bottom: 20px;">
+                <div style="color: rgba(255,255,255,0.5); font-size: 11px; text-transform: uppercase; margin-bottom: 16px; letter-spacing: 1px;">Record</div>
+                <div style="display: flex; justify-content: space-around; text-align: center;">
+                    <div>
+                        <div style="color: #4CAF50; font-size: 32px; font-weight: 700;" id="profileStatsWins">0</div>
+                        <div style="color: rgba(255,255,255,0.45); font-size: 12px; margin-top: 4px;">Wins</div>
+                    </div>
+                    <div style="width: 1px; background: rgba(255,255,255,0.06);"></div>
+                    <div>
+                        <div style="color: #f44336; font-size: 32px; font-weight: 700;" id="profileStatsLosses">0</div>
+                        <div style="color: rgba(255,255,255,0.45); font-size: 12px; margin-top: 4px;">Losses</div>
+                    </div>
+                    <div style="width: 1px; background: rgba(255,255,255,0.06);"></div>
+                    <div>
+                        <div style="color: #FFC107; font-size: 32px; font-weight: 700;" id="profileStatsDraws">0</div>
+                        <div style="color: rgba(255,255,255,0.45); font-size: 12px; margin-top: 4px;">Draws</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 10px;">
+                <button id="profileEditFromStats" style="padding: 14px; background: rgba(118, 150, 86, 0.15); border: 1px solid rgba(118, 150, 86, 0.3); color: #fff; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(118, 150, 86, 0.25)'" onmouseout="this.style.background='rgba(118, 150, 86, 0.15)'">✏️ Edit Profile</button>
+                <button id="profilePreferences" style="padding: 14px; background: rgba(118, 150, 86, 0.15); border: 1px solid rgba(118, 150, 86, 0.3); color: #fff; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(118, 150, 86, 0.25)'" onmouseout="this.style.background='rgba(118, 150, 86, 0.15)'">🎨 Preferences</button>
+            </div>
+            
+            <!-- Logout -->
+            <button id="logoutFromStats" style="width: 100%; margin-top: 8px; padding: 14px; background: rgba(244, 67, 54, 0.12); border: 1px solid rgba(244, 67, 54, 0.25); color: #ff6b6b; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(244, 67, 54, 0.2)'" onmouseout="this.style.background='rgba(244, 67, 54, 0.12)'">🚪 Logout</button>
         </div>
     </div>
     

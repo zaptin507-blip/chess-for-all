@@ -5598,14 +5598,29 @@ ChessGame.prototype.showProfileStats = function() {
     if (lossesEl) lossesEl.textContent = losses;
     if (drawsEl) drawsEl.textContent = draws;
     
-    // Show modal
-    console.log('🧪 DEBUG: Calling showSections to display profileStatsModal');
-    this.showSections(['profileStatsModal'], [], 'flex');
+    // Show profile page (full-page, not a popup)
+    console.log('🧪 DEBUG: Switching to full-page profile view');
+    
+    // Hide board area and chess sidebar
+    const container = document.querySelector('.container');
+    const chessSidebar = document.getElementById('chessSidebar');
+    if (container) container.style.display = 'none';
+    if (chessSidebar) chessSidebar.style.display = 'none';
+    
+    // On mobile, profile takes full width; on desktop, starts after sidebar
+    const isMobile = window.innerWidth <= 768;
+    const profilePage = document.getElementById('profileStatsModal');
+    if (profilePage) {
+        profilePage.style.left = isMobile ? '0' : '180px';
+    }
+    
+    // Show full-page profile
+    this.showSections(['profileStatsModal'], [], 'block');
     
     // Verify it showed up
     setTimeout(() => {
         const m = document.getElementById('profileStatsModal');
-        console.log('🧪 DEBUG: Modal display after show:', m ? m.style.display : 'null');
+        console.log('🧪 DEBUG: Profile page display after show:', m ? m.style.display : 'null');
     }, 100);
     
 };
@@ -5910,19 +5925,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeProfileStats = document.getElementById('closeProfileStats');
     if (closeProfileStats) {
         closeProfileStats.addEventListener('click', () => {
+            // Close profile page and restore game view
             window.chessGame.showSections([], ['profileStatsModal']);
+            const container = document.querySelector('.container');
+            const chessSidebar = document.getElementById('chessSidebar');
+            if (container) container.style.display = '';
+            if (chessSidebar) chessSidebar.style.display = 'block';
         });
     }
     
-    // Close profile stats modal when clicking outside content
-    const profileStatsModal = document.getElementById('profileStatsModal');
-    if (profileStatsModal) {
-        profileStatsModal.addEventListener('click', (e) => {
-            if (e.target === profileStatsModal) {
-                window.chessGame.showSections([], ['profileStatsModal']);
-            }
-        });
-    }
+    // Profile page is now full-page (not modal) — no outside-click-to-close needed
     
     // Logout from Profile Stats Modal
     const logoutFromStats = document.getElementById('logoutFromStats');
@@ -5944,14 +5956,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Profile Edit from Stats Modal
+    // Profile Edit from Stats Page — show edit modal on top (don't close profile page)
     const profileEditFromStats = document.getElementById('profileEditFromStats');
     if (profileEditFromStats) {
         profileEditFromStats.addEventListener('click', () => {
-            window.chessGame.showSections([], ['profileStatsModal']);
-            setTimeout(() => {
-                window.chessGame.showSections(['profileEditModal'], [], 'flex');
-            }, 100);
+            window.chessGame.showSections(['profileEditModal'], [], 'flex');
         });
     }
     
@@ -5959,10 +5968,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const profilePreferences = document.getElementById('profilePreferences');
     if (profilePreferences) {
         profilePreferences.addEventListener('click', () => {
-            window.chessGame.showSections([], ['profileStatsModal']);
-            setTimeout(() => {
-                window.chessGame.showSections(['boardThemeModal'], [], 'flex');
-            }, 100);
+            // Show board theme modal on top of profile page (don't close profile)
+            window.chessGame.showSections(['boardThemeModal'], [], 'flex');
         });
     }
     
