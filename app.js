@@ -5355,6 +5355,12 @@ if (auth) {
             if (sidebarUserProfile) {
                 sidebarUserProfile.style.display = 'flex';
                 console.log('✅ Sidebar profile shown');
+                
+                // Restore saved profile picture to sidebar avatar on page load
+                const savedPic = safeStorage.get('profilePicture', '');
+                if (savedPic && window.chessGame) {
+                    window.chessGame.updateSidebarProfilePic(savedPic);
+                }
             }
             if (sidebarToggle) sidebarToggle.style.display = 'block';
             if (userDisplayName) userDisplayName.textContent = displayName + (isAdmin ? ' 👑' : '');
@@ -6379,6 +6385,12 @@ window.addEventListener('load', () => {
     } catch (error) {
         console.error('⚠️ Chess game initialization warning:', error);
         // Only show alert for critical errors that prevent the game from working
+        if (error.message && error.message.includes('Critical')) {
+            alert('Error loading chess game: ' + error.message);
+        }
+        // For non-critical errors (like sound files), the game will still work
+    }
+});
         if (error.message && error.message.includes('Critical')) {
             alert('Error loading chess game: ' + error.message);
         }
