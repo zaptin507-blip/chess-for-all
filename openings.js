@@ -1245,9 +1245,6 @@ window.renderLearnSection = () => {
                     <h2 style="color: #fff; margin: 0 0 5px 0; font-size: 24px;">♟️ Chess Openings</h2>
                     <p style="color: rgba(255, 255, 255, 0.6); margin: 0; font-size: 14px;">Learn the most important openings in chess</p>
                 </div>
-                <button onclick="closeLearnSection()" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;">
-                    ← Back
-                </button>
             </div>
 
             <div style="margin-bottom: 20px;">

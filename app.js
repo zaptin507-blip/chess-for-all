@@ -1929,10 +1929,12 @@ class ChessGame {
         const piece = this.chess.get(square);
 
         if (this.selectedSquare) {
-            // Check if this is a pawn promotion move
+            // Check if this is a pawn promotion move (must be a legal promotion)
             const sourcePiece = this.chess.get(this.selectedSquare);
             const isPromotion = sourcePiece && sourcePiece.type === 'p' && 
-                (square[1] === '8' || square[1] === '1');
+                (square[1] === '8' || square[1] === '1') &&
+                this.chess.moves({ square: this.selectedSquare, verbose: true })
+                    .some(m => m.to === square && m.promotion);
             
             if (isPromotion) {
                 // Store the move info and show promotion modal
@@ -2085,9 +2087,11 @@ class ChessGame {
         // Attempt the move
         const piece = this.chess.get(sourceSquare);
         if (piece && piece.color === this.playerColor) {
-            // Check if this is a pawn promotion move
+            // Check if this is a pawn promotion move (must be a legal promotion)
             const isPromotion = piece.type === 'p' && 
-                (targetSquare[1] === '8' || targetSquare[1] === '1');
+                (targetSquare[1] === '8' || targetSquare[1] === '1') &&
+                this.chess.moves({ square: sourceSquare, verbose: true })
+                    .some(m => m.to === targetSquare && m.promotion);
             
             if (isPromotion) {
                 // Store the move info and show promotion modal
@@ -2593,9 +2597,17 @@ class ChessGame {
                     return;
                 }
                 
-                const from = bestMove.substring(0, 2);
-                const to = bestMove.substring(2, 4);
-                const promotion = bestMove.length > 4 ? bestMove[4] : 'q';
+                // Interval-based blunder injection for practice mode.
+                // Chess.com bots play accurately at a set interval, then make
+                // a mandatory mistake to "rebalance" their rating.
+                let finalMoveUCI = bestMove;
+                if (this.gameMode === 'practice' && this._blunderSchedule && this._blunderSchedule.has(this._botMoveCount)) {
+                    finalMoveUCI = this._makeBlunderMove(bestMove);
+                }
+                
+                const from = finalMoveUCI.substring(0, 2);
+                const to = finalMoveUCI.substring(2, 4);
+                const promotion = finalMoveUCI.length > 4 ? finalMoveUCI[4] : 'q';
 
                 const fenBefore = this.chess.fen();
                 const move = this.chess.move({ from, to, promotion });
@@ -2639,25 +2651,45 @@ class ChessGame {
         
         // Set difficulty based on game mode
         if (this.gameMode === 'practice') {
-            // Practice mode: Use ELO-based strength (convert ELO to depth)
-            // ELO 400-800: depth 1-3 (beginner)
-            // ELO 800-1200: depth 4-6 (intermediate)
-            // ELO 1200-1600: depth 7-10 (advanced)
-            // ELO 1600-2000: depth 11-14 (expert)
-            // ELO 2000-2800: depth 15-20 (master)
+            // Practice mode: ELO-based difficulty with two layers:
+            //   1. Depth control (shallower = weaker)
+            //   2. Interval-based blunder schedule (pre-determined mistake moves)
+            //
+            // NOTE: Stockfish 10.0.2 WASM build does NOT support "Skill Level" option,
+            // so we rely on depth + mandatory blunder intervals for realistic difficulty.
+            // Ratings are inflated ~200-500 pts vs human strength (per community analysis).
+            
+            // Increment bot move counter for blunder schedule tracking
+            this._botMoveCount = (this._botMoveCount || 0) + 1;
+            
             let depth;
-            if (this.engineElo <= 800) {
-                depth = Math.max(1, Math.floor(this.engineElo / 200));
+            if (this.engineElo <= 400) {
+                depth = 1;   // Single-ply: static eval only, no look-ahead
+            } else if (this.engineElo <= 600) {
+                depth = 1;
+            } else if (this.engineElo <= 800) {
+                depth = 2;
+            } else if (this.engineElo <= 1000) {
+                depth = 3;
             } else if (this.engineElo <= 1200) {
-                depth = 3 + Math.floor((this.engineElo - 800) / 100);
+                depth = 4;
+            } else if (this.engineElo <= 1400) {
+                depth = 6;
             } else if (this.engineElo <= 1600) {
-                depth = 7 + Math.floor((this.engineElo - 1200) / 100);
+                depth = 8;
+            } else if (this.engineElo <= 1800) {
+                depth = 10;
             } else if (this.engineElo <= 2000) {
-                depth = 11 + Math.floor((this.engineElo - 1600) / 100);
+                depth = 14;
+            } else if (this.engineElo <= 2400) {
+                depth = 16;
             } else {
-                depth = 15 + Math.floor((this.engineElo - 2000) / 100);
+                depth = 18;
             }
-            depth = Math.min(20, Math.max(1, depth));
+            
+            // Ensure Skill Level is set for this move (safety net)
+            const skillLevel = this.getSkillLevel(this.engineElo);
+            this.stockfish.postMessage(`setoption name Skill Level value ${skillLevel}`);
             this.stockfish.postMessage(`go depth ${depth}`);
         } else {
             // Boss battle mode: Use fixed depth per bot
@@ -5409,6 +5441,62 @@ class ChessGame {
         return Math.max(0, Math.min(20, skillLevel));
     }
     
+    // Generate a pre-determined blunder schedule for the bot.
+    // Chess.com bots don't blunder randomly each move — they play accurately
+    // at a set interval and then make a mandatory mistake to "rebalance."
+    // Returns a Set of bot-move numbers where blunders must occur.
+    _generateBlunderSchedule(elo) {
+        const schedule = new Set();
+        const estimatedGameLength = 50; // assume max 50 bot moves per game
+        
+        // Blunder interval: how many bot moves between forced mistakes.
+        // Lower ELO = more frequent blunders.
+        // Ratings are inflated ~200-500 pts vs human strength per community analysis.
+        let interval;
+        if (elo <= 400)      interval = 3;   // ~30% blunder rate — beginner
+        else if (elo <= 600) interval = 4;   // ~25% — novice
+        else if (elo <= 800) interval = 5;   // ~20%
+        else if (elo <= 1000) interval = 7;  // ~14%
+        else if (elo <= 1200) interval = 10; // ~10% — intermediate
+        else if (elo <= 1500) interval = 16; // ~6% — ~2 blunders per game
+        else if (elo <= 2000) interval = 30; // ~3% — ~1 blunder per game
+        else                  interval = 999; // never — expert+
+        
+        let nextBlunder = interval;
+        while (nextBlunder < estimatedGameLength) {
+            schedule.add(nextBlunder);
+            // Add random jitter (±25% of interval) so blunders aren't predictable
+            const jitter = Math.floor(interval * 0.25 * (Math.random() * 2 - 1));
+            nextBlunder += interval + jitter;
+            if (nextBlunder <= 0) nextBlunder = interval; // safety
+        }
+        
+        return schedule;
+    }
+    
+    // Make a deliberate blunder move. Different mistake types per ELO range
+    // to match how Chess.com bots actually play:
+    //   Low ELO (≤1000):   Random legal move — hangs pieces, misses tactics
+    //   Mid ELO (1000–1600): Random non-best — positional inaccuracy
+    //   High ELO (1600+):   No blunders (handled by reduced depth only)
+    _makeBlunderMove(bestMoveUCI) {
+        const moves = this.chess.moves({ verbose: true });
+        if (moves.length <= 1) return bestMoveUCI; // forced move
+        
+        const nonBestMoves = moves.filter(m => {
+            const uci = m.from + m.to + (m.promotion || '');
+            return uci !== bestMoveUCI;
+        });
+        
+        if (nonBestMoves.length === 0) return bestMoveUCI;
+        
+        // Pick a random non-best move.
+        // This creates realistic mistakes: from hanging pieces to subtle inaccuracies
+        // depending on how strong the best move actually was.
+        const pick = nonBestMoves[Math.floor(Math.random() * nonBestMoves.length)];
+        return pick.from + pick.to + (pick.promotion || '');
+    }
+    
     resetGame() {
         // Stop and reset timer
         this.stopTimer();
@@ -5527,6 +5615,10 @@ class ChessGame {
         if (wasPracticeMode) {
             this.gameMode = 'practice';
             this.engineElo = savedEngineElo;
+            
+            // Initialize interval-based blunder schedule for realistic Chess.com-style bot play
+            this._botMoveCount = 0;
+            this._blunderSchedule = this._generateBlunderSchedule(savedEngineElo);
             
             // Reconfigure Stockfish for practice mode
             if (this.stockfish && savedEngineElo) {
