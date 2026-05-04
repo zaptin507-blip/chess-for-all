@@ -481,6 +481,62 @@ body {
     flex-shrink: 0;
 }
 
+/* ===== Chess.com-style Icon Toolbar ===== */
+.game-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 6px 4px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.toolbar-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    border-radius: 6px;
+    color: rgba(255, 255, 255, 0.55);
+    cursor: pointer;
+    transition: all 0.15s;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.toolbar-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.toolbar-btn:active {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.toolbar-btn.toolbar-btn-resign:hover {
+    background: rgba(244, 67, 54, 0.15);
+    color: #f44336;
+}
+
+.keyboard-hint {
+    display: flex !important;
+    justify-content: center !important;
+    margin-top: 4px !important;
+    margin-bottom: 0 !important;
+    gap: 0 !important;
+}
+
+.keyboard-hint small {
+    color: rgba(255, 255, 255, 0.18);
+    font-size: 10px;
+    letter-spacing: 0.5px;
+}
+
 .controls .btn {
     flex: 1 1 0 !important;
     padding: 8px 4px !important;
@@ -1030,11 +1086,20 @@ html {
         margin-top: 8px !important;
     }
     
-    .controls .btn {
-        font-size: 11px !important;
-        padding: 10px 4px !important;
-        min-height: 42px !important;
-        max-height: 48px !important;
+    /* Toolbar — bigger touch targets on mobile */
+    .game-toolbar {
+        padding: 4px 4px;
+        gap: 4px;
+    }
+    
+    .toolbar-btn {
+        width: 44px;
+        height: 44px;
+    }
+    
+    .toolbar-btn svg {
+        width: 20px;
+        height: 20px;
     }
     
     /* ---- Move history — compact scrollable ---- */
@@ -1217,10 +1282,9 @@ html {
         font-size: 13px;
     }
     
-    .controls .btn {
-        font-size: 10px !important;
-        padding: 8px 2px !important;
-        min-height: 38px !important;
+    .toolbar-btn {
+        width: 40px;
+        height: 40px;
     }
     
     .sidebar {
@@ -1581,4 +1645,31 @@ a:focus-visible {
     outline: 2px solid #769656;
     outline-offset: 2px;
     border-radius: 4px;
+}
+
+/* ===== Turn Indicator (Active Player Highlight) ===== */
+.player-info.active-turn {
+    background: rgba(118, 150, 86, 0.2) !important;
+    border: 1px solid rgba(118, 150, 86, 0.4);
+    box-shadow: 0 0 12px rgba(118, 150, 86, 0.15);
+    transition: all 0.3s ease;
+}
+
+.player-info.active-turn .player-details h3 {
+    color: #769656 !important;
+}
+
+.player-info.active-turn .timer-display {
+    color: #769656 !important;
+}
+
+/* ===== Promotion Modal ===== */
+.promotion-option {
+    pointer-events: auto;
+}
+
+.promotion-option:hover {
+    border-color: #769656 !important;
+    background: rgba(118, 150, 86, 0.25) !important;
+    transform: scale(1.08);
 }

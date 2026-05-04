@@ -46,6 +46,10 @@ class ChessGame {
         this.annotations = [];
         this.isPlaying = false;
         
+        // Board state
+        this.boardFlipped = false;
+        this.pendingPromotion = null;
+        
         // Audio for chess sounds
         this.sounds = {
             move: new Audio('sounds/move.mp3'),
@@ -287,7 +291,7 @@ class ChessGame {
         }
         
         // Taunts
-        if (this.messageContains(msg, ['stupid', 'dumb', 'bad', 'idiot'])) {
+        if (this.messageContains(msg, ['stupid', 'dumb', 'bad', 'idiot','fuck'])) {
             return this.getRandomResponse([
                 "Stupid? I'm rated 9000+. What's your excuse?",
                 "Careful, mortal. Insulting a god rarely ends well.",
@@ -1464,7 +1468,7 @@ class ChessGame {
         if (elements.botRating) elements.botRating.textContent = config.rating;
         if (elements.chatBotName) elements.chatBotName.textContent = config.chatName;
         if (elements.botChatSection) elements.botChatSection.style.display = config.showChat ? 'block' : 'none';
-        if (elements.analyzeBtn) elements.analyzeBtn.style.display = config.showAnalyze ? 'block' : 'none';
+        if (elements.analyzeBtn) elements.analyzeBtn.style.display = config.showAnalyze ? 'flex' : 'none';
     }
     
     checkBossBattleReady() {
@@ -1644,6 +1648,8 @@ class ChessGame {
                 this.startTimer();
             }
         }
+        
+        this.updateTurnIndicator();
     }
 
     startTimer() {
@@ -1724,6 +1730,7 @@ class ChessGame {
         } else {
             this.currentTurn = 'player';
         }
+        this.updateTurnIndicator();
     }
 
     handlePlayerTimeout() {
@@ -1734,6 +1741,7 @@ class ChessGame {
         
         this.stopTimer();
         this.gameOver = true;
+        this.updateTurnIndicator();
         
         // Stop background music
         this.stopBackgroundMusic();
@@ -1762,6 +1770,7 @@ class ChessGame {
         
         this.stopTimer();
         this.gameOver = true;
+        this.updateTurnIndicator();
         
         // Stop background music
         this.stopBackgroundMusic();
@@ -1798,8 +1807,10 @@ class ChessGame {
         // Render coordinates
         this.renderCoordinates();
 
-        // Determine if board should be flipped
-        const isFlipped = this.playerColor === 'b';
+        // Determine if board should be flipped (player as black, or manual flip)
+        const isFlipped = this.boardFlipped ? 
+            (this.playerColor === 'w') : 
+            (this.playerColor === 'b');
 
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
@@ -1918,6 +1929,21 @@ class ChessGame {
         const piece = this.chess.get(square);
 
         if (this.selectedSquare) {
+            // Check if this is a pawn promotion move
+            const sourcePiece = this.chess.get(this.selectedSquare);
+            const isPromotion = sourcePiece && sourcePiece.type === 'p' && 
+                (square[1] === '8' || square[1] === '1');
+            
+            if (isPromotion) {
+                // Store the move info and show promotion modal
+                this.pendingPromotion = {
+                    from: this.selectedSquare,
+                    to: square
+                };
+                this.showPromotionModal();
+                return;
+            }
+            
             const fenBefore = this.chess.fen();
             const move = this.chess.move({
                 from: this.selectedSquare,
@@ -2059,6 +2085,20 @@ class ChessGame {
         // Attempt the move
         const piece = this.chess.get(sourceSquare);
         if (piece && piece.color === this.playerColor) {
+            // Check if this is a pawn promotion move
+            const isPromotion = piece.type === 'p' && 
+                (targetSquare[1] === '8' || targetSquare[1] === '1');
+            
+            if (isPromotion) {
+                // Store the move info and show promotion modal
+                this.pendingPromotion = {
+                    from: sourceSquare,
+                    to: targetSquare
+                };
+                this.showPromotionModal();
+                return;
+            }
+            
             const fenBefore = this.chess.fen();
             const move = this.chess.move({
                 from: sourceSquare,
@@ -2119,28 +2159,230 @@ class ChessGame {
     }
 
     undoMove() {
-        // Only allow undo in practice mode
-        if (this.gameMode !== 'practice') return;
+        // Allow undo in all game modes (casual play)
         
         // Can't undo if no moves have been made
         if (this.moveHistory.length === 0) return;
         
-        // Remove the last move from history
-        const lastMove = this.moveHistory.pop();
+        // In bot/play mode, undo both the bot's move AND the player's last move
+        // So the player gets to retry their turn
+        if (this.gameMode !== 'practice' && this.moveHistory.length >= 2) {
+            // Remove the last two moves (bot move + player move)
+            this.moveHistory.pop(); // bot move
+            const prevMove = this.moveHistory.pop(); // player move
+            
+            // Restore the position before the player's move
+            this.chess.load(prevMove.fenBefore);
+            this.lastMove = this.moveHistory.length > 0 ? this.moveHistory[this.moveHistory.length - 1].move : null;
+            
+            // Mark undo has pending (we'll restore the timer turn state)
+            this.currentTurn = 'player';
+        } else {
+            // Practice mode or only 1 move: simple undo
+            const lastMove = this.moveHistory.pop();
+            this.chess.load(lastMove.fenBefore);
+            this.lastMove = this.moveHistory.length > 0 ? this.moveHistory[this.moveHistory.length - 1].move : null;
+        }
         
-        // Restore the position before the move
-        this.chess.load(lastMove.fenBefore);
-        
-        // Update the display
-        this.lastMove = this.moveHistory.length > 0 ? this.moveHistory[this.moveHistory.length - 1].move : null;
         this.renderBoard();
         this.updateMoveList();
+        this.updateTurnIndicator();
         
         // Update status - it's player's turn again
         if (this.chess.turn() === this.playerColor) {
             this.statusDisplay.textContent = 'Your turn - Click a piece to move';
         } else {
             this.statusDisplay.textContent = "Engine's turn - thinking...";
+        }
+    }
+    
+    // Pawn Promotion Modal
+    showPromotionModal() {
+        const modal = document.getElementById('promotionModal');
+        if (!modal) return;
+        modal.style.display = 'flex';
+        
+        // Set up one-time click handlers for promotion options
+        const options = modal.querySelectorAll('.promotion-option');
+        const handler = (e) => {
+            const piece = e.currentTarget.dataset.piece;
+            modal.style.display = 'none';
+            this.executePromotion(piece);
+            // Remove event listeners
+            options.forEach(opt => opt.removeEventListener('click', handler));
+        };
+        options.forEach(opt => opt.addEventListener('click', handler));
+    }
+    
+    executePromotion(promotionPiece) {
+        if (!this.pendingPromotion) return;
+        
+        const { from, to } = this.pendingPromotion;
+        this.pendingPromotion = null;
+        
+        const fenBefore = this.chess.fen();
+        const move = this.chess.move({
+            from: from,
+            to: to,
+            promotion: promotionPiece
+        });
+        
+        if (move) {
+            this.playSound(move);
+            this.removeSuggestionArrow();
+            
+            this.moveHistory.push({
+                move: move,
+                fenBefore: fenBefore,
+                fenAfter: this.chess.fen()
+            });
+            
+            // Check for hanging piece in practice mode
+            if (this.gameMode === 'practice') {
+                const hangingPiece = this.detectHangingPiece();
+                if (hangingPiece) {
+                    this.showHangingPiecePopup(hangingPiece, fenBefore);
+                    return;
+                }
+            }
+            
+            this.lastMove = move;
+            this.selectedSquare = null;
+            this.renderBoard();
+            this.updateMoveList();
+            this.updateStatus();
+            this.updateTurnIndicator();
+            
+            // Track move for The Tester
+            if (this.selectedBot === 'tester') {
+                const playerMoveSAN = move.san;
+                setTimeout(() => {
+                    this.analyzePlayerMove(playerMoveSAN, fenBefore);
+                }, 100);
+            }
+            
+            this.switchTurn();
+            
+            // Bot reaction
+            if (this.selectedBot === 'god' && Math.random() < 0.3) {
+                setTimeout(() => {
+                    const reactions = [
+                        "Hmm, an interesting choice. Flawed, but interesting.",
+                        "Is that really the best you can do? How disappointing.",
+                        "I see what you're trying to do. It won't work.",
+                        "A bold move. Let's see if it pays off...Spoiler: it won't.",
+                        "Cute. Now watch how a master responds."
+                    ];
+                    this.addBotMessage(reactions[Math.floor(Math.random() * reactions.length)]);
+                }, 1000);
+            }
+            
+            setTimeout(() => this.makeBotMove(), 300);
+        } else {
+            this.selectedSquare = null;
+            this.renderBoard();
+        }
+    }
+    
+    // Resign the current game
+    resignGame() {
+        if (!this.gameStarted || this.gameOver) return;
+        
+        this.stopTimer();
+        this.stopBackgroundMusic();
+        this.gameOver = true;
+        
+        const botDisplayName = this.getBotDisplayName();
+        this.statusDisplay.textContent = `You resigned. ${botDisplayName} wins!`;
+        
+        if (this.selectedBot === 'mrstong') {
+            this.addBotMessage("Good game! There's no shame in resigning — it's a sign of respect. Well played!");
+        } else if (this.selectedBot === 'god') {
+            this.addBotMessage("Wise choice. Sometimes surrender is the only rational option against a god.");
+        }
+        
+        this.updateTurnIndicator();
+        
+        // Show the game over modal after a brief pause
+        setTimeout(() => {
+            this.showGameOverModal('resign', 'You resigned');
+        }, 800);
+    }
+    
+    // Show the game over modal with result
+    showGameOverModal(result, customMessage) {
+        const modal = document.getElementById('gameOverModal');
+        if (!modal) return;
+        
+        let title, message;
+        const botDisplayName = this.gameMode === 'practice' ? 'The engine' : this.getBotDisplayName();
+        
+        if (result === 'win') {
+            title = '🎉 Victory!';
+            message = customMessage || `You defeated ${botDisplayName}!`;
+            this.triggerConfetti();
+        } else if (result === 'loss') {
+            title = 'Defeat';
+            message = customMessage || `${botDisplayName} defeated you.`;
+        } else if (result === 'resign') {
+            title = 'Resigned';
+            message = `You resigned. ${botDisplayName} wins.`;
+        } else {
+            title = 'Game Over';
+            message = customMessage || 'The game has ended.';
+        }
+        
+        document.getElementById('gameOverTitle').textContent = title;
+        document.getElementById('gameOverMessage').textContent = message;
+        modal.style.display = 'flex';
+        
+        // Save to game history
+        this.saveGameToHistory(result, message, botDisplayName);
+        
+        // Auto-analyze
+        if (this.moveHistory.length > 0) {
+            this.analyzeGame();
+        }
+    }
+    
+    // Flip the board perspective
+    flipBoard() {
+        this.boardFlipped = !this.boardFlipped;
+        this.renderBoard();
+        this.updateTurnIndicator();
+    }
+    
+    // Update visual turn indicator (highlight active player)
+    updateTurnIndicator() {
+        const topPlayer = document.querySelector('.player-info.top');
+        const bottomPlayer = document.querySelector('.player-info.bottom');
+        
+        if (!topPlayer || !bottomPlayer) return;
+        
+        // Remove active class from both
+        topPlayer.classList.remove('active-turn');
+        bottomPlayer.classList.remove('active-turn');
+        
+        if (this.gameOver || !this.gameStarted) return;
+        
+        // Determine whose turn it is visually
+        // If board is flipped, top = bottom perspective and vice versa
+        const topIsPlayer = this.boardFlipped ? 
+            (this.playerColor === 'b') : 
+            (this.playerColor === 'w');
+        
+        if (this.currentTurn === 'player') {
+            if (topIsPlayer) {
+                topPlayer.classList.add('active-turn');
+            } else {
+                bottomPlayer.classList.add('active-turn');
+            }
+        } else {
+            if (topIsPlayer) {
+                bottomPlayer.classList.add('active-turn');
+            } else {
+                topPlayer.classList.add('active-turn');
+            }
         }
     }
     
@@ -3126,8 +3368,10 @@ class ChessGame {
         ranksLeft.innerHTML = '';
         filesBottom.innerHTML = '';
         
-        // Determine orientation based on player color
-        const isFlipped = this.playerColor === 'b';
+        // Determine orientation based on player color AND manual flip
+        const isFlipped = this.boardFlipped ? 
+            (this.playerColor === 'w') : 
+            (this.playerColor === 'b');
         
         if (isFlipped) {
             // Board is flipped, show coordinates accordingly
@@ -3356,6 +3600,9 @@ class ChessGame {
         
         // Update win probability after each move
         this.updateWinProbability();
+        
+        // Update turn indicator
+        this.updateTurnIndicator();
     }
 
     async handleGameOver() {
@@ -3364,6 +3611,9 @@ class ChessGame {
         
         // Stop background music when game ends
         this.stopBackgroundMusic();
+        
+        // Clear turn indicator
+        this.updateTurnIndicator();
         
         let title, message;
         let botDisplayName;
@@ -3571,6 +3821,40 @@ class ChessGame {
         });
         document.getElementById('analyzeBtn').addEventListener('click', () => this.analyzeGame());
         document.getElementById('undoBtn').addEventListener('click', () => this.undoMove());
+        document.getElementById('flipBoardBtn').addEventListener('click', () => this.flipBoard());
+        document.getElementById('resignBtn').addEventListener('click', () => {
+            if (confirm('Are you sure you want to resign?')) {
+                this.resignGame();
+            }
+        });
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Don't trigger shortcuts when typing in inputs
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+            
+            switch (e.key.toLowerCase()) {
+                case 'u':
+                    e.preventDefault();
+                    this.undoMove();
+                    break;
+                case 'f':
+                    e.preventDefault();
+                    this.flipBoard();
+                    break;
+                case 'r':
+                    e.preventDefault();
+                    if (this.gameStarted && !this.gameOver && confirm('Are you sure you want to resign?')) {
+                        this.resignGame();
+                    }
+                    break;
+                case 'n':
+                    e.preventDefault();
+                    if (!this.gameOver && this.gameStarted && !confirm('Start a new game? Current progress will be lost.')) break;
+                    document.getElementById('newGame').click();
+                    break;
+            }
+        });
         
         // Rating modal close button
         document.getElementById('closeRatingModal').addEventListener('click', () => {
@@ -4136,16 +4420,10 @@ class ChessGame {
                 document.getElementById('playerTimer').style.display = 'block';
             }
             
-            // Enable undo button in practice mode
-            if (this.gameMode === 'practice') {
-                document.getElementById('undoBtn').disabled = false;
-                document.getElementById('undoBtn').style.opacity = '1';
-                document.getElementById('undoBtn').style.cursor = 'pointer';
-            } else {
-                document.getElementById('undoBtn').disabled = true;
-                document.getElementById('undoBtn').style.opacity = '0.5';
-                document.getElementById('undoBtn').style.cursor = 'not-allowed';
-            }
+            // Enable undo button in all game modes
+            document.getElementById('undoBtn').disabled = false;
+            document.getElementById('undoBtn').style.opacity = '1';
+            document.getElementById('undoBtn').style.cursor = 'pointer';
                     
             // Start the game properly
             this.updateBotDisplay();
@@ -4217,7 +4495,7 @@ class ChessGame {
         this.totalMovesToAnalyze = this.moveHistory.length;
         this.movesAnalyzed = 0;
         
-        analyzeBtn.textContent = 'Analyzing...';
+        analyzeBtn.title = 'Analyzing...';
         analyzeBtn.disabled = true;
         analysisPanel.style.display = 'block';
         analysisContent.innerHTML = '<p style="color: #888;">Analyzing moves... This may take a moment.</p>';
@@ -4305,7 +4583,7 @@ class ChessGame {
 
         // Display results
         this.displayAnalysis();
-        analyzeBtn.textContent = 'Analysis Complete';
+        analyzeBtn.title = 'Analysis Complete';
         analyzeBtn.disabled = false;
     }
 
@@ -5161,6 +5439,8 @@ class ChessGame {
         this.moveHistory = [];
         this.lastMove = null;
         this.gameStarted = false;
+        this.boardFlipped = false;
+        this.pendingPromotion = null;
         
         // Remove any suggestion arrow
         this.removeSuggestionArrow();
@@ -5201,14 +5481,14 @@ class ChessGame {
         const analyzeBtn = document.getElementById('analyzeBtn');
         if (gameOverModal) gameOverModal.style.display = 'none';
         if (analysisPanel) analysisPanel.style.display = 'none';
-        if (analyzeBtn) analyzeBtn.textContent = 'Analyze Game';
+        if (analyzeBtn) analyzeBtn.title = 'Analyze Game';
         
-        // Reset undo button to disabled state
+        // Reset undo button — enabled (undoMove handles empty history gracefully)
         const undoBtn = document.getElementById('undoBtn');
         if (undoBtn) {
-            undoBtn.disabled = true;
-            undoBtn.style.opacity = '0.5';
-            undoBtn.style.cursor = 'not-allowed';
+            undoBtn.disabled = false;
+            undoBtn.style.opacity = '1';
+            undoBtn.style.cursor = 'pointer';
         }
         
         // Reset bot display to default
