@@ -1596,6 +1596,14 @@ class ChessGame {
             };
         }
         
+        // Initialize Chess.com-style interval blunder schedule for Mrs. Tong
+        // She plays at intermediate level (~1400 ELO) with mandatory mistakes
+        // at set intervals to create a realistic human-like experience.
+        if (this.selectedBot === 'mrstong') {
+            this._botMoveCount = 0;
+            this._blunderSchedule = this._generateBlunderSchedule(1400);
+        }
+        
         // Bot greeting - different for each bot (skip in practice mode)
         if (this.gameMode !== 'practice') {
             if (this.selectedBot === 'mrstong') {
@@ -2650,53 +2658,53 @@ class ChessGame {
         this.stockfish.postMessage(`position fen ${fen}`);
         
         // Set difficulty based on game mode
-        if (this.gameMode === 'practice') {
-            // Practice mode: ELO-based difficulty with two layers:
-            //   1. Depth control (shallower = weaker)
-            //   2. Interval-based blunder schedule (pre-determined mistake moves)
+        if (this.gameMode === 'practice' || this.selectedBot === 'mrstong') {
+            // Chess.com-style difficulty system: depth control + interval blunder schedule.
+            // Used by: Practice mode (variable ELO) and Mrs. Tong (fixed intermediate ~1400).
             //
             // NOTE: Stockfish 10.0.2 WASM build does NOT support "Skill Level" option,
             // so we rely on depth + mandatory blunder intervals for realistic difficulty.
             // Ratings are inflated ~200-500 pts vs human strength (per community analysis).
             
+            const effectiveElo = this.gameMode === 'practice' ? this.engineElo : 1400;
+            
             // Increment bot move counter for blunder schedule tracking
             this._botMoveCount = (this._botMoveCount || 0) + 1;
             
             let depth;
-            if (this.engineElo <= 400) {
+            if (effectiveElo <= 400) {
                 depth = 1;   // Single-ply: static eval only, no look-ahead
-            } else if (this.engineElo <= 600) {
+            } else if (effectiveElo <= 600) {
                 depth = 1;
-            } else if (this.engineElo <= 800) {
+            } else if (effectiveElo <= 800) {
                 depth = 2;
-            } else if (this.engineElo <= 1000) {
+            } else if (effectiveElo <= 1000) {
                 depth = 3;
-            } else if (this.engineElo <= 1200) {
+            } else if (effectiveElo <= 1200) {
                 depth = 4;
-            } else if (this.engineElo <= 1400) {
+            } else if (effectiveElo <= 1400) {
                 depth = 6;
-            } else if (this.engineElo <= 1600) {
+            } else if (effectiveElo <= 1600) {
                 depth = 8;
-            } else if (this.engineElo <= 1800) {
+            } else if (effectiveElo <= 1800) {
                 depth = 10;
-            } else if (this.engineElo <= 2000) {
+            } else if (effectiveElo <= 2000) {
                 depth = 14;
-            } else if (this.engineElo <= 2400) {
+            } else if (effectiveElo <= 2400) {
                 depth = 16;
             } else {
                 depth = 18;
             }
             
             // Ensure Skill Level is set for this move (safety net)
-            const skillLevel = this.getSkillLevel(this.engineElo);
+            const skillLevel = this.getSkillLevel(effectiveElo);
             this.stockfish.postMessage(`setoption name Skill Level value ${skillLevel}`);
             this.stockfish.postMessage(`go depth ${depth}`);
         } else {
             // Boss battle mode: Use fixed depth per bot
             // THE ONE ABOVE ALL: depth 16 (expert level)
-            // mrs.Tong: depth 10 (intermediate-advanced level)
             // The Tester: depth 8 (neutral level for rating)
-            const depth = this.selectedBot === 'mrstong' ? 10 : (this.selectedBot === 'tester' ? 8 : 16);
+            const depth = this.selectedBot === 'tester' ? 8 : 16;
             this.stockfish.postMessage(`go depth ${depth}`);
         }
         
