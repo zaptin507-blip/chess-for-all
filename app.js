@@ -5726,6 +5726,11 @@ if (auth) {
                 }
             }
             
+            // Populate home screen stats (ELO, wins, losses, profile pic, display name)
+            if (typeof window.updateHomeStats === 'function') {
+                window.updateHomeStats();
+            }
+            
             // Make sidebar profile clickable → opens Chess.com-style stats modal
             const sidebarProfileClickable = document.getElementById('sidebarUserProfile');
             if (sidebarProfileClickable) {
