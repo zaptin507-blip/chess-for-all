@@ -487,22 +487,6 @@ const chessOpenings = {
         rating: { beginners: "80%", intermediate: "55%", advanced: "30%" }
     },
 
-    londonSystem: {
-        id: "londonSystem",
-        name: "London System",
-        eco: "D02",
-        difficulty: "beginner",
-        category: "Closed Games",
-        moves: ["d4", "d5", "Bf4"],
-        description: "A solid, easy-to-learn system where White develops the bishop to f4 early. Popular at club level.",
-        finalPosition: "rnbqkbnr/ppp1pppp/8/3p4/3P1B2/8/PPP1PPPP/RN1QKBNR b KQkq - 1 2",
-        strengths: ["Very easy to learn", "Solid and safe", "Same setup every game", "Hard to go wrong early"],
-        weaknesses: ["Can be passive", "Lacks ambition", "Black can equalize easily", "Limited tactical chances"],
-        plans: ["Play Nf3 and e3", "Develop Bd3", "Castle kingside", "Consider c3 and Nbd2"],
-        famousGames: [{ name: "Carlsen vs Various", result: "Mixed", description: "Carlsen popularized the modern London" }],
-        rating: { beginners: "95%", intermediate: "70%", advanced: "50%" }
-    },
-
     kingsGambit: {
         id: "kingsGambit",
         name: "King's Gambit",
@@ -533,6 +517,70 @@ const chessOpenings = {
         plans: ["Play exd5 Qxd5", "Develop Nc6", "Play c6 to support queen", "Castle queenside"],
         famousGames: [{ name: "Anand vs Various", result: "Mixed", description: "Anand sometimes used Scandinavian" }],
         rating: { beginners: "75%", intermediate: "55%", advanced: "35%" }
+    },
+
+    danishGambit: {
+        id: "danishGambit",
+        name: "Danish Gambit",
+        eco: "C21",
+        difficulty: "beginner",
+        category: "Open Games",
+        moves: ["e4", "e5", "d4", "exd4", "c3"],
+        description: "White sacrifices one or two pawns for rapid development and a ferocious attack. A romantic-era favorite.",
+        finalPosition: "rnbqkbnr/pppp1ppp/8/8/3pP3/2P5/PP3PPP/RNBQKBNR b KQkq - 0 3",
+        strengths: ["Rapid development", "Strong attacking chances", "Surprise weapon", "Exciting open positions"],
+        weaknesses: ["Down a pawn", "Black can decline safely", "If attack fails, you're lost", "Rare at top level"],
+        plans: ["Play Bc4 and Nf3", "Castle quickly", "Attack f7 with Ng5", "Open lines with tactical play"],
+        famousGames: [{ name: "Morphy vs Various", result: "Mixed", description: "19th century attacking chess at its best" }],
+        rating: { beginners: "80%", intermediate: "60%", advanced: "40%" }
+    },
+
+    bishopsOpening: {
+        id: "bishopsOpening",
+        name: "Bishop's Opening",
+        eco: "C23-C24",
+        difficulty: "beginner",
+        category: "Open Games",
+        moves: ["e4", "e5", "Bc4"],
+        description: "White develops the bishop early, keeping d4 and f4 options open. A flexible and underrated opening.",
+        finalPosition: "rnbqkbnr/pppp1ppp/8/4p3/2B1P3/8/PPPP1PPP/RNBQK1NR b KQkq - 1 2",
+        strengths: ["Flexible and solid", "Avoids heavy theory", "Good for positional players", "Can transpose to Italian"],
+        weaknesses: ["Less direct than Nf3", "Black can equalize early", "Less popular at top level", "Requires understanding"],
+        plans: ["Play d3 or d4", "Develop Nf3 and Nc3", "Castle kingside", "Consider f4 for Wing Gambit"],
+        famousGames: [{ name: "Larsen vs Various", result: "Mixed", description: "Underrated weapon favored by creative players" }],
+        rating: { beginners: "85%", intermediate: "65%", advanced: "50%" }
+    },
+
+    ponziani: {
+        id: "ponziani",
+        name: "Ponziani Opening",
+        eco: "C44",
+        difficulty: "beginner",
+        category: "Open Games",
+        moves: ["e4", "e5", "Nf3", "Nc6", "c3"],
+        description: "White prepares d4 with c3 while keeping the option of Qa4. An old opening with some tricky traps.",
+        finalPosition: "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/2P2N2/PP1P1PPP/RNBQKB1R b KQkq - 0 3",
+        strengths: ["Surprise weapon", "Tricky traps for Black", "Prepares d4 powerfully", "Educational for beginners"],
+        weaknesses: ["Slightly slow", "Black has good equalizing lines", "Rare at top level", "Gives Black options"],
+        plans: ["Play d4 on the next move", "Develop Bc4 or Bb5", "Consider Qa4 pin", "Control the center"],
+        famousGames: [{ name: "Staunton vs Various", result: "Mixed", description: "Historical opening named after Ponziani" }],
+        rating: { beginners: "75%", intermediate: "55%", advanced: "35%" }
+    },
+
+    centerGame: {
+        id: "centerGame",
+        name: "Center Game",
+        eco: "C22",
+        difficulty: "beginner",
+        category: "Open Games",
+        moves: ["e4", "e5", "d4", "exd4", "Qxd4"],
+        description: "White brings the queen out early to dominate the center. Leads to open, tactical positions.",
+        finalPosition: "rnbqkbnr/pppp1ppp/8/8/3QP3/8/PPP2PPP/RNB1KBNR b KQkq - 0 3",
+        strengths: ["Direct and simple", "Controls the center", "Good for tactical players", "Easy to learn"],
+        weaknesses: ["Queen exposed early", "Black gains tempo with Nc6", "Less popular at top level", "Early queen development"],
+        plans: ["Retreat queen to e3 or g3", "Develop Nf3 and Bc4", "Castle queenside often", "Attack actively"],
+        famousGames: [{ name: "Morphy vs Various", result: "Mixed", description: "Classical central occupation strategy" }],
+        rating: { beginners: "80%", intermediate: "55%", advanced: "30%" }
     },
 
     // ===== NEW INTERMEDIATE OPENINGS =====
@@ -696,6 +744,87 @@ const chessOpenings = {
         rating: { beginners: "45%", intermediate: "65%", advanced: "55%" }
     },
 
+    twoKnightsDefense: {
+        id: "twoKnightsDefense",
+        name: "Two Knights Defense",
+        eco: "C55-C59",
+        difficulty: "intermediate",
+        category: "Open Games",
+        moves: ["e4", "e5", "Nf3", "Nc6", "Bc4", "Nf6"],
+        description: "Black counter-attacks immediately by attacking e4 instead of playing the quiet Bc5. Sharp and tactical.",
+        finalPosition: "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+        strengths: ["Sharp and tactical", "Active counterplay", "Many attacking lines", "Good for fighting players"],
+        weaknesses: ["White has dangerous attacks", "Fried Liver Attack is scary", "Requires precise defense", "Theory heavy"],
+        plans: ["Play Na5 attacking Bc4", "Develop Be7 and castle", "Consider d5 break", "Counter in center"],
+        famousGames: [{ name: "Polerio vs Domenico, 1610", result: "Mixed", description: "Historical opening dating back centuries" }],
+        rating: { beginners: "55%", intermediate: "80%", advanced: "85%" }
+    },
+
+    queensGambitDeclined: {
+        id: "queensGambitDeclined",
+        name: "Queen's Gambit Declined",
+        variation: "Orthodox Defense",
+        eco: "D30-D69",
+        difficulty: "intermediate",
+        category: "Closed Games",
+        moves: ["d4", "d5", "c4", "e6", "Nc3", "Nf6", "Bg5", "Be7"],
+        description: "The most classical response to the Queen's Gambit. Black builds a solid pawn chain and prepares to castle.",
+        finalPosition: "rnbqk2r/ppp1bppp/4pn2/3p2B1/2PP4/2N5/PP2PPPP/R2QKBNR w KQkq - 4 5",
+        strengths: ["Very solid and reliable", "Centuries of grandmaster practice", "Clear strategic plans", "Good pawn structure"],
+        weaknesses: ["Light-squared bishop blocked", "Can be passive", "Theory heavy", "White has space advantage"],
+        plans: ["Castle kingside", "Play c5 to challenge center", "Develop Bb7 after b6", "Consider e5 break"],
+        famousGames: [{ name: "Capablanca vs Alekhine, 1927", result: "1-0", description: "Classical World Championship QGD" }],
+        rating: { beginners: "55%", intermediate: "85%", advanced: "90%" }
+    },
+
+    queensGambitAccepted: {
+        id: "queensGambitAccepted",
+        name: "Queen's Gambit Accepted",
+        eco: "D20-D29",
+        difficulty: "intermediate",
+        category: "Closed Games",
+        moves: ["d4", "d5", "c4", "dxc4"],
+        description: "Black accepts the gambit pawn temporarily. A reliable way to play for a win with the Black pieces.",
+        finalPosition: "rnbqkbnr/ppp1pppp/8/8/2pP4/8/PP2PPPP/RNBQKBNR w KQkq - 0 3",
+        strengths: ["Fighting and active", "Good winning chances", "Solid fundamentals", "Flexible development"],
+        weaknesses: ["Temporarily concedes center", "White can recover pawn", "Requires accurate play", "Black can be cramped"],
+        plans: ["Play Nf6 and e6", "Develop Bb4 or Be7", "Hold the c4 pawn if possible", "Counter-attack in center"],
+        famousGames: [{ name: "Kasparov vs Karpov, 1984", result: "0-1", description: "Epic QGA battle between champions" }],
+        rating: { beginners: "55%", intermediate: "80%", advanced: "85%" }
+    },
+
+    colleSystem: {
+        id: "colleSystem",
+        name: "Colle System",
+        eco: "D04-D05",
+        difficulty: "intermediate",
+        category: "Closed Games",
+        moves: ["d4", "d5", "Nf3", "Nf6", "e3"],
+        description: "A solid, easy-to-learn system for White. Set up the same pieces every game and build a kingside attack.",
+        finalPosition: "rnbqkb1r/ppp1pppp/5n2/3p4/3P4/4PN2/PPP2PPP/RNBQKB1R b KQkq - 0 3",
+        strengths: ["Very easy to learn", "Solid and safe", "Same setup every game", "Good attacking plans on kingside"],
+        weaknesses: ["Can be passive", "Less ambitious than c4 lines", "Black can equalize", "Limited at top level"],
+        plans: ["Play c3 and Bd3", "Develop Nbd2", "Play e4 break", "Attack kingside with Ne5 and f4"],
+        famousGames: [{ name: "Colle vs Various", result: "Mixed", description: "Named after Belgian master Edgard Colle" }],
+        rating: { beginners: "85%", intermediate: "70%", advanced: "50%" }
+    },
+
+    scotchGambit: {
+        id: "scotchGambit",
+        name: "Scotch Gambit",
+        eco: "C44",
+        difficulty: "intermediate",
+        category: "Open Games",
+        moves: ["e4", "e5", "Nf3", "Nc6", "d4", "exd4", "Bc4"],
+        description: "White sacrifices a pawn for rapid development and strong attacking chances. Sharper than the regular Scotch.",
+        finalPosition: "r1bqkbnr/pppp1ppp/2n5/8/2BpP3/5N2/PPP2PPP/RNBQK2R b KQkq - 1 4",
+        strengths: ["Rapid development", "Strong attacking chances", "Open tactical positions", "Good for aggressive players"],
+        weaknesses: ["Down a pawn", "Black can defend solidly", "If attack stalls, you're lost", "Well-known theory"],
+        plans: ["Play O-O quickly", "Consider e5 push", "Develop Bg5 for pin", "Line up rooks on open files"],
+        famousGames: [{ name: "Kasparov vs Karpov, 1985", result: "1-0", description: `Kasparov's aggressive Scotch Gambit` }],
+        rating: { beginners: "60%", intermediate: "75%", advanced: "60%" }
+    },
+
     // ===== NEW ADVANCED OPENINGS =====
     dragonSicilian: {
         id: "dragonSicilian",
@@ -839,6 +968,70 @@ const chessOpenings = {
         plans: ["Play Bg4 to pin knight", "Develop e6 and Nf6", "Pressure on d4", "Active piece coordination"],
         famousGames: [{ name: "Chigorin vs Various", result: "Mixed", description: "Named after Russian master Chigorin" }],
         rating: { beginners: "40%", intermediate: "65%", advanced: "60%" }
+    },
+
+    acceleratedDragon: {
+        id: "acceleratedDragon",
+        name: "Sicilian Accelerated Dragon",
+        eco: "B34-B39",
+        difficulty: "advanced",
+        category: "Semi-Open Games",
+        moves: ["e4", "c5", "Nf3", "Nc6", "d4", "cxd4", "Nxd4", "g6"],
+        description: "Black fianchettoes early without playing d6, keeping d5 as a pawn break option. More flexible than the regular Dragon.",
+        finalPosition: "r1bqkbnr/pp1ppp1p/2n3p1/8/3NP3/8/PPP2PPP/RNBQKB1R w KQkq - 0 5",
+        strengths: ["Flexible and dynamic", "Early Bg7 pressure", "d5 break available", "Avoids sharpest Dragon lines"],
+        weaknesses: ["Maroczy Bind is strong", "Complex transpositions", "Requires understanding", "Space disadvantage"],
+        plans: ["Play Bg7 and castle", "Play d5 break when ready", "Develop Nf6", "Pressure on long diagonal"],
+        famousGames: [{ name: "Carlsen vs Anand, 2013", result: "1/2-1/2", description: "World Championship Accelerated Dragon" }],
+        rating: { beginners: "25%", intermediate: "60%", advanced: "90%" }
+    },
+
+    kanSicilian: {
+        id: "kanSicilian",
+        name: "Sicilian Kan",
+        eco: "B41-B43",
+        difficulty: "advanced",
+        category: "Semi-Open Games",
+        moves: ["e4", "c5", "Nf3", "e6", "d4", "cxd4", "Nxd4", "a6"],
+        description: "A flexible, positional Sicilian. Black prepares b5 expansion while avoiding early commitments. A Karpov favorite.",
+        finalPosition: "rnbqkbnr/1p1p1ppp/p3p3/8/3NP3/8/PPP2PPP/RNBQKB1R w KQkq - 0 5",
+        strengths: ["Very flexible", "Solid pawn structure", "Good for positional players", "Hard to attack directly"],
+        weaknesses: ["Complex theory", "White has space", "Requires patience", "Passive if played poorly"],
+        plans: ["Play b5 and Bb7", "Develop Nf6 and Be7", "Consider d5 break", "Queenside expansion"],
+        famousGames: [{ name: "Karpov vs Kasparov, 1985", result: "Mixed", description: "Karpov's weapon in World Championships" }],
+        rating: { beginners: "25%", intermediate: "60%", advanced: "90%" }
+    },
+
+    bogoIndian: {
+        id: "bogoIndian",
+        name: "Bogo-Indian Defense",
+        eco: "E11",
+        difficulty: "advanced",
+        category: "Indian Defenses",
+        moves: ["d4", "Nf6", "c4", "e6", "Nf3", "Bb4+"],
+        description: "Black checks with the bishop instead of the knight (Nimzo-Indian). More positional and less forcing.",
+        finalPosition: "rnbqk2r/pppp1ppp/4pn2/8/1bPP4/5N2/PP2PPPP/RNBQKB1R w KQkq - 1 4",
+        strengths: ["Solid and positional", "Flexible piece placement", "Good for strategic players", "Avoids Nimzo complexities"],
+        weaknesses: ["Can be passive", "White can block with Bd2", "Less popular at top level", "Theory still required"],
+        plans: ["Develop Bb7 after b6", "Play d5 or c5", "Control e4", "Castle and develop harmoniously"],
+        famousGames: [{ name: "Karpov vs Korchnoi, 1978", result: "Mixed", description: "Karpov's positional Bogo-Indian" }],
+        rating: { beginners: "35%", intermediate: "65%", advanced: "80%" }
+    },
+
+    smithMorraGambit: {
+        id: "smithMorraGambit",
+        name: "Smith-Morra Gambit",
+        eco: "B21",
+        difficulty: "advanced",
+        category: "Semi-Open Games",
+        moves: ["e4", "c5", "d4", "cxd4", "c3"],
+        description: "White sacrifices a pawn against the Sicilian for rapid development and dangerous attacking chances.",
+        finalPosition: "rnbqkbnr/pp1ppppp/8/8/3pP3/2P5/PP3PPP/RNBQKBNR b KQkq - 0 3",
+        strengths: ["Rapid development", "Open lines for attack", "Surprise weapon", "Good for aggressive players"],
+        weaknesses: ["Down a pawn", "Black can defend solidly", "Well-known theory exists", "Risky at top level"],
+        plans: ["Play Nxc3 and Bc4", "Castle quickly", "Pressure on d-file and c-file", "Attack with Qe2 and Rd1"],
+        famousGames: [{ name: "Smith vs Morra, 1950", result: "Mixed", description: "Named after two players who popularized it" }],
+        rating: { beginners: "35%", intermediate: "60%", advanced: "75%" }
     },
 };
 
