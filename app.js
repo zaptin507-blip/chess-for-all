@@ -4224,6 +4224,9 @@ class ChessGame {
             // Hide home section
             const homeSection = document.getElementById('homeSection');
             if (homeSection) homeSection.style.display = 'none';
+            // Hide learn section if open
+            const learnSection = document.getElementById('learnSection');
+            if (learnSection) learnSection.style.display = 'none';
             // Show game container if hidden
             const container = document.querySelector('.container');
             if (container) container.style.display = '';
@@ -4245,6 +4248,9 @@ class ChessGame {
         };
         
         window.showPracticeSection = () => {
+            // Hide learn section if open
+            const learnSection = document.getElementById('learnSection');
+            if (learnSection) learnSection.style.display = 'none';
             document.getElementById('practiceSection').style.display = 'block';
             // Hide Chess.com-style right sidebar
             const chessSidebar = document.getElementById('chessSidebar');
@@ -4263,6 +4269,13 @@ class ChessGame {
         };
         
         window.showLearnSection = () => {
+            // Hide other sections first to prevent overlaps
+            const practiceSection = document.getElementById('practiceSection');
+            if (practiceSection) practiceSection.style.display = 'none';
+            const chessSidebar = document.getElementById('chessSidebar');
+            if (chessSidebar) chessSidebar.style.display = 'none';
+            const playSection = document.getElementById('playSection');
+            if (playSection) playSection.style.display = 'none';
             document.getElementById('learnSection').style.display = 'block';
             // Render the openings
             if (window.renderLearnSection) {
