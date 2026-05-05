@@ -262,7 +262,7 @@ body {
     width: 90%;
     height: 90%;
     pointer-events: none;
-    /* Filter is applied via JavaScript for theme-specific effects */
+    filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));
 }
 
 .sidebar {
@@ -1630,6 +1630,21 @@ html {
 .settings-dropdown-divider {
     border-top: 1px solid rgba(255,255,255,0.06);
     margin: 4px 0;
+}
+
+/* ===== Animated Piece Style ===== */
+@keyframes piecePulse {
+    0% { filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
+    50% { filter: drop-shadow(0 3px 8px rgba(0,0,0,0.45)); }
+    100% { filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
+}
+
+.piece-animated svg {
+    animation: piecePulse 3s ease-in-out infinite;
+}
+
+.piece-animated:hover svg {
+    animation: piecePulse 1s ease-in-out infinite;
 }
 
 /* ===== ACCESSIBILITY: Focus indicators ===== */

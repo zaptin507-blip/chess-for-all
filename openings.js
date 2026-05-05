@@ -850,6 +850,24 @@ function generateOpeningBoard(fen, size = 200) {
         'k': 'bK', 'q': 'bQ', 'r': 'bR', 'b': 'bB', 'n': 'bN', 'p': 'bP'
     };
     const pieceSVG = window.chessGame && window.chessGame.pieceSVG ? window.chessGame.pieceSVG : null;
+    
+    // Read user's board theme preference
+    const ss = window.safeStorage;
+    const savedTheme = ss ? ss.get('boardTheme', 'green') : 'green';
+    const themes = window.boardThemes || {
+        green: { light: '#e8f0d5', dark: '#769656' },
+        blue: { light: '#dee3ec', dark: '#8ca2ad' },
+        brown: { light: '#f0d9b5', dark: '#b58863' },
+        gray: { light: '#e8e8e8', dark: '#888888' },
+        classic: { light: '#f0d9b5', dark: '#b58863' },
+        dark: { light: '#777', dark: '#444' },
+        purple: { light: '#e8d0f0', dark: '#6c3483' },
+        red: { light: '#ffcccc', dark: '#8b0000' }
+    };
+    const theme = themes[savedTheme] || themes.green;
+    
+    // Read user's piece style preference for rendering
+    const pieceStyle = ss ? ss.get('pieceStyle', 'cburnett') : 'cburnett';
 
     const rows = fen.split(' ')[0].split('/');
     let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">`;
@@ -862,7 +880,7 @@ function generateOpeningBoard(fen, size = 200) {
             const y = row * squareSize;
             const isLight = (row + col) % 2 === 0;
             
-            svg += `<rect x="${x}" y="${y}" width="${squareSize}" height="${squareSize}" fill="${isLight ? '#f0d9b5' : '#b58863'}"/>`;
+            svg += `<rect x="${x}" y="${y}" width="${squareSize}" height="${squareSize}" fill="${isLight ? theme.light : theme.dark}"/>`;
         }
     }
     
@@ -878,7 +896,26 @@ function generateOpeningBoard(fen, size = 200) {
                 
                 if (pieceSVG && pieceSVG[pieceKey]) {
                     // Extract inner SVG content from the piece SVG
-                    const svgStr = pieceSVG[pieceKey];
+                    let svgStr = pieceSVG[pieceKey];
+                    
+                    // Apply piece style modifications
+                    if (pieceStyle === 'neo') {
+                        svgStr = svgStr.replace(/stroke-width="1\.5"/g, 'stroke-width="0.9"');
+                        svgStr = svgStr.replace(/stroke-width="1\.2"/g, 'stroke-width="0.7"');
+                        svgStr = svgStr.replace(/stroke-width="1\.3"/g, 'stroke-width="0.8"');
+                        svgStr = svgStr.replace('<g ', '<g filter="drop-shadow(0 1px 2px rgba(0,0,0,0.25))" ');
+                        if (pieceKey.startsWith('w')) {
+                            svgStr = svgStr.replace('fill="#fff"', 'fill="#faf3e6"');
+                        } else {
+                            svgStr = svgStr.replace('fill="#000"', 'fill="#1a1a1a"');
+                        }
+                    } else if (pieceStyle === 'animated') {
+                        svgStr = svgStr.replace('<g ', '<g filter="drop-shadow(0 2px 4px rgba(0,0,0,0.35))" ');
+                        if (!pieceKey.startsWith('w')) {
+                            svgStr = svgStr.replace('fill="#000"', 'fill="#0a0a0a"');
+                        }
+                    }
+                    
                     const innerStart = svgStr.indexOf('>') + 1;
                     const innerEnd = svgStr.lastIndexOf('</svg>');
                     const innerContent = svgStr.substring(innerStart, innerEnd);

@@ -90,3 +90,6 @@ const safeStorage = {
 };
 
 export default safeStorage;
+
+// Also expose globally for non-module scripts (openings.js, etc.)
+window.safeStorage = safeStorage;

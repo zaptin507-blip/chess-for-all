@@ -4005,8 +4005,27 @@ class ChessGame {
             // Helper to render SVG piece into a square (chess.com style)
             const placePiece = (sq, pieceKey) => {
                 const svgCode = window.chessGame && window.chessGame.pieceSVG ? window.chessGame.pieceSVG[pieceKey] : null;
+                const style = safeStorage.get('pieceStyle', 'cburnett');
                 if (svgCode) {
-                    sq.element.innerHTML = `<div class="piece" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">${svgCode}</div>`;
+                    let displaySvg = svgCode;
+                    if (style === 'neo') {
+                        displaySvg = displaySvg.replace(/stroke-width="1\.5"/g, 'stroke-width="0.9"');
+                        displaySvg = displaySvg.replace(/stroke-width="1\.2"/g, 'stroke-width="0.7"');
+                        displaySvg = displaySvg.replace(/stroke-width="1\.3"/g, 'stroke-width="0.8"');
+                        displaySvg = displaySvg.replace('<g ', '<g filter="drop-shadow(0 1px 2px rgba(0,0,0,0.25))" ');
+                        if (pieceKey.startsWith('w')) {
+                            displaySvg = displaySvg.replace('fill="#fff"', 'fill="#faf3e6"');
+                        } else {
+                            displaySvg = displaySvg.replace('fill="#000"', 'fill="#1a1a1a"');
+                        }
+                    } else if (style === 'animated') {
+                        displaySvg = displaySvg.replace('<g ', '<g filter="drop-shadow(0 2px 4px rgba(0,0,0,0.35))" ');
+                        if (!pieceKey.startsWith('w')) {
+                            displaySvg = displaySvg.replace('fill="#000"', 'fill="#0a0a0a"');
+                        }
+                    }
+                    const animClass = style === 'animated' ? ' class="piece-animated"' : '';
+                    sq.element.innerHTML = `<div class="piece"${animClass} style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">${displaySvg}</div>`;
                 } else {
                     sq.element.textContent = pieceKey;
                 }
@@ -4216,6 +4235,14 @@ class ChessGame {
             const welcomeMsg = document.getElementById('homeWelcomeMsg');
             if (welcomeMsg) {
                 welcomeMsg.style.display = gamesPlayed === 0 ? 'block' : 'none';
+            }
+            
+            // Profile picture — restore saved avatar to home screen header
+            const homeAvatar = document.getElementById('homeAvatar');
+            const savedPic = safeStorage.get('profilePicture', '');
+            if (homeAvatar && savedPic) {
+                homeAvatar.innerHTML = `<img src="${savedPic}" style="width: 100%; height: 100%; object-fit: cover;" alt="Profile">`;
+                homeAvatar.style.display = 'block'; // override grid
             }
         };
         
@@ -5826,7 +5853,7 @@ ChessGame.prototype.applyBoardTheme = function(theme) {
     const darkSquares = document.querySelectorAll('.square.dark');
     
     const themes = {
-        green: { light: '#f0d9b5', dark: '#b58863' },
+        green: { light: '#e8f0d5', dark: '#769656' },
         blue: { light: '#dee3ec', dark: '#8ca2ad' },
         brown: { light: '#f0d9b5', dark: '#b58863' },
         gray: { light: '#e8e8e8', dark: '#888888' },
@@ -5835,6 +5862,9 @@ ChessGame.prototype.applyBoardTheme = function(theme) {
         purple: { light: '#e8d0f0', dark: '#6c3483' },
         red: { light: '#ffcccc', dark: '#8b0000' }
     };
+    
+    // Expose globally for other modules (openings.js, etc.)
+    window.boardThemes = themes;
     
     const colors = themes[theme] || themes.green;
     
@@ -5852,48 +5882,78 @@ ChessGame.prototype.applyPieceStyle = function(style) {
     const pieces = document.querySelectorAll('.piece');
     
     pieces.forEach((pieceEl, index) => {
+        const pieceKey = pieceEl.dataset.piece;
+        // Guard: skip if pieceKey is missing
+        if (!pieceKey) return;
+        
         if (style === 'unicode') {
             // Show Unicode chess symbols
-            const pieceKey = pieceEl.dataset.piece;
-            // Guard: skip if pieceKey is missing
-            if (!pieceKey) return;
             const unicodePieces = {
                 'wK': '♔', 'wQ': '♕', 'wR': '♖', 'wB': '♗', 'wN': '♘', 'wP': '♙',
                 'bK': '♚', 'bQ': '♛', 'bR': '♜', 'bB': '♝', 'bN': '♞', 'bP': '♟'
             };
             pieceEl.innerHTML = `<span style="font-size: 40px; line-height: 1; color: ${pieceKey.startsWith('w') ? '#fff' : '#000'}; text-shadow: ${pieceKey.startsWith('w') ? '0 0 3px #000' : '0 0 3px #fff'};">${unicodePieces[pieceKey] || '?'}</span>`;
+        } else if (style === 'neo') {
+            // Neo style — modern minimal: modify SVG stroke widths, fill, add glow
+            const svgCode = this.pieceSVG[pieceKey];
+            if (svgCode) {
+                let modified = svgCode;
+                // Thinner strokes for a cleaner look
+                modified = modified.replace(/stroke-width="1\.5"/g, 'stroke-width="0.9"');
+                modified = modified.replace(/stroke-width="1\.2"/g, 'stroke-width="0.7"');
+                modified = modified.replace(/stroke-width="1\.3"/g, 'stroke-width="0.8"');
+                // Add subtle drop-shadow to the SVG group
+                modified = modified.replace('<g ', '<g filter="drop-shadow(0 1px 2px rgba(0,0,0,0.25))" ');
+                // Change white pieces to have a warm ivory fill
+                if (pieceKey.startsWith('w')) {
+                    modified = modified.replace('fill="#fff"', 'fill="#faf3e6"');
+                } else {
+                    modified = modified.replace('fill="#000"', 'fill="#1a1a1a"');
+                }
+                pieceEl.innerHTML = modified;
+            }
+        } else if (style === 'animated') {
+            // Animated style — pieces pulse/hover with CSS animation
+            const svgCode = this.pieceSVG[pieceKey];
+            if (svgCode) {
+                let modified = svgCode;
+                // Add a glow filter and larger shadow for depth
+                modified = modified.replace('<g ', '<g filter="drop-shadow(0 2px 4px rgba(0,0,0,0.35))" ');
+                // Black pieces get a richer dark fill
+                if (!pieceKey.startsWith('w')) {
+                    modified = modified.replace('fill="#000"', 'fill="#0a0a0a"');
+                }
+                pieceEl.innerHTML = modified;
+                // Add animation class only if SVG was successfully rendered
+                pieceEl.classList.add('piece-animated');
+            }
         } else {
-            // Use SVG pieces (cburnett style)
-            const pieceKey = pieceEl.dataset.piece;
-            // Guard: skip if pieceKey is missing
-            if (!pieceKey) return;
+            // Classic cbumett style (default)
             const svgCode = this.pieceSVG[pieceKey];
             if (svgCode) {
                 pieceEl.innerHTML = svgCode;
             }
+            // Remove any animation class
+            pieceEl.classList.remove('piece-animated');
         }
     });
     
     // Update profile page piece style buttons if visible
-    const cburnettBtn = document.getElementById('profileCburnettBtn');
-    const unicodeBtn = document.getElementById('profileUnicodeBtn');
-    if (cburnettBtn && unicodeBtn) {
-        if (style === 'cburnett') {
-            cburnettBtn.style.background = 'rgba(118,150,86,0.2)';
-            cburnettBtn.style.borderColor = '#769656';
-            cburnettBtn.style.color = '#fff';
-            unicodeBtn.style.background = 'rgba(255,255,255,0.06)';
-            unicodeBtn.style.borderColor = 'rgba(255,255,255,0.12)';
-            unicodeBtn.style.color = 'rgba(255,255,255,0.5)';
-        } else {
-            unicodeBtn.style.background = 'rgba(118,150,86,0.2)';
-            unicodeBtn.style.borderColor = '#769656';
-            unicodeBtn.style.color = '#fff';
-            cburnettBtn.style.background = 'rgba(255,255,255,0.06)';
-            cburnettBtn.style.borderColor = 'rgba(255,255,255,0.12)';
-            cburnettBtn.style.color = 'rgba(255,255,255,0.5)';
+    const profileStyles = ['cburnett', 'neo', 'animated', 'unicode'];
+    profileStyles.forEach(s => {
+        const btn = document.getElementById('profile' + s.charAt(0).toUpperCase() + s.slice(1) + 'Btn');
+        if (btn) {
+            if (s === style) {
+                btn.style.background = 'rgba(118,150,86,0.2)';
+                btn.style.borderColor = '#769656';
+                btn.style.color = '#fff';
+            } else {
+                btn.style.background = 'rgba(255,255,255,0.06)';
+                btn.style.borderColor = 'rgba(255,255,255,0.12)';
+                btn.style.color = 'rgba(255,255,255,0.5)';
+            }
         }
-    }
+    });
     
 };
 
