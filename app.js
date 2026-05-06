@@ -93,21 +93,29 @@ class ChessGame {
         
         // Background music methods for Blitz/Bullet
         this.startBackgroundMusic = async function() {
+            console.log('🎵 startBackgroundMusic called, timerMode =', this.timerMode, 'musicPlaying =', this.musicPlaying);
             // Only play music for Bullet and Blitz modes
             if (this.timerMode !== 'bullet' && this.timerMode !== 'blitz') {
+                console.log('🎵 startBackgroundMusic: skipping - wrong mode');
                 return;
             }
             
-            if (this.musicPlaying) return;
+            if (this.musicPlaying) {
+                console.log('🎵 startBackgroundMusic: already playing, return');
+                return;
+            }
             
             try {
                 // Reuse or create audio context (must be pre-resumed during user gesture)
                 if (!this.audioContext || this.audioContext.state === 'closed') {
+                    console.log('🎵 startBackgroundMusic: creating new AudioContext');
                     this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 }
                 if (this.audioContext.state === 'suspended') {
+                    console.log('🎵 startBackgroundMusic: resuming suspended context');
                     await this.audioContext.resume();
                 }
+                console.log('🎵 startBackgroundMusic: AudioContext state =', this.audioContext.state, 'currentTime =', this.audioContext.currentTime);
                 
                 // Create gain node for volume control
                 this.musicGainNode = this.audioContext.createGain();
@@ -118,6 +126,7 @@ class ChessGame {
                 this.createIntenseLoop();
                 
                 this.musicPlaying = true;
+                console.log('🎵 startBackgroundMusic: music started successfully');
             } catch (e) {
                 console.error('❌ Music error:', e);
                 console.error('Error stack:', e.stack);
@@ -126,20 +135,28 @@ class ChessGame {
         
         // Ambient music for Rapid & Infinite (Solaris-inspired violin ambient piece)
         this.startAmbientMusic = async function() {
+            console.log('🎵 startAmbientMusic called, timerMode =', this.timerMode, 'musicPlaying =', this.musicPlaying);
             if (this.timerMode !== 'rapid' && this.timerMode !== 'infinite') {
+                console.log('🎵 startAmbientMusic: skipping - wrong mode');
                 return;
             }
             
-            if (this.musicPlaying) return;
+            if (this.musicPlaying) {
+                console.log('🎵 startAmbientMusic: already playing, return');
+                return;
+            }
             
             try {
                 // Reuse or create audio context (must be pre-resumed during user gesture)
                 if (!this.audioContext || this.audioContext.state === 'closed') {
+                    console.log('🎵 startAmbientMusic: creating new AudioContext');
                     this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 }
                 if (this.audioContext.state === 'suspended') {
+                    console.log('🎵 startAmbientMusic: resuming suspended context');
                     await this.audioContext.resume();
                 }
+                console.log('🎵 startAmbientMusic: AudioContext state =', this.audioContext.state, 'currentTime =', this.audioContext.currentTime);
                 
                 this.musicGainNode = this.audioContext.createGain();
                 this.musicGainNode.gain.value = 0.12; // Softer for ambient
@@ -148,12 +165,14 @@ class ChessGame {
                 this.createSolarisAmbientLoop();
                 
                 this.musicPlaying = true;
+                console.log('🎵 startAmbientMusic: music started successfully');
             } catch (e) {
                 console.error('❌ Ambient music error:', e);
             }
         }.bind(this);
         
         this.createIntenseLoop = function() {
+            console.log('🎵 createIntenseLoop: creating ~40K oscillators');
             const ctx = this.audioContext;
             const now = ctx.currentTime;
             const loopLength = 8; // 8 seconds loop
@@ -212,6 +231,7 @@ class ChessGame {
         // Solaris-inspired ambient loop for Rapid & Infinite (violin-style melodic ambient)
         // Key: E minor, ~72 BPM — melancholic and atmospheric
         this.createSolarisAmbientLoop = function() {
+            console.log('🎵 createSolarisAmbientLoop: creating ~10K oscillators for ambient');
             const ctx = this.audioContext;
             const now = ctx.currentTime;
             const loopLength = 16; // 16-second loop (4 bars at ~60 BPM)
@@ -322,6 +342,7 @@ class ChessGame {
         }.bind(this);
         
         this.stopBackgroundMusic = function() {
+            console.log('🎵 stopBackgroundMusic called, musicPlaying =', this.musicPlaying);
             if (this.audioContext) {
                 this.audioContext.close();
                 this.audioContext = null;
@@ -335,11 +356,14 @@ class ChessGame {
         this.ensureAudioContext = function() {
             try {
                 if (!this.audioContext || this.audioContext.state === 'closed') {
+                    console.log('🎵 ensureAudioContext: creating new AudioContext');
                     this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 }
                 if (this.audioContext.state === 'suspended') {
+                    console.log('🎵 ensureAudioContext: resuming suspended AudioContext');
                     this.audioContext.resume();
                 }
+                console.log('🎵 ensureAudioContext: state =', this.audioContext.state);
             } catch (e) {
                 console.error('❌ AudioContext error:', e);
             }
@@ -1700,6 +1724,7 @@ class ChessGame {
     }
 
     startGame() {
+        console.log('🎵 startGame called, timerMode =', this.timerMode, 'musicPlaying =', this.musicPlaying, 'audioContext =', !!this.audioContext);
         this.gameStarted = true;
         
         // Load saved preferences
@@ -3717,6 +3742,7 @@ class ChessGame {
         this.playerColor = 'w';
         this.timerMode = 'infinite';
         this.updateBotDisplay();
+        this.ensureAudioContext();
         this.startGame();
     }
     
