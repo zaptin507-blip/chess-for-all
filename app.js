@@ -101,14 +101,12 @@ class ChessGame {
             if (this.musicPlaying) return;
             
             try {
-                // Create audio context
-                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                
-                // Resume audio context if suspended (required by modern browsers)
-                // MUST await this before creating music!
+                // Reuse or create audio context (must be pre-resumed during user gesture)
+                if (!this.audioContext || this.audioContext.state === 'closed') {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
                 if (this.audioContext.state === 'suspended') {
                     await this.audioContext.resume();
-                } else {
                 }
                 
                 // Create gain node for volume control
@@ -123,6 +121,35 @@ class ChessGame {
             } catch (e) {
                 console.error('❌ Music error:', e);
                 console.error('Error stack:', e.stack);
+            }
+        }.bind(this);
+        
+        // Ambient music for Rapid & Infinite (Solaris-inspired violin ambient piece)
+        this.startAmbientMusic = async function() {
+            if (this.timerMode !== 'rapid' && this.timerMode !== 'infinite') {
+                return;
+            }
+            
+            if (this.musicPlaying) return;
+            
+            try {
+                // Reuse or create audio context (must be pre-resumed during user gesture)
+                if (!this.audioContext || this.audioContext.state === 'closed') {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.audioContext.state === 'suspended') {
+                    await this.audioContext.resume();
+                }
+                
+                this.musicGainNode = this.audioContext.createGain();
+                this.musicGainNode.gain.value = 0.12; // Softer for ambient
+                this.musicGainNode.connect(this.audioContext.destination);
+                
+                this.createSolarisAmbientLoop();
+                
+                this.musicPlaying = true;
+            } catch (e) {
+                console.error('❌ Ambient music error:', e);
             }
         }.bind(this);
         
@@ -182,11 +209,139 @@ class ChessGame {
             }
         }.bind(this);
         
+        // Solaris-inspired ambient loop for Rapid & Infinite (violin-style melodic ambient)
+        // Key: E minor, ~72 BPM — melancholic and atmospheric
+        this.createSolarisAmbientLoop = function() {
+            const ctx = this.audioContext;
+            const now = ctx.currentTime;
+            const loopLength = 16; // 16-second loop (4 bars at ~60 BPM)
+            
+            const createNote = (freq, type, startTime, duration, volume, detune = 0) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, startTime);
+                if (detune) osc.detune.setValueAtTime(detune, startTime);
+                
+                const attack = Math.min(0.08, duration * 0.15);
+                const release = Math.min(0.3, duration * 0.2);
+                gain.gain.setValueAtTime(0, startTime);
+                gain.gain.linearRampToValueAtTime(volume, startTime + attack);
+                gain.gain.setValueAtTime(volume, startTime + duration - release);
+                gain.gain.linearRampToValueAtTime(0, startTime + duration);
+                
+                osc.connect(gain);
+                gain.connect(this.musicGainNode);
+                
+                osc.start(startTime);
+                osc.stop(startTime + duration + 0.1);
+            };
+            
+            // Chord frequencies (E minor) — rich pads
+            const chords = {
+                Em:  [164.81, 196.00, 246.94, 329.63],  // E3, G3, B3, E4
+                C:   [130.81, 164.81, 196.00, 261.63],  // C3, E3, G3, C4
+                G:   [196.00, 246.94, 293.66, 392.00],  // G3, B3, D4, G4
+                D:   [146.83, 185.00, 220.00, 293.66],  // D3, F#3, A3, D4
+            };
+            
+            // Chord progression: Em - C - G - D (4s each)
+            const progression = ['Em', 'C', 'G', 'D'];
+            
+            // Violin-style melody (E minor, two phrases that rise and fall)
+            const melody = [
+                // Bar 1 (Em) — ascending phrase
+                { note: 329.63, time: 0.0, dur: 0.7 },   // E4
+                { note: 369.99, time: 0.8, dur: 0.6 },   // F#4
+                { note: 392.00, time: 1.5, dur: 0.8 },   // G4
+                { note: 440.00, time: 2.4, dur: 0.5 },   // A4
+                { note: 493.88, time: 3.0, dur: 0.9 },   // B4 (peak)
+                // Bar 2 (C) — descending
+                { note: 523.25, time: 4.0, dur: 1.0 },   // C5
+                { note: 493.88, time: 5.2, dur: 0.5 },   // B4
+                { note: 440.00, time: 5.8, dur: 0.6 },   // A4
+                { note: 392.00, time: 6.5, dur: 0.8 },   // G4
+                { note: 329.63, time: 7.4, dur: 0.5 },   // E4
+                // Bar 3 (G) — gentle arpeggio
+                { note: 392.00, time: 8.0, dur: 0.6 },   // G4
+                { note: 440.00, time: 8.7, dur: 0.5 },   // A4
+                { note: 493.88, time: 9.3, dur: 0.7 },   // B4
+                { note: 587.33, time: 10.1, dur: 0.6 },  // D5
+                { note: 493.88, time: 10.8, dur: 0.8 },  // B4
+                { note: 440.00, time: 11.7, dur: 0.3 },  // A4
+                // Bar 4 (D) — resolution
+                { note: 392.00, time: 12.0, dur: 0.5 },  // G4
+                { note: 369.99, time: 12.6, dur: 0.4 },  // F#4
+                { note: 329.63, time: 13.1, dur: 0.7 },  // E4
+                { note: 293.66, time: 13.9, dur: 0.8 },  // D4
+                { note: 329.63, time: 14.8, dur: 1.1 },  // E4 (held)
+            ];
+            
+            // Loop 500 times (~2 hours)
+            for (let loop = 0; loop < 500; loop++) {
+                const loopStart = now + (loop * loopLength);
+                
+                // 1. Ambient pads — soft sustained chords
+                progression.forEach((chord, ci) => {
+                    const chordStart = loopStart + (ci * 4);
+                    chords[chord].forEach(note => {
+                        createNote(note, 'sawtooth', chordStart, 3.9, 0.025);
+                    });
+                });
+                
+                // 2. Violin-style lead — melodic line with gentle vibrato
+                melody.forEach(m => {
+                    const t = loopStart + m.time;
+                    createNote(m.note, 'sine', t, m.dur, 0.06);
+                    // Subtle vibrato (slightly detuned double)
+                    createNote(m.note + 1.5, 'sine', t + 0.03, m.dur, 0.02);
+                });
+                
+                // 3. Gentle bass pulse — on chord changes
+                const bassNotes = [82.41, 65.41, 98.00, 73.42]; // E2, C2, G2, D2
+                bassNotes.forEach((freq, i) => {
+                    createNote(freq, 'triangle', loopStart + i * 4, 3.8, 0.04);
+                });
+                
+                // 4. Soft high arpeggios — ethereal shimmer
+                const arpPattern = [
+                    { note: 659.25, time: 1.0 },  // E5
+                    { note: 783.99, time: 3.0 },  // G5
+                    { note: 523.25, time: 5.0 },  // C5
+                    { note: 659.25, time: 7.0 },  // E5
+                    { note: 783.99, time: 9.0 },  // G5
+                    { note: 987.77, time: 11.0 }, // B5
+                    { note: 783.99, time: 13.0 }, // G5
+                    { note: 659.25, time: 15.0 }, // E5
+                ];
+                arpPattern.forEach(a => {
+                    createNote(a.note, 'sine', loopStart + a.time, 1.5, 0.015);
+                });
+            }
+        }.bind(this);
+        
         this.stopBackgroundMusic = function() {
             if (this.audioContext) {
                 this.audioContext.close();
                 this.audioContext = null;
                 this.musicPlaying = false;
+            }
+        }.bind(this);
+        
+        // Ensure AudioContext is created and resumed during a user gesture.
+        // Must be called synchronously inside click handlers so browsers
+        // allow audio playback. The context is then reused by startBackgroundMusic.
+        this.ensureAudioContext = function() {
+            try {
+                if (!this.audioContext || this.audioContext.state === 'closed') {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.audioContext.state === 'suspended') {
+                    this.audioContext.resume();
+                }
+            } catch (e) {
+                console.error('❌ AudioContext error:', e);
             }
         }.bind(this);
         
@@ -1381,7 +1536,7 @@ class ChessGame {
         });
         
         // Start game button
-        startGameBtn.addEventListener('click', () => this.startGameFromDropdown());
+        // (handled in setupEventListeners to ensure AudioContext is primed)
     }
     
     // Bot configuration object
@@ -1551,11 +1706,11 @@ class ChessGame {
         this.loadPreferences();
         
         
-        // Start background music for Bullet & Blitz modes
+        // Start background music synchronously (AudioContext is already resumed during user gesture)
         if (this.timerMode === 'bullet' || this.timerMode === 'blitz') {
-            setTimeout(async () => {
-                await this.startBackgroundMusic();
-            }, 500); // Delay slightly to ensure audio context is ready
+            this.startBackgroundMusic();
+        } else if (this.timerMode === 'rapid' || this.timerMode === 'infinite') {
+            this.startAmbientMusic();
         }
         
         // Initialize timers based on selected mode
@@ -3804,6 +3959,7 @@ class ChessGame {
             if (sidebarMenu) sidebarMenu.style.left = '0';
         }
         
+        this.ensureAudioContext(); // prime AudioContext during user gesture
         this.startGame();
     }
 
@@ -4414,10 +4570,8 @@ class ChessGame {
                         window.chessGame.playerColor = Math.random() < 0.5 ? 'w' : 'b';
                     }
                     
-                    //     bot: window.chessGame.selectedBot,
-                    //     time: window.chessGame.timerMode,
-                    //     color: window.chessGame.playerColor
-                    // });
+                    // Ensure AudioContext is ready during user gesture (browser audio policy)
+                    window.chessGame.ensureAudioContext();
                     
                     // Hide both UIs
                     if (chessSidebar) chessSidebar.style.display = 'none';
@@ -4506,6 +4660,7 @@ class ChessGame {
             document.getElementById('undoBtn').style.cursor = 'pointer';
                     
             // Start the game properly
+            this.ensureAudioContext(); // prime AudioContext during user gesture
             this.updateBotDisplay();
             this.startGame();
             
