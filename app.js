@@ -119,8 +119,24 @@ class ChessGame {
                 
                 // Create gain node for volume control
                 this.musicGainNode = this.audioContext.createGain();
-                this.musicGainNode.gain.value = 0.15; // Lower volume so it doesn't overpower
+                this.musicGainNode.gain.value = 0.25; // Increased for better audibility
                 this.musicGainNode.connect(this.audioContext.destination);
+                
+                // 🎵 DEBUG: Test tone to verify AudioContext works
+                try {
+                    const testOsc = this.audioContext.createOscillator();
+                    const testGain = this.audioContext.createGain();
+                    testOsc.type = 'sine';
+                    testOsc.frequency.setValueAtTime(660, this.audioContext.currentTime);
+                    testGain.gain.setValueAtTime(0.4, this.audioContext.currentTime);
+                    testOsc.connect(testGain);
+                    testGain.connect(this.audioContext.destination);
+                    testOsc.start();
+                    console.log('🎵 DEBUG Blitz: Test tone started (660Hz, gain 0.4)');
+                    setTimeout(() => { testOsc.stop(); }, 3000);
+                } catch (e) {
+                    console.error('❌ DEBUG test tone error:', e);
+                }
                 
                 // Create an intense, looping rhythmic pattern (Dream Theater style)
                 this.createIntenseLoop();
@@ -159,8 +175,27 @@ class ChessGame {
                 console.log('🎵 startAmbientMusic: AudioContext state =', this.audioContext.state, 'currentTime =', this.audioContext.currentTime);
                 
                 this.musicGainNode = this.audioContext.createGain();
-                this.musicGainNode.gain.value = 0.12; // Softer for ambient
+                this.musicGainNode.gain.value = 0.25; // Doubled for better audibility
                 this.musicGainNode.connect(this.audioContext.destination);
+                
+                // 🎵 DEBUG: Loud continuous test tone to verify AudioContext works
+                try {
+                    const testOsc = this.audioContext.createOscillator();
+                    const testGain = this.audioContext.createGain();
+                    testOsc.type = 'sine';
+                    testOsc.frequency.setValueAtTime(880, this.audioContext.currentTime); // High A5
+                    testGain.gain.setValueAtTime(0.4, this.audioContext.currentTime); // LOUD
+                    testOsc.connect(testGain);
+                    testGain.connect(this.audioContext.destination);
+                    testOsc.start();
+                    console.log('🎵 DEBUG: Test tone started (880Hz, gain 0.4)');
+                    setTimeout(() => {
+                        testOsc.stop();
+                        console.log('🎵 DEBUG: Test tone stopped');
+                    }, 3000);
+                } catch (e) {
+                    console.error('❌ DEBUG test tone error:', e);
+                }
                 
                 this.createSolarisAmbientLoop();
                 
