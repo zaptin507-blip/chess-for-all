@@ -63,9 +63,10 @@ class ChessGame {
             // Sounds are optional, game works without them
         }
         
-        // Background music (Solaris — Kevin Penkin)
+        // Background music
         this.backgroundMusic = null;
         this.musicPlaying = false;
+        this.musicSource = 'none'; // 'none', 'menu', or 'game'
         this.audioContext = null;
         this.musicGainNode = null;
         
@@ -91,26 +92,21 @@ class ChessGame {
             }
         }.bind(this);
         
-        // Shared music playback — plays the Solaris track via Audio element
-        this.startMusicPlayback = function() {
-            if (this.musicPlaying && this.backgroundMusic) {
-                console.log('🎵 already playing, skip');
-                return;
-            }
+        // Shared music playback — play any track by filename
+        this.playTrack = function(filename, volume) {
+            volume = volume || 0.3;
             if (this.backgroundMusic) {
                 this.backgroundMusic.pause();
                 this.backgroundMusic = null;
             }
             try {
-                const audio = new Audio('sounds/ambient.mp4');
+                const audio = new Audio('sounds/' + filename);
                 audio.loop = true;
-                audio.volume = 0.3;
+                audio.volume = volume;
                 audio.play().then(() => {
                     this.backgroundMusic = audio;
                     this.musicPlaying = true;
-                    console.log('🎵 Solaris music started');
-                }).catch(e => {
-                    console.log('🎵 play failed:', e.message);
+                }).catch(() => {
                     this.musicPlaying = false;
                 });
             } catch (e) {
@@ -118,23 +114,37 @@ class ChessGame {
             }
         }.bind(this);
         
+        // Menu music (main page, profile, etc.)
+        this.startMenuMusic = function() {
+            if (this.musicSource === 'menu' && this.musicPlaying) return;
+            this.musicSource = 'menu';
+            this.playTrack('menu.mp4', 0.25);
+        }.bind(this);
+        
+        // Game music (Solaris)
+        this.startGameMusic = function() {
+            if (this.musicSource === 'game' && this.musicPlaying) return;
+            this.musicSource = 'game';
+            this.playTrack('ambient.mp4', 0.3);
+        }.bind(this);
+        
         this.startBackgroundMusic = function() {
-            // Blitz/Bullet — same Solaris track
-            this.startMusicPlayback();
+            // Blitz/Bullet — start game music instead of menu music
+            this.startGameMusic();
         }.bind(this);
         
         this.startAmbientMusic = function() {
-            // Rapid/Infinite — same Solaris track
-            this.startMusicPlayback();
+            // Rapid/Infinite — start game music
+            this.startGameMusic();
         }.bind(this);
         
-        this.stopBackgroundMusic = function() {
-            console.log('🎵 stopBackgroundMusic called');
+        this.stopMusic = function() {
             if (this.backgroundMusic) {
                 this.backgroundMusic.pause();
                 this.backgroundMusic = null;
             }
             this.musicPlaying = false;
+            this.musicSource = 'none';
         }.bind(this);
         
         // Keep ensureAudioContext to prime AudioContext for sound effects
@@ -146,9 +156,7 @@ class ChessGame {
                 if (this.audioContext.state === 'suspended') {
                     this.audioContext.resume();
                 }
-            } catch (e) {
-                console.error('❌ AudioContext error:', e);
-            }
+            } catch (e) {}
         }.bind(this);
         
         // Unicode chess pieces (simple and reliable)
@@ -1291,6 +1299,7 @@ class ChessGame {
         this.setupEventListeners();
         this.updateStatus();
         this.displayWinProbability(); // Show initial probability
+        this.startMenuMusic();
         
         // Add event delegation for annotation clicks
         if (this.movesList) {
@@ -1714,7 +1723,7 @@ class ChessGame {
         this.updateTurnIndicator();
         
         // Stop background music
-        this.stopBackgroundMusic();
+        this.stopMusic();
         
         const botDisplayName = this.getBotDisplayName();
         
@@ -1743,7 +1752,7 @@ class ChessGame {
         this.updateTurnIndicator();
         
         // Stop background music
-        this.stopBackgroundMusic();
+        this.stopMusic();
         
         const botDisplayName = this.getBotDisplayName();
         
@@ -2263,7 +2272,7 @@ class ChessGame {
         if (!this.gameStarted || this.gameOver) return;
         
         this.stopTimer();
-        this.stopBackgroundMusic();
+        this.stopMusic();
         this.gameOver = true;
         
         const botDisplayName = this.getBotDisplayName();
@@ -3613,7 +3622,7 @@ class ChessGame {
         this.stopTimer();
         
         // Stop background music when game ends
-        this.stopBackgroundMusic();
+        this.stopMusic();
         
         // Clear turn indicator
         this.updateTurnIndicator();
