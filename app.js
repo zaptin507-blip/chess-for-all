@@ -93,7 +93,7 @@ class ChessGame {
         }.bind(this);
         
         // Shared music playback — play any track by filename
-        this.playTrack = function(filename, volume) {
+        this.playTrack = function(filename, volume, retryOnInteraction) {
             volume = volume || 0.3;
             if (this.backgroundMusic) {
                 this.backgroundMusic.pause();
@@ -108,6 +108,16 @@ class ChessGame {
                     this.musicPlaying = true;
                 }).catch(() => {
                     this.musicPlaying = false;
+                    // Retry on first user click (browser blocks autoplay on page load)
+                    if (retryOnInteraction) {
+                        const retryHandler = () => {
+                            document.removeEventListener('click', retryHandler);
+                            document.removeEventListener('touchstart', retryHandler);
+                            this.startMenuMusic();
+                        };
+                        document.addEventListener('click', retryHandler, { once: true });
+                        document.addEventListener('touchstart', retryHandler, { once: true });
+                    }
                 });
             } catch (e) {
                 console.error('❌ Music error:', e);
@@ -118,7 +128,7 @@ class ChessGame {
         this.startMenuMusic = function() {
             if (this.musicSource === 'menu' && this.musicPlaying) return;
             this.musicSource = 'menu';
-            this.playTrack('menu.mp4', 0.25);
+            this.playTrack('menu.mp4', 0.25, true);
         }.bind(this);
         
         // Game music (Solaris)
