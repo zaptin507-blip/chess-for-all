@@ -1326,7 +1326,6 @@ class ChessGame {
         this.setupEventListeners();
         this.updateStatus();
         this.displayWinProbability(); // Show initial probability
-        this.startMenuMusic();
         
         // Add event delegation for annotation clicks
         if (this.movesList) {
@@ -1373,6 +1372,7 @@ class ChessGame {
                 
                 // Update start button
                 window.chessGame.checkAllSelected();
+                window.chessGame.startMenuMusic();
                 
             });
         });
@@ -3855,6 +3855,15 @@ class ChessGame {
         } else {
             console.error('❌ playAgain button not found in DOM');
         }
+        
+        // Close game over modal
+        const closeGameOverBtn = document.getElementById('closeGameOver');
+        if (closeGameOverBtn) {
+            closeGameOverBtn.addEventListener('click', () => {
+                this.showSections([], ['gameOverModal']);
+                this.startMenuMusic();
+            });
+        }
         document.getElementById('reviewGame').addEventListener('click', () => {
             this.showSections([], ['gameOverModal']);
             this.analyzeGame();
@@ -4152,6 +4161,7 @@ class ChessGame {
         };
         
         window.showHomeSection = () => {
+            if (window.chessGame) window.chessGame.startMenuMusic();
             const homeSection = document.getElementById('homeSection');
             if (homeSection) homeSection.style.display = 'block';
             // Hide game content
@@ -4247,6 +4257,7 @@ class ChessGame {
         };
         
         window.showPlaySection = () => {
+            if (window.chessGame) window.chessGame.startMenuMusic();
             const isMobile = window.innerWidth <= 768;
             // Hide home section
             const homeSection = document.getElementById('homeSection');
@@ -4275,6 +4286,7 @@ class ChessGame {
         };
         
         window.showPracticeSection = () => {
+            if (window.chessGame) window.chessGame.startMenuMusic();
             // Hide learn section if open
             const learnSection = document.getElementById('learnSection');
             if (learnSection) learnSection.style.display = 'none';
@@ -4296,6 +4308,7 @@ class ChessGame {
         };
         
         window.showLearnSection = () => {
+            if (window.chessGame) window.chessGame.startMenuMusic();
             // Hide other sections first to prevent overlaps
             const practiceSection = document.getElementById('practiceSection');
             if (practiceSection) practiceSection.style.display = 'none';
