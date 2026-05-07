@@ -93,11 +93,10 @@ class ChessGame {
         }.bind(this);
         
         // Shared music playback — play any track by filename
-        this.playTrack = function(filename, volume, retryOnInteraction) {
+        this.playTrack = function(filename, volume, retryTimes) {
             volume = volume || 0.3;
-            console.log('🎵 playTrack:', filename, 'vol:', volume, 'retry:', retryOnInteraction, 'musicPlaying:', this.musicPlaying);
+            retryTimes = retryTimes || 0;
             if (this.backgroundMusic) {
-                console.log('🎵 stopping current track');
                 this.backgroundMusic.pause();
                 this.backgroundMusic = null;
             }
@@ -110,15 +109,25 @@ class ChessGame {
                     playPromise.then(() => {
                         this.backgroundMusic = audio;
                         this.musicPlaying = true;
-                        console.log('🎵 playTrack success:', filename);
-                    }).catch((err) => {
+                    }).catch(() => {
                         this.musicPlaying = false;
-                        console.log('🎵 playTrack failed:', filename, err.name, err.message);
-                        // Retry on first user click (browser blocks autoplay on page load)
-                        if (retryOnInteraction) {
-                            console.log('🎵 setting up retry handler for first click');
+                        // Aggressively retry — browsers often allow autoplay shortly after page load
+                        if (retryTimes < 50) {
+                            let delay;
+                            if (retryTimes < 5) {
+                                delay = 200; // first 5: every 200ms
+                            } else if (retryTimes < 15) {
+                                delay = 500; // next 10: every 500ms
+                            } else {
+                                delay = 1000; // after that: every 1s for ~40s total
+                            }
+                            setTimeout(() => {
+                                this.playTrack(filename, volume, retryTimes + 1);
+                            }, delay);
+                        }
+                        // Also try on first click as ultimate fallback
+                        if (retryTimes === 0) {
                             const retryHandler = () => {
-                                console.log('🎵 retryHandler fired via click');
                                 document.removeEventListener('click', retryHandler);
                                 document.removeEventListener('touchstart', retryHandler);
                                 this.startMenuMusic();
@@ -135,13 +144,9 @@ class ChessGame {
         
         // Menu music (main page, profile, etc.)
         this.startMenuMusic = function() {
-            console.log('🎵 startMenuMusic called, musicSource:', this.musicSource, 'musicPlaying:', this.musicPlaying);
-            if (this.musicSource === 'menu' && this.musicPlaying) {
-                console.log('🎵 startMenuMusic: already playing menu music, skip');
-                return;
-            }
+            if (this.musicSource === 'menu' && this.musicPlaying) return;
             this.musicSource = 'menu';
-            this.playTrack('menu.mp4', 0.25, true);
+            this.playTrack('menu.mp4', 0.25);
         }.bind(this);
         
         // Game music (Solaris)
@@ -1326,6 +1331,10 @@ class ChessGame {
         this.setupEventListeners();
         this.updateStatus();
         this.displayWinProbability(); // Show initial probability
+        
+        // Start menu background music (browser blocks on first attempt,
+        // but the retry mechanism in playTrack will keep trying until allowed)
+        this.startMenuMusic();
         
         // Add event delegation for annotation clicks
         if (this.movesList) {
