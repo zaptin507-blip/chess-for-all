@@ -95,7 +95,9 @@ class ChessGame {
         // Shared music playback — play any track by filename
         this.playTrack = function(filename, volume, retryOnInteraction) {
             volume = volume || 0.3;
+            console.log('🎵 playTrack:', filename, 'vol:', volume, 'retry:', retryOnInteraction, 'musicPlaying:', this.musicPlaying);
             if (this.backgroundMusic) {
+                console.log('🎵 stopping current track');
                 this.backgroundMusic.pause();
                 this.backgroundMusic = null;
             }
@@ -103,22 +105,29 @@ class ChessGame {
                 const audio = new Audio('sounds/' + filename);
                 audio.loop = true;
                 audio.volume = volume;
-                audio.play().then(() => {
-                    this.backgroundMusic = audio;
-                    this.musicPlaying = true;
-                }).catch(() => {
-                    this.musicPlaying = false;
-                    // Retry on first user click (browser blocks autoplay on page load)
-                    if (retryOnInteraction) {
-                        const retryHandler = () => {
-                            document.removeEventListener('click', retryHandler);
-                            document.removeEventListener('touchstart', retryHandler);
-                            this.startMenuMusic();
-                        };
-                        document.addEventListener('click', retryHandler, { once: true });
-                        document.addEventListener('touchstart', retryHandler, { once: true });
-                    }
-                });
+                const playPromise = audio.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        this.backgroundMusic = audio;
+                        this.musicPlaying = true;
+                        console.log('🎵 playTrack success:', filename);
+                    }).catch((err) => {
+                        this.musicPlaying = false;
+                        console.log('🎵 playTrack failed:', filename, err.name, err.message);
+                        // Retry on first user click (browser blocks autoplay on page load)
+                        if (retryOnInteraction) {
+                            console.log('🎵 setting up retry handler for first click');
+                            const retryHandler = () => {
+                                console.log('🎵 retryHandler fired via click');
+                                document.removeEventListener('click', retryHandler);
+                                document.removeEventListener('touchstart', retryHandler);
+                                this.startMenuMusic();
+                            };
+                            document.addEventListener('click', retryHandler, { once: true });
+                            document.addEventListener('touchstart', retryHandler, { once: true });
+                        }
+                    });
+                }
             } catch (e) {
                 console.error('❌ Music error:', e);
             }
@@ -126,14 +135,22 @@ class ChessGame {
         
         // Menu music (main page, profile, etc.)
         this.startMenuMusic = function() {
-            if (this.musicSource === 'menu' && this.musicPlaying) return;
+            console.log('🎵 startMenuMusic called, musicSource:', this.musicSource, 'musicPlaying:', this.musicPlaying);
+            if (this.musicSource === 'menu' && this.musicPlaying) {
+                console.log('🎵 startMenuMusic: already playing menu music, skip');
+                return;
+            }
             this.musicSource = 'menu';
             this.playTrack('menu.mp4', 0.25, true);
         }.bind(this);
         
         // Game music (Solaris)
         this.startGameMusic = function() {
-            if (this.musicSource === 'game' && this.musicPlaying) return;
+            console.log('🎵 startGameMusic called, musicSource:', this.musicSource, 'musicPlaying:', this.musicPlaying);
+            if (this.musicSource === 'game' && this.musicPlaying) {
+                console.log('🎵 startGameMusic: already playing game music, skip');
+                return;
+            }
             this.musicSource = 'game';
             this.playTrack('ambient.mp4', 0.3);
         }.bind(this);
