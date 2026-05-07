@@ -207,173 +207,88 @@ class ChessGame {
         }.bind(this);
         
         this.createIntenseLoop = function() {
-            console.log('🎵 createIntenseLoop: creating ~40K oscillators');
+            console.log('🎵 createIntenseLoop: creating continuous drone oscillators');
             const ctx = this.audioContext;
-            const now = ctx.currentTime;
-            const loopLength = 8; // 8 seconds loop
             
-            // Create multiple oscillators for a rich, intense sound
-            const createOscillator = (freq, type, startTime, duration, volume) => {
+            // Create continuous bass drone
+            const bassOsc = ctx.createOscillator();
+            const bassGain = ctx.createGain();
+            bassOsc.type = 'sawtooth';
+            bassOsc.frequency.value = 55; // A1
+            bassGain.gain.value = 0.15;
+            bassOsc.connect(bassGain);
+            bassGain.connect(this.musicGainNode);
+            bassOsc.start();
+            
+            // Create continuous chord pad (power chord)
+            const chordFreqs = [110, 164.81, 220]; // A2, E3, A3
+            chordFreqs.forEach(freq => {
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
-                
-                osc.type = type;
-                osc.frequency.setValueAtTime(freq, startTime);
-                
-                gain.gain.setValueAtTime(0, startTime);
-                gain.gain.linearRampToValueAtTime(volume, startTime + 0.05);
-                gain.gain.setValueAtTime(volume, startTime + duration - 0.1);
-                gain.gain.linearRampToValueAtTime(0, startTime + duration);
-                
+                osc.type = 'square';
+                osc.frequency.value = freq;
+                gain.gain.value = 0.06;
                 osc.connect(gain);
                 gain.connect(this.musicGainNode);
-                
-                osc.start(startTime);
-                osc.stop(startTime + duration);
-                
-                return osc;
-            };
+                osc.start();
+            });
             
-            // Create a repeating intense pattern
-            const bassNotes = [55, 55, 73.42, 65.41]; // A1, A1, D2, C2
-            const rhythmPattern = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5];
+            // Rhythmic pulse using a low-frequency oscillator
+            const lfo = ctx.createOscillator();
+            const lfoGain = ctx.createGain();
+            lfo.type = 'square';
+            lfo.frequency.value = 2; // 2 Hz = 120 BPM
+            lfoGain.gain.value = 0.1;
+            lfo.connect(lfoGain);
+            // Use LFO to modulate the bass gain
+            lfoGain.connect(bassGain.gain);
+            lfo.start();
             
-            // Loop the pattern
-            for (let loop = 0; loop < 1000; loop++) {
-                const loopStart = now + (loop * loopLength);
-                
-                // Bass line
-                rhythmPattern.forEach((time, idx) => {
-                    const noteIdx = Math.floor(idx / 4) % bassNotes.length;
-                    createOscillator(bassNotes[noteIdx], 'sawtooth', loopStart + time, 0.2, 0.08);
-                });
-                
-                // Arpeggiated high notes (Dream Theater style)
-                const arpNotes = [220, 261.63, 293.66, 329.63, 293.66, 261.63];
-                for (let i = 0; i < 16; i++) {
-                    const noteIdx = i % arpNotes.length;
-                    createOscillator(arpNotes[noteIdx], 'square', loopStart + (i * 0.5), 0.15, 0.03);
-                }
-                
-                // Power chords on beats
-                [0, 2, 4, 6].forEach(beat => {
-                    createOscillator(110, 'sawtooth', loopStart + beat, 0.4, 0.06);
-                    createOscillator(164.81, 'sawtooth', loopStart + beat, 0.4, 0.04);
-                });
-            }
+            console.log('🎵 createIntenseLoop: continuous drone started');
         }.bind(this);
         
         // Solaris-inspired ambient loop for Rapid & Infinite (violin-style melodic ambient)
         // Key: E minor, ~72 BPM — melancholic and atmospheric
         this.createSolarisAmbientLoop = function() {
-            console.log('🎵 createSolarisAmbientLoop: creating ~10K oscillators for ambient');
+            console.log('🎵 createSolarisAmbientLoop: creating continuous ambient drone');
             const ctx = this.audioContext;
-            const now = ctx.currentTime;
-            const loopLength = 16; // 16-second loop (4 bars at ~60 BPM)
             
-            const createNote = (freq, type, startTime, duration, volume, detune = 0) => {
+            // Create continuous ambient pad (E minor: E3, G3, B3, E4)
+            const chordFreqs = [164.81, 196.00, 246.94, 329.63];
+            chordFreqs.forEach((freq, i) => {
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
-                
-                osc.type = type;
-                osc.frequency.setValueAtTime(freq, startTime);
-                if (detune) osc.detune.setValueAtTime(detune, startTime);
-                
-                const attack = Math.min(0.08, duration * 0.15);
-                const release = Math.min(0.3, duration * 0.2);
-                gain.gain.setValueAtTime(0, startTime);
-                gain.gain.linearRampToValueAtTime(volume, startTime + attack);
-                gain.gain.setValueAtTime(volume, startTime + duration - release);
-                gain.gain.linearRampToValueAtTime(0, startTime + duration);
-                
+                osc.type = 'sawtooth';
+                osc.frequency.value = freq;
+                // Slight detune for warmth
+                osc.detune.value = (i % 2 === 0) ? -5 : 5;
+                gain.gain.value = 0.08;
                 osc.connect(gain);
                 gain.connect(this.musicGainNode);
-                
-                osc.start(startTime);
-                osc.stop(startTime + duration + 0.1);
-            };
+                osc.start();
+            });
             
-            // Chord frequencies (E minor) — rich pads
-            const chords = {
-                Em:  [164.81, 196.00, 246.94, 329.63],  // E3, G3, B3, E4
-                C:   [130.81, 164.81, 196.00, 261.63],  // C3, E3, G3, C4
-                G:   [196.00, 246.94, 293.66, 392.00],  // G3, B3, D4, G4
-                D:   [146.83, 185.00, 220.00, 293.66],  // D3, F#3, A3, D4
-            };
+            // Bass drone (E2)
+            const bassOsc = ctx.createOscillator();
+            const bassGain = ctx.createGain();
+            bassOsc.type = 'triangle';
+            bassOsc.frequency.value = 82.41;
+            bassGain.gain.value = 0.12;
+            bassOsc.connect(bassGain);
+            bassGain.connect(this.musicGainNode);
+            bassOsc.start();
             
-            // Chord progression: Em - C - G - D (4s each)
-            const progression = ['Em', 'C', 'G', 'D'];
+            // Melodic sine wave drone (E4) for a clear pitch
+            const melOsc = ctx.createOscillator();
+            const melGain = ctx.createGain();
+            melOsc.type = 'sine';
+            melOsc.frequency.value = 329.63; // E4
+            melGain.gain.value = 0.1;
+            melOsc.connect(melGain);
+            melGain.connect(this.musicGainNode);
+            melOsc.start();
             
-            // Violin-style melody (E minor, two phrases that rise and fall)
-            const melody = [
-                // Bar 1 (Em) — ascending phrase
-                { note: 329.63, time: 0.0, dur: 0.7 },   // E4
-                { note: 369.99, time: 0.8, dur: 0.6 },   // F#4
-                { note: 392.00, time: 1.5, dur: 0.8 },   // G4
-                { note: 440.00, time: 2.4, dur: 0.5 },   // A4
-                { note: 493.88, time: 3.0, dur: 0.9 },   // B4 (peak)
-                // Bar 2 (C) — descending
-                { note: 523.25, time: 4.0, dur: 1.0 },   // C5
-                { note: 493.88, time: 5.2, dur: 0.5 },   // B4
-                { note: 440.00, time: 5.8, dur: 0.6 },   // A4
-                { note: 392.00, time: 6.5, dur: 0.8 },   // G4
-                { note: 329.63, time: 7.4, dur: 0.5 },   // E4
-                // Bar 3 (G) — gentle arpeggio
-                { note: 392.00, time: 8.0, dur: 0.6 },   // G4
-                { note: 440.00, time: 8.7, dur: 0.5 },   // A4
-                { note: 493.88, time: 9.3, dur: 0.7 },   // B4
-                { note: 587.33, time: 10.1, dur: 0.6 },  // D5
-                { note: 493.88, time: 10.8, dur: 0.8 },  // B4
-                { note: 440.00, time: 11.7, dur: 0.3 },  // A4
-                // Bar 4 (D) — resolution
-                { note: 392.00, time: 12.0, dur: 0.5 },  // G4
-                { note: 369.99, time: 12.6, dur: 0.4 },  // F#4
-                { note: 329.63, time: 13.1, dur: 0.7 },  // E4
-                { note: 293.66, time: 13.9, dur: 0.8 },  // D4
-                { note: 329.63, time: 14.8, dur: 1.1 },  // E4 (held)
-            ];
-            
-            // Loop 500 times (~2 hours)
-            for (let loop = 0; loop < 500; loop++) {
-                const loopStart = now + (loop * loopLength);
-                
-                // 1. Ambient pads — soft sustained chords
-                progression.forEach((chord, ci) => {
-                    const chordStart = loopStart + (ci * 4);
-                    chords[chord].forEach(note => {
-                        createNote(note, 'sawtooth', chordStart, 3.9, 0.025);
-                    });
-                });
-                
-                // 2. Violin-style lead — melodic line with gentle vibrato
-                melody.forEach(m => {
-                    const t = loopStart + m.time;
-                    createNote(m.note, 'sine', t, m.dur, 0.06);
-                    // Subtle vibrato (slightly detuned double)
-                    createNote(m.note + 1.5, 'sine', t + 0.03, m.dur, 0.02);
-                });
-                
-                // 3. Gentle bass pulse — on chord changes
-                const bassNotes = [82.41, 65.41, 98.00, 73.42]; // E2, C2, G2, D2
-                bassNotes.forEach((freq, i) => {
-                    createNote(freq, 'triangle', loopStart + i * 4, 3.8, 0.04);
-                });
-                
-                // 4. Soft high arpeggios — ethereal shimmer
-                const arpPattern = [
-                    { note: 659.25, time: 1.0 },  // E5
-                    { note: 783.99, time: 3.0 },  // G5
-                    { note: 523.25, time: 5.0 },  // C5
-                    { note: 659.25, time: 7.0 },  // E5
-                    { note: 783.99, time: 9.0 },  // G5
-                    { note: 987.77, time: 11.0 }, // B5
-                    { note: 783.99, time: 13.0 }, // G5
-                    { note: 659.25, time: 15.0 }, // E5
-                ];
-                arpPattern.forEach(a => {
-                    createNote(a.note, 'sine', loopStart + a.time, 1.5, 0.015);
-                });
-            }
+            console.log('🎵 createSolarisAmbientLoop: continuous ambient drone started');
         }.bind(this);
         
         this.stopBackgroundMusic = function() {
