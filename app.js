@@ -63,7 +63,7 @@ class ChessGame {
             // Sounds are optional, game works without them
         }
         
-        // Background music for Blitz & Bullet
+        // Background music (Solaris — Kevin Penkin)
         this.backgroundMusic = null;
         this.musicPlaying = false;
         this.audioContext = null;
@@ -91,303 +91,61 @@ class ChessGame {
             }
         }.bind(this);
         
-        // Background music methods for Blitz/Bullet
-        this.startBackgroundMusic = async function() {
-            console.log('🎵 startBackgroundMusic called, timerMode =', this.timerMode, 'musicPlaying =', this.musicPlaying);
-            // Only play music for Bullet and Blitz modes
-            if (this.timerMode !== 'bullet' && this.timerMode !== 'blitz') {
-                console.log('🎵 startBackgroundMusic: skipping - wrong mode');
+        // Shared music playback — plays the Solaris track via Audio element
+        this.startMusicPlayback = function() {
+            if (this.musicPlaying && this.backgroundMusic) {
+                console.log('🎵 already playing, skip');
                 return;
             }
-            
-            if (this.musicPlaying) {
-                console.log('🎵 startBackgroundMusic: already playing, return');
-                return;
+            if (this.backgroundMusic) {
+                this.backgroundMusic.pause();
+                this.backgroundMusic = null;
             }
-            
             try {
-                // Reuse or create audio context (must be pre-resumed during user gesture)
-                if (!this.audioContext || this.audioContext.state === 'closed') {
-                    console.log('🎵 startBackgroundMusic: creating new AudioContext');
-                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                }
-                if (this.audioContext.state === 'suspended') {
-                    console.log('🎵 startBackgroundMusic: resuming suspended context');
-                    await this.audioContext.resume();
-                }
-                console.log('🎵 startBackgroundMusic: AudioContext state =', this.audioContext.state, 'currentTime =', this.audioContext.currentTime);
-                
-                // Create gain node for volume control
-                this.musicGainNode = this.audioContext.createGain();
-                this.musicGainNode.gain.value = 0.25; // Blitz volume
-                this.musicGainNode.connect(this.audioContext.destination);
-                
-                // Create an intense, looping rhythmic pattern (Dream Theater style)
-                this.createIntenseLoop();
-                
-                this.musicPlaying = true;
-                console.log('🎵 startBackgroundMusic: music started successfully');
+                const audio = new Audio('sounds/ambient.mp4');
+                audio.loop = true;
+                audio.volume = 0.3;
+                audio.play().then(() => {
+                    this.backgroundMusic = audio;
+                    this.musicPlaying = true;
+                    console.log('🎵 Solaris music started');
+                }).catch(e => {
+                    console.log('🎵 play failed:', e.message);
+                    this.musicPlaying = false;
+                });
             } catch (e) {
                 console.error('❌ Music error:', e);
-                console.error('Error stack:', e.stack);
             }
         }.bind(this);
         
-        // Ambient music for Rapid & Infinite (Solaris-inspired violin ambient piece)
-        this.startAmbientMusic = async function() {
-            console.log('🎵 startAmbientMusic called, timerMode =', this.timerMode, 'musicPlaying =', this.musicPlaying);
-            if (this.timerMode !== 'rapid' && this.timerMode !== 'infinite') {
-                console.log('🎵 startAmbientMusic: skipping - wrong mode');
-                return;
-            }
-            
-            if (this.musicPlaying) {
-                console.log('🎵 startAmbientMusic: already playing, return');
-                return;
-            }
-            
-            try {
-                // Reuse or create audio context (must be pre-resumed during user gesture)
-                if (!this.audioContext || this.audioContext.state === 'closed') {
-                    console.log('🎵 startAmbientMusic: creating new AudioContext');
-                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                }
-                if (this.audioContext.state === 'suspended') {
-                    console.log('🎵 startAmbientMusic: resuming suspended context');
-                    await this.audioContext.resume();
-                }
-                console.log('🎵 startAmbientMusic: AudioContext state =', this.audioContext.state, 'currentTime =', this.audioContext.currentTime);
-                
-                this.musicGainNode = this.audioContext.createGain();
-                this.musicGainNode.gain.value = 0.25; // Ambient volume
-                this.musicGainNode.connect(this.audioContext.destination);
-                
-                this.createSolarisAmbientLoop();
-                
-                this.musicPlaying = true;
-                console.log('🎵 startAmbientMusic: music started successfully');
-            } catch (e) {
-                console.error('❌ Ambient music error:', e);
-            }
+        this.startBackgroundMusic = function() {
+            // Blitz/Bullet — same Solaris track
+            this.startMusicPlayback();
         }.bind(this);
         
-        this.createIntenseLoop = function() {
-            console.log('🎵 createIntenseLoop: creating continuous drone oscillators');
-            const ctx = this.audioContext;
-            
-            // Create continuous bass drone
-            const bassOsc = ctx.createOscillator();
-            const bassGain = ctx.createGain();
-            bassOsc.type = 'sawtooth';
-            bassOsc.frequency.value = 55; // A1
-            bassGain.gain.value = 0.15;
-            bassOsc.connect(bassGain);
-            bassGain.connect(this.musicGainNode);
-            bassOsc.start();
-            
-            // Create continuous chord pad (power chord)
-            const chordFreqs = [110, 164.81, 220]; // A2, E3, A3
-            chordFreqs.forEach(freq => {
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = 'square';
-                osc.frequency.value = freq;
-                gain.gain.value = 0.06;
-                osc.connect(gain);
-                gain.connect(this.musicGainNode);
-                osc.start();
-            });
-            
-            // Rhythmic pulse using a low-frequency oscillator
-            const lfo = ctx.createOscillator();
-            const lfoGain = ctx.createGain();
-            lfo.type = 'square';
-            lfo.frequency.value = 2; // 2 Hz = 120 BPM
-            lfoGain.gain.value = 0.1;
-            lfo.connect(lfoGain);
-            // Use LFO to modulate the bass gain
-            lfoGain.connect(bassGain.gain);
-            lfo.start();
-            
-            console.log('🎵 createIntenseLoop: continuous drone started');
-        }.bind(this);
-        
-        // Solaris-inspired ambient loop for Rapid & Infinite (violin-style melodic ambient)
-        // Key: E minor, ~72 BPM — melancholic and atmospheric
-        this.createSolarisAmbientLoop = function() {
-            console.log('🎵 createSolarisAmbientLoop: starting Solaris-style ambient');
-            const ctx = this.audioContext;
-            const now = ctx.currentTime;
-            const loopLength = 16; // 16-second chord cycle
-            
-            // Chord progression: Em - C - G - D (4s each)
-            const progression = [
-                { freqs: [164.81, 196.00, 246.94, 329.63], bass: 82.41, name: 'Em' },
-                { freqs: [130.81, 164.81, 196.00, 261.63], bass: 65.41, name: 'C' },
-                { freqs: [196.00, 246.94, 293.66, 392.00], bass: 98.00, name: 'G' },
-                { freqs: [146.83, 185.00, 220.00, 293.66], bass: 73.42, name: 'D' },
-            ];
-            
-            // === 1. Ambient pads — 4 detuned sawtooth voices ===
-            const padVoices = [];
-            progression[0].freqs.forEach((freq, i) => {
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.value = freq;
-                osc.detune.value = [ -8, -3, 3, 8 ][i];
-                gain.gain.value = 0.05; // initial
-                osc.connect(gain);
-                gain.connect(this.musicGainNode);
-                osc.start();
-                padVoices.push({ osc, gain });
-            });
-            
-            // Schedule chord changes: 300 cycles = 80 minutes
-            for (let cycle = 0; cycle < 300; cycle++) {
-                const cycleStart = now + (cycle * loopLength);
-                progression.forEach((chord, ci) => {
-                    const chordStart = cycleStart + (ci * 4);
-                    const nextStart = chordStart + 4;
-                    
-                    // Move pad frequencies to new chord
-                    padVoices.forEach((voice, vi) => {
-                        voice.osc.frequency.setValueAtTime(chord.freqs[vi], chordStart);
-                    });
-                    
-                    // Pad volume swell
-                    padVoices.forEach((voice) => {
-                        voice.gain.gain.setValueAtTime(0.05, chordStart);
-                        voice.gain.gain.linearRampToValueAtTime(0.10, chordStart + 1.5);
-                        voice.gain.gain.linearRampToValueAtTime(0.06, nextStart - 0.5);
-                    });
-                });
-            }
-            
-            // === 2. Bass drone — triangle wave, follows chord root ===
-            const bassOsc = ctx.createOscillator();
-            const bassGain = ctx.createGain();
-            bassOsc.type = 'triangle';
-            bassOsc.frequency.value = progression[0].bass;
-            bassGain.gain.value = 0.15;
-            bassOsc.connect(bassGain);
-            bassGain.connect(this.musicGainNode);
-            bassOsc.start();
-            
-            // Schedule bass frequency changes
-            for (let cycle = 0; cycle < 300; cycle++) {
-                const cycleStart = now + (cycle * loopLength);
-                progression.forEach((chord, ci) => {
-                    bassOsc.frequency.setValueAtTime(chord.bass, cycleStart + (ci * 4));
-                });
-            }
-            
-            // === 3. Violin-style melody ===
-            const melodyNotes = [
-                // Bar 1 (Em) — ascending
-                { note: 329.63, time: 0.0, dur: 0.7 },   // E4
-                { note: 369.99, time: 0.8, dur: 0.6 },   // F#4
-                { note: 392.00, time: 1.5, dur: 0.8 },   // G4
-                { note: 440.00, time: 2.4, dur: 0.5 },   // A4
-                { note: 493.88, time: 3.0, dur: 0.9 },   // B4
-                // Bar 2 (C) — descending
-                { note: 523.25, time: 4.0, dur: 1.0 },   // C5
-                { note: 493.88, time: 5.2, dur: 0.5 },   // B4
-                { note: 440.00, time: 5.8, dur: 0.6 },   // A4
-                { note: 392.00, time: 6.5, dur: 0.8 },   // G4
-                { note: 329.63, time: 7.4, dur: 0.5 },   // E4
-                // Bar 3 (G) — gentle arpeggio
-                { note: 392.00, time: 8.0, dur: 0.6 },   // G4
-                { note: 440.00, time: 8.7, dur: 0.5 },   // A4
-                { note: 493.88, time: 9.3, dur: 0.7 },   // B4
-                { note: 587.33, time: 10.1, dur: 0.6 },  // D5
-                { note: 493.88, time: 10.8, dur: 0.8 },  // B4
-                { note: 440.00, time: 11.7, dur: 0.3 },  // A4
-                // Bar 4 (D) — resolution
-                { note: 392.00, time: 12.0, dur: 0.5 },  // G4
-                { note: 369.99, time: 12.6, dur: 0.4 },  // F#4
-                { note: 329.63, time: 13.1, dur: 0.7 },  // E4
-                { note: 293.66, time: 13.9, dur: 0.8 },  // D4
-                { note: 329.63, time: 14.8, dur: 1.1 },  // E4 (held)
-            ];
-            
-            // Schedule melody: 100 cycles = ~27 minutes (lighter than 500)
-            for (let cycle = 0; cycle < 100; cycle++) {
-                const cycleStart = now + (cycle * loopLength);
-                melodyNotes.forEach(m => {
-                    const t = cycleStart + m.time;
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(m.note, t);
-                    gain.gain.setValueAtTime(0, t);
-                    const attack = Math.min(0.04, m.dur * 0.1);
-                    gain.gain.linearRampToValueAtTime(0.12, t + attack);
-                    gain.gain.setValueAtTime(0.12, t + m.dur - 0.1);
-                    gain.gain.linearRampToValueAtTime(0, t + m.dur);
-                    osc.connect(gain);
-                    gain.connect(this.musicGainNode);
-                    osc.start(t);
-                    osc.stop(t + m.dur + 0.05);
-                });
-            }
-            
-            // === 4. High arpeggios — ethereal shimmer ===
-            const arpPattern = [
-                { note: 659.25, time: 1.0 },  // E5
-                { note: 783.99, time: 3.0 },  // G5
-                { note: 523.25, time: 5.0 },  // C5
-                { note: 659.25, time: 7.0 },  // E5
-                { note: 783.99, time: 9.0 },  // G5
-                { note: 987.77, time: 11.0 }, // B5
-                { note: 783.99, time: 13.0 }, // G5
-                { note: 659.25, time: 15.0 }, // E5
-            ];
-            for (let cycle = 0; cycle < 100; cycle++) {
-                const cycleStart = now + (cycle * loopLength);
-                arpPattern.forEach(a => {
-                    const t = cycleStart + a.time;
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(a.note, t);
-                    gain.gain.setValueAtTime(0, t);
-                    gain.gain.linearRampToValueAtTime(0.04, t + 0.05);
-                    gain.gain.setValueAtTime(0.04, t + 1.4);
-                    gain.gain.linearRampToValueAtTime(0, t + 1.5);
-                    osc.connect(gain);
-                    gain.connect(this.musicGainNode);
-                    osc.start(t);
-                    osc.stop(t + 1.55);
-                });
-            }
-            
-            console.log('🎵 createSolarisAmbientLoop: Solaris ambient started');
+        this.startAmbientMusic = function() {
+            // Rapid/Infinite — same Solaris track
+            this.startMusicPlayback();
         }.bind(this);
         
         this.stopBackgroundMusic = function() {
-            console.log('🎵 stopBackgroundMusic called, musicPlaying =', this.musicPlaying);
-            if (this.audioContext) {
-                this.audioContext.close();
-                this.audioContext = null;
-                this.musicPlaying = false;
+            console.log('🎵 stopBackgroundMusic called');
+            if (this.backgroundMusic) {
+                this.backgroundMusic.pause();
+                this.backgroundMusic = null;
             }
+            this.musicPlaying = false;
         }.bind(this);
         
-        // Ensure AudioContext is created and resumed during a user gesture.
-        // Must be called synchronously inside click handlers so browsers
-        // allow audio playback. The context is then reused by startBackgroundMusic.
+        // Keep ensureAudioContext to prime AudioContext for sound effects
         this.ensureAudioContext = function() {
             try {
                 if (!this.audioContext || this.audioContext.state === 'closed') {
-                    console.log('🎵 ensureAudioContext: creating new AudioContext');
                     this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 }
                 if (this.audioContext.state === 'suspended') {
-                    console.log('🎵 ensureAudioContext: resuming suspended AudioContext');
                     this.audioContext.resume();
                 }
-                console.log('🎵 ensureAudioContext: state =', this.audioContext.state);
             } catch (e) {
                 console.error('❌ AudioContext error:', e);
             }
