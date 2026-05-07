@@ -119,24 +119,8 @@ class ChessGame {
                 
                 // Create gain node for volume control
                 this.musicGainNode = this.audioContext.createGain();
-                this.musicGainNode.gain.value = 0.25; // Increased for better audibility
+                this.musicGainNode.gain.value = 0.25; // Blitz volume
                 this.musicGainNode.connect(this.audioContext.destination);
-                
-                // 🎵 DEBUG: Test tone to verify AudioContext works
-                try {
-                    const testOsc = this.audioContext.createOscillator();
-                    const testGain = this.audioContext.createGain();
-                    testOsc.type = 'sine';
-                    testOsc.frequency.setValueAtTime(660, this.audioContext.currentTime);
-                    testGain.gain.setValueAtTime(0.4, this.audioContext.currentTime);
-                    testOsc.connect(testGain);
-                    testGain.connect(this.audioContext.destination);
-                    testOsc.start();
-                    console.log('🎵 DEBUG Blitz: Test tone started (660Hz, gain 0.4)');
-                    setTimeout(() => { testOsc.stop(); }, 3000);
-                } catch (e) {
-                    console.error('❌ DEBUG test tone error:', e);
-                }
                 
                 // Create an intense, looping rhythmic pattern (Dream Theater style)
                 this.createIntenseLoop();
@@ -175,27 +159,8 @@ class ChessGame {
                 console.log('🎵 startAmbientMusic: AudioContext state =', this.audioContext.state, 'currentTime =', this.audioContext.currentTime);
                 
                 this.musicGainNode = this.audioContext.createGain();
-                this.musicGainNode.gain.value = 0.25; // Doubled for better audibility
+                this.musicGainNode.gain.value = 0.25; // Ambient volume
                 this.musicGainNode.connect(this.audioContext.destination);
-                
-                // 🎵 DEBUG: Loud continuous test tone to verify AudioContext works
-                try {
-                    const testOsc = this.audioContext.createOscillator();
-                    const testGain = this.audioContext.createGain();
-                    testOsc.type = 'sine';
-                    testOsc.frequency.setValueAtTime(880, this.audioContext.currentTime); // High A5
-                    testGain.gain.setValueAtTime(0.4, this.audioContext.currentTime); // LOUD
-                    testOsc.connect(testGain);
-                    testGain.connect(this.audioContext.destination);
-                    testOsc.start();
-                    console.log('🎵 DEBUG: Test tone started (880Hz, gain 0.4)');
-                    setTimeout(() => {
-                        testOsc.stop();
-                        console.log('🎵 DEBUG: Test tone stopped');
-                    }, 3000);
-                } catch (e) {
-                    console.error('❌ DEBUG test tone error:', e);
-                }
                 
                 this.createSolarisAmbientLoop();
                 
@@ -250,45 +215,154 @@ class ChessGame {
         // Solaris-inspired ambient loop for Rapid & Infinite (violin-style melodic ambient)
         // Key: E minor, ~72 BPM — melancholic and atmospheric
         this.createSolarisAmbientLoop = function() {
-            console.log('🎵 createSolarisAmbientLoop: creating continuous ambient drone');
+            console.log('🎵 createSolarisAmbientLoop: starting Solaris-style ambient');
             const ctx = this.audioContext;
+            const now = ctx.currentTime;
+            const loopLength = 16; // 16-second chord cycle
             
-            // Create continuous ambient pad (E minor: E3, G3, B3, E4)
-            const chordFreqs = [164.81, 196.00, 246.94, 329.63];
-            chordFreqs.forEach((freq, i) => {
+            // Chord progression: Em - C - G - D (4s each)
+            const progression = [
+                { freqs: [164.81, 196.00, 246.94, 329.63], bass: 82.41, name: 'Em' },
+                { freqs: [130.81, 164.81, 196.00, 261.63], bass: 65.41, name: 'C' },
+                { freqs: [196.00, 246.94, 293.66, 392.00], bass: 98.00, name: 'G' },
+                { freqs: [146.83, 185.00, 220.00, 293.66], bass: 73.42, name: 'D' },
+            ];
+            
+            // === 1. Ambient pads — 4 detuned sawtooth voices ===
+            const padVoices = [];
+            progression[0].freqs.forEach((freq, i) => {
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
                 osc.type = 'sawtooth';
                 osc.frequency.value = freq;
-                // Slight detune for warmth
-                osc.detune.value = (i % 2 === 0) ? -5 : 5;
-                gain.gain.value = 0.08;
+                osc.detune.value = [ -8, -3, 3, 8 ][i];
+                gain.gain.value = 0.05; // initial
                 osc.connect(gain);
                 gain.connect(this.musicGainNode);
                 osc.start();
+                padVoices.push({ osc, gain });
             });
             
-            // Bass drone (E2)
+            // Schedule chord changes: 300 cycles = 80 minutes
+            for (let cycle = 0; cycle < 300; cycle++) {
+                const cycleStart = now + (cycle * loopLength);
+                progression.forEach((chord, ci) => {
+                    const chordStart = cycleStart + (ci * 4);
+                    const nextStart = chordStart + 4;
+                    
+                    // Move pad frequencies to new chord
+                    padVoices.forEach((voice, vi) => {
+                        voice.osc.frequency.setValueAtTime(chord.freqs[vi], chordStart);
+                    });
+                    
+                    // Pad volume swell
+                    padVoices.forEach((voice) => {
+                        voice.gain.gain.setValueAtTime(0.05, chordStart);
+                        voice.gain.gain.linearRampToValueAtTime(0.10, chordStart + 1.5);
+                        voice.gain.gain.linearRampToValueAtTime(0.06, nextStart - 0.5);
+                    });
+                });
+            }
+            
+            // === 2. Bass drone — triangle wave, follows chord root ===
             const bassOsc = ctx.createOscillator();
             const bassGain = ctx.createGain();
             bassOsc.type = 'triangle';
-            bassOsc.frequency.value = 82.41;
-            bassGain.gain.value = 0.12;
+            bassOsc.frequency.value = progression[0].bass;
+            bassGain.gain.value = 0.15;
             bassOsc.connect(bassGain);
             bassGain.connect(this.musicGainNode);
             bassOsc.start();
             
-            // Melodic sine wave drone (E4) for a clear pitch
-            const melOsc = ctx.createOscillator();
-            const melGain = ctx.createGain();
-            melOsc.type = 'sine';
-            melOsc.frequency.value = 329.63; // E4
-            melGain.gain.value = 0.1;
-            melOsc.connect(melGain);
-            melGain.connect(this.musicGainNode);
-            melOsc.start();
+            // Schedule bass frequency changes
+            for (let cycle = 0; cycle < 300; cycle++) {
+                const cycleStart = now + (cycle * loopLength);
+                progression.forEach((chord, ci) => {
+                    bassOsc.frequency.setValueAtTime(chord.bass, cycleStart + (ci * 4));
+                });
+            }
             
-            console.log('🎵 createSolarisAmbientLoop: continuous ambient drone started');
+            // === 3. Violin-style melody ===
+            const melodyNotes = [
+                // Bar 1 (Em) — ascending
+                { note: 329.63, time: 0.0, dur: 0.7 },   // E4
+                { note: 369.99, time: 0.8, dur: 0.6 },   // F#4
+                { note: 392.00, time: 1.5, dur: 0.8 },   // G4
+                { note: 440.00, time: 2.4, dur: 0.5 },   // A4
+                { note: 493.88, time: 3.0, dur: 0.9 },   // B4
+                // Bar 2 (C) — descending
+                { note: 523.25, time: 4.0, dur: 1.0 },   // C5
+                { note: 493.88, time: 5.2, dur: 0.5 },   // B4
+                { note: 440.00, time: 5.8, dur: 0.6 },   // A4
+                { note: 392.00, time: 6.5, dur: 0.8 },   // G4
+                { note: 329.63, time: 7.4, dur: 0.5 },   // E4
+                // Bar 3 (G) — gentle arpeggio
+                { note: 392.00, time: 8.0, dur: 0.6 },   // G4
+                { note: 440.00, time: 8.7, dur: 0.5 },   // A4
+                { note: 493.88, time: 9.3, dur: 0.7 },   // B4
+                { note: 587.33, time: 10.1, dur: 0.6 },  // D5
+                { note: 493.88, time: 10.8, dur: 0.8 },  // B4
+                { note: 440.00, time: 11.7, dur: 0.3 },  // A4
+                // Bar 4 (D) — resolution
+                { note: 392.00, time: 12.0, dur: 0.5 },  // G4
+                { note: 369.99, time: 12.6, dur: 0.4 },  // F#4
+                { note: 329.63, time: 13.1, dur: 0.7 },  // E4
+                { note: 293.66, time: 13.9, dur: 0.8 },  // D4
+                { note: 329.63, time: 14.8, dur: 1.1 },  // E4 (held)
+            ];
+            
+            // Schedule melody: 100 cycles = ~27 minutes (lighter than 500)
+            for (let cycle = 0; cycle < 100; cycle++) {
+                const cycleStart = now + (cycle * loopLength);
+                melodyNotes.forEach(m => {
+                    const t = cycleStart + m.time;
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(m.note, t);
+                    gain.gain.setValueAtTime(0, t);
+                    const attack = Math.min(0.04, m.dur * 0.1);
+                    gain.gain.linearRampToValueAtTime(0.12, t + attack);
+                    gain.gain.setValueAtTime(0.12, t + m.dur - 0.1);
+                    gain.gain.linearRampToValueAtTime(0, t + m.dur);
+                    osc.connect(gain);
+                    gain.connect(this.musicGainNode);
+                    osc.start(t);
+                    osc.stop(t + m.dur + 0.05);
+                });
+            }
+            
+            // === 4. High arpeggios — ethereal shimmer ===
+            const arpPattern = [
+                { note: 659.25, time: 1.0 },  // E5
+                { note: 783.99, time: 3.0 },  // G5
+                { note: 523.25, time: 5.0 },  // C5
+                { note: 659.25, time: 7.0 },  // E5
+                { note: 783.99, time: 9.0 },  // G5
+                { note: 987.77, time: 11.0 }, // B5
+                { note: 783.99, time: 13.0 }, // G5
+                { note: 659.25, time: 15.0 }, // E5
+            ];
+            for (let cycle = 0; cycle < 100; cycle++) {
+                const cycleStart = now + (cycle * loopLength);
+                arpPattern.forEach(a => {
+                    const t = cycleStart + a.time;
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(a.note, t);
+                    gain.gain.setValueAtTime(0, t);
+                    gain.gain.linearRampToValueAtTime(0.04, t + 0.05);
+                    gain.gain.setValueAtTime(0.04, t + 1.4);
+                    gain.gain.linearRampToValueAtTime(0, t + 1.5);
+                    osc.connect(gain);
+                    gain.connect(this.musicGainNode);
+                    osc.start(t);
+                    osc.stop(t + 1.55);
+                });
+            }
+            
+            console.log('🎵 createSolarisAmbientLoop: Solaris ambient started');
         }.bind(this);
         
         this.stopBackgroundMusic = function() {
