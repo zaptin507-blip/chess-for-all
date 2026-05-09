@@ -4023,27 +4023,50 @@ class ChessGame {
             // Helper to render SVG piece into a square (chess.com style)
             const placePiece = (sq, pieceKey) => {
                 const svgCode = window.chessGame && window.chessGame.pieceSVG ? window.chessGame.pieceSVG[pieceKey] : null;
-                const style = safeStorage.get('pieceStyle', 'cburnett');
+                const ss = window.safeStorage;
+                const style = ss ? ss.get('pieceStyle', 'cburnett') : 'cburnett';
                 if (svgCode) {
                     let displaySvg = svgCode;
+                    let cssClass = 'piece';
+                        
                     if (style === 'neo') {
+                        cssClass = 'piece piece-neo';
                         displaySvg = displaySvg.replace(/stroke-width="1\.5"/g, 'stroke-width="0.9"');
-                        displaySvg = displaySvg.replace(/stroke-width="1\.2"/g, 'stroke-width="0.7"');
-                        displaySvg = displaySvg.replace(/stroke-width="1\.3"/g, 'stroke-width="0.8"');
-                        displaySvg = displaySvg.replace('<g ', '<g filter="drop-shadow(0 1px 2px rgba(0,0,0,0.25))" ');
+                        displaySvg = displaySvg.replace(/stroke-width="1\.2"/g, 'stroke-width="0.65"');
+                        displaySvg = displaySvg.replace(/stroke-width="1\.3"/g, 'stroke-width="0.75"');
                         if (pieceKey.startsWith('w')) {
-                            displaySvg = displaySvg.replace('fill="#fff"', 'fill="#faf3e6"');
+                            displaySvg = displaySvg.replace(/fill="#fff"/g, 'fill="#faf0dc"');
+                            displaySvg = displaySvg.replace(/stroke="#000"/g, 'stroke="#8b7355"');
                         } else {
-                            displaySvg = displaySvg.replace('fill="#000"', 'fill="#1a1a1a"');
+                            displaySvg = displaySvg.replace(/fill="#000"/g, 'fill="#1a1a1e"');
+                            displaySvg = displaySvg.replace(/stroke="#000"/g, 'stroke="#666"');
+                            displaySvg = displaySvg.replace(/stroke="#ececec"/g, 'stroke="#999"');
                         }
-                    } else if (style === 'animated') {
-                        displaySvg = displaySvg.replace('<g ', '<g filter="drop-shadow(0 2px 4px rgba(0,0,0,0.35))" ');
-                        if (!pieceKey.startsWith('w')) {
-                            displaySvg = displaySvg.replace('fill="#000"', 'fill="#0a0a0a"');
+                    } else if (style === 'shadow') {
+                        cssClass = 'piece piece-shadow';
+                        if (pieceKey.startsWith('w')) {
+                            displaySvg = displaySvg.replace(/fill="#fff"/g, 'fill="#faf0dc"');
+                            displaySvg = displaySvg.replace(/stroke="#000"/g, 'stroke="#5c4a30"');
+                        } else {
+                            displaySvg = displaySvg.replace(/fill="#000"/g, 'fill="#080808"');
+                            displaySvg = displaySvg.replace(/stroke="#000"/g, 'stroke="#333"');
+                            displaySvg = displaySvg.replace(/stroke="#ececec"/g, 'stroke="#666"');
                         }
+                    } else if (style === 'dark') {
+                        cssClass = 'piece piece-dark';
+                        if (pieceKey.startsWith('w')) {
+                            displaySvg = displaySvg.replace(/fill="#fff"/g, 'fill="#e8eaf0"');
+                            displaySvg = displaySvg.replace(/stroke="#000"/g, 'stroke="#4a7ed4"');
+                        } else {
+                            displaySvg = displaySvg.replace(/fill="#000"/g, 'fill="#030303"');
+                            displaySvg = displaySvg.replace(/stroke="#000"/g, 'stroke="#8b0000"');
+                            displaySvg = displaySvg.replace(/stroke="#ececec"/g, 'stroke="#cc4444"');
+                        }
+                    } else if (style === 'cburnett') {
+                        cssClass = 'piece piece-classic';
                     }
-                    const animClass = style === 'animated' ? ' class="piece-animated"' : '';
-                    sq.element.innerHTML = `<div class="piece"${animClass} style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">${displaySvg}</div>`;
+                        
+                    sq.element.innerHTML = `<div class="${cssClass}" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">${displaySvg}</div>`;
                 } else {
                     sq.element.textContent = pieceKey;
                 }
@@ -5902,65 +5925,90 @@ ChessGame.prototype.applyBoardTheme = function(theme) {
 ChessGame.prototype.applyPieceStyle = function(style) {
     const pieces = document.querySelectorAll('.piece');
     
-    pieces.forEach((pieceEl, index) => {
+    // Remove all style classes first, then add the active one
+    pieces.forEach((pieceEl) => {
+        pieceEl.classList.remove('piece-classic', 'piece-neo', 'piece-shadow', 'piece-dark');
+        pieceEl.style.removeProperty('--glow-color');
+    });
+    
+    // Map style names to CSS class
+    const styleClass = style === 'cburnett' ? 'piece-classic' :
+                       style === 'neo' ? 'piece-neo' :
+                       style === 'shadow' ? 'piece-shadow' :
+                       style === 'dark' ? 'piece-dark' : null;
+    
+    pieces.forEach((pieceEl) => {
         const pieceKey = pieceEl.dataset.piece;
-        // Guard: skip if pieceKey is missing
         if (!pieceKey) return;
         
         if (style === 'unicode') {
-            // Show Unicode chess symbols
             const unicodePieces = {
                 'wK': '♔', 'wQ': '♕', 'wR': '♖', 'wB': '♗', 'wN': '♘', 'wP': '♙',
                 'bK': '♚', 'bQ': '♛', 'bR': '♜', 'bB': '♝', 'bN': '♞', 'bP': '♟'
             };
             pieceEl.innerHTML = `<span style="font-size: 40px; line-height: 1; color: ${pieceKey.startsWith('w') ? '#fff' : '#000'}; text-shadow: ${pieceKey.startsWith('w') ? '0 0 3px #000' : '0 0 3px #fff'};">${unicodePieces[pieceKey] || '?'}</span>`;
-        } else if (style === 'neo') {
-            // Neo style — modern minimal: modify SVG stroke widths, fill, add glow
-            const svgCode = this.pieceSVG[pieceKey];
-            if (svgCode) {
-                let modified = svgCode;
-                // Thinner strokes for a cleaner look
-                modified = modified.replace(/stroke-width="1\.5"/g, 'stroke-width="0.9"');
-                modified = modified.replace(/stroke-width="1\.2"/g, 'stroke-width="0.7"');
-                modified = modified.replace(/stroke-width="1\.3"/g, 'stroke-width="0.8"');
-                // Add subtle drop-shadow to the SVG group
-                modified = modified.replace('<g ', '<g filter="drop-shadow(0 1px 2px rgba(0,0,0,0.25))" ');
-                // Change white pieces to have a warm ivory fill
-                if (pieceKey.startsWith('w')) {
-                    modified = modified.replace('fill="#fff"', 'fill="#faf3e6"');
-                } else {
-                    modified = modified.replace('fill="#000"', 'fill="#1a1a1a"');
-                }
-                pieceEl.innerHTML = modified;
+            return;
+        }
+        
+        const svgCode = this.pieceSVG[pieceKey];
+        if (!svgCode) return;
+        
+        let modified = svgCode;
+        
+        if (style === 'neo') {
+            // === NEO: Modern Minimal ===
+            // Thinner strokes for cleaner look
+            modified = modified.replace(/stroke-width="1\.5"/g, 'stroke-width="0.9"');
+            modified = modified.replace(/stroke-width="1\.2"/g, 'stroke-width="0.65"');
+            modified = modified.replace(/stroke-width="1\.3"/g, 'stroke-width="0.75"');
+            // White pieces: warm ivory with golden-brown stroke
+            if (pieceKey.startsWith('w')) {
+                modified = modified.replace(/fill="#fff"/g, 'fill="#faf0dc"');
+                modified = modified.replace(/stroke="#000"/g, 'stroke="#8b7355"');
+            } else {
+                // Black pieces: rich charcoal with warm gray stroke
+                modified = modified.replace(/fill="#000"/g, 'fill="#1a1a1e"');
+                modified = modified.replace(/stroke="#000"/g, 'stroke="#666"');
+                modified = modified.replace(/stroke="#ececec"/g, 'stroke="#999"');
             }
-        } else if (style === 'animated') {
-            // Animated style — pieces pulse/hover with CSS animation
-            const svgCode = this.pieceSVG[pieceKey];
-            if (svgCode) {
-                let modified = svgCode;
-                // Add a glow filter and larger shadow for depth
-                modified = modified.replace('<g ', '<g filter="drop-shadow(0 2px 4px rgba(0,0,0,0.35))" ');
-                // Black pieces get a richer dark fill
-                if (!pieceKey.startsWith('w')) {
-                    modified = modified.replace('fill="#000"', 'fill="#0a0a0a"');
-                }
-                pieceEl.innerHTML = modified;
-                // Add animation class only if SVG was successfully rendered
-                pieceEl.classList.add('piece-animated');
+        } else if (style === 'shadow') {
+            // === SHADOW: Extreme 3D Depth ===
+            // Keep original strokes, enhance fills for depth
+            if (pieceKey.startsWith('w')) {
+                modified = modified.replace(/fill="#fff"/g, 'fill="#faf0dc"');
+                modified = modified.replace(/stroke="#000"/g, 'stroke="#5c4a30"');
+            } else {
+                modified = modified.replace(/fill="#000"/g, 'fill="#080808"');
+                modified = modified.replace(/stroke="#000"/g, 'stroke="#333"');
+                modified = modified.replace(/stroke="#ececec"/g, 'stroke="#666"');
             }
-        } else {
-            // Classic cbumett style (default)
-            const svgCode = this.pieceSVG[pieceKey];
-            if (svgCode) {
-                pieceEl.innerHTML = svgCode;
+        } else if (style === 'dark') {
+            // === DARK: Intimidating with Colored Aura ===
+            if (pieceKey.startsWith('w')) {
+                // White pieces: ghostly pale with icy blue stroke
+                modified = modified.replace(/fill="#fff"/g, 'fill="#e8eaf0"');
+                modified = modified.replace(/stroke="#000"/g, 'stroke="#4a7ed4"');
+                pieceEl.style.setProperty('--glow-color', 'rgba(74, 126, 212, 0.5)');
+            } else {
+                // Black pieces: pitch darkness with blood red stroke
+                modified = modified.replace(/fill="#000"/g, 'fill="#030303"');
+                modified = modified.replace(/stroke="#000"/g, 'stroke="#8b0000"');
+                modified = modified.replace(/stroke="#ececec"/g, 'stroke="#cc4444"');
+                pieceEl.style.setProperty('--glow-color', 'rgba(139, 0, 0, 0.6)');
             }
-            // Remove any animation class
-            pieceEl.classList.remove('piece-animated');
+        }
+        // Classic style: just use original SVG (no modifications)
+        
+        pieceEl.innerHTML = modified;
+        
+        // Apply the CSS class for the style's filter/animation
+        if (styleClass) {
+            pieceEl.classList.add(styleClass);
         }
     });
     
     // Update profile page piece style buttons if visible
-    const profileStyles = ['cburnett', 'neo', 'animated', 'unicode'];
+    const profileStyles = ['cburnett', 'neo', 'shadow', 'dark', 'unicode'];
     profileStyles.forEach(s => {
         const btn = document.getElementById('profile' + s.charAt(0).toUpperCase() + s.slice(1) + 'Btn');
         if (btn) {

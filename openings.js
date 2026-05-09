@@ -1094,18 +1094,33 @@ function generateOpeningBoard(fen, size = 200) {
                     // Apply piece style modifications
                     if (pieceStyle === 'neo') {
                         svgStr = svgStr.replace(/stroke-width="1\.5"/g, 'stroke-width="0.9"');
-                        svgStr = svgStr.replace(/stroke-width="1\.2"/g, 'stroke-width="0.7"');
-                        svgStr = svgStr.replace(/stroke-width="1\.3"/g, 'stroke-width="0.8"');
-                        svgStr = svgStr.replace('<g ', '<g filter="drop-shadow(0 1px 2px rgba(0,0,0,0.25))" ');
+                        svgStr = svgStr.replace(/stroke-width="1\.2"/g, 'stroke-width="0.65"');
+                        svgStr = svgStr.replace(/stroke-width="1\.3"/g, 'stroke-width="0.75"');
                         if (pieceKey.startsWith('w')) {
-                            svgStr = svgStr.replace('fill="#fff"', 'fill="#faf3e6"');
+                            svgStr = svgStr.replace(/fill="#fff"/g, 'fill="#faf0dc"');
+                            svgStr = svgStr.replace(/stroke="#000"/g, 'stroke="#8b7355"');
                         } else {
-                            svgStr = svgStr.replace('fill="#000"', 'fill="#1a1a1a"');
+                            svgStr = svgStr.replace(/fill="#000"/g, 'fill="#1a1a1e"');
+                            svgStr = svgStr.replace(/stroke="#000"/g, 'stroke="#666"');
+                            svgStr = svgStr.replace(/stroke="#ececec"/g, 'stroke="#999"');
                         }
-                    } else if (pieceStyle === 'animated') {
-                        svgStr = svgStr.replace('<g ', '<g filter="drop-shadow(0 2px 4px rgba(0,0,0,0.35))" ');
-                        if (!pieceKey.startsWith('w')) {
-                            svgStr = svgStr.replace('fill="#000"', 'fill="#0a0a0a"');
+                    } else if (pieceStyle === 'shadow') {
+                        if (pieceKey.startsWith('w')) {
+                            svgStr = svgStr.replace(/fill="#fff"/g, 'fill="#faf0dc"');
+                            svgStr = svgStr.replace(/stroke="#000"/g, 'stroke="#5c4a30"');
+                        } else {
+                            svgStr = svgStr.replace(/fill="#000"/g, 'fill="#080808"');
+                            svgStr = svgStr.replace(/stroke="#000"/g, 'stroke="#333"');
+                            svgStr = svgStr.replace(/stroke="#ececec"/g, 'stroke="#666"');
+                        }
+                    } else if (pieceStyle === 'dark') {
+                        if (pieceKey.startsWith('w')) {
+                            svgStr = svgStr.replace(/fill="#fff"/g, 'fill="#e8eaf0"');
+                            svgStr = svgStr.replace(/stroke="#000"/g, 'stroke="#4a7ed4"');
+                        } else {
+                            svgStr = svgStr.replace(/fill="#000"/g, 'fill="#030303"');
+                            svgStr = svgStr.replace(/stroke="#000"/g, 'stroke="#8b0000"');
+                            svgStr = svgStr.replace(/stroke="#ececec"/g, 'stroke="#cc4444"');
                         }
                     }
                     
