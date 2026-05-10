@@ -48,6 +48,7 @@ class ChessGame {
         
         // Board state
         this.boardFlipped = false;
+        this.currentPieceStyle = 'cburnett';
         this.pendingPromotion = null;
         
         // Audio for chess sounds
@@ -1858,11 +1859,12 @@ class ChessGame {
                         pieceElement.innerHTML = svgCode;
                     }
                     
+                    pieceElement.dataset.piece = pieceKey;
+                    
                     // Enable drag and drop for player's pieces
                     if (piece.color === this.playerColor && !this.gameOver && this.gameStarted) {
                         pieceElement.draggable = true;
                         pieceElement.dataset.square = squareName;
-                        pieceElement.dataset.piece = pieceKey;
                         
                         
                         // Add drag event listeners
@@ -1898,6 +1900,9 @@ class ChessGame {
         
         // Apply saved board theme after rendering
         this.applyBoardTheme(safeStorage.get('boardTheme', 'green'));
+        
+        // Re-apply piece style to newly created elements
+        this.applyPieceStyle(this.currentPieceStyle);
     }
 
     showLegalMoves() {
@@ -5887,8 +5892,12 @@ ChessGame.prototype.loadPreferences = function() {
     const boardTheme = safeStorage.get('boardTheme', 'green');
     this.applyBoardTheme(boardTheme);
     
-    // Load piece style
-    const pieceStyle = safeStorage.get('pieceStyle', 'cburnett');
+    // Load piece style with migration for old names
+    let pieceStyle = safeStorage.get('pieceStyle', 'cburnett');
+    if (pieceStyle === 'animated') {
+        pieceStyle = 'shadow';
+        safeStorage.set('pieceStyle', 'shadow');
+    }
     this.applyPieceStyle(pieceStyle);
 };
 
@@ -5923,6 +5932,15 @@ ChessGame.prototype.applyBoardTheme = function(theme) {
 };
 
 ChessGame.prototype.applyPieceStyle = function(style) {
+    // Save current style for re-application after re-renders
+    this.currentPieceStyle = style;
+    
+    // Migrate old style names
+    if (style === 'animated') {
+        style = 'shadow';
+        safeStorage.set('pieceStyle', 'shadow');
+    }
+    
     const pieces = document.querySelectorAll('.piece');
     
     // Remove all style classes first, then add the active one
@@ -6107,27 +6125,26 @@ ChessGame.prototype.showProfileStats = function() {
     // Build game history
     this.buildProfileGameHistory();
     
-    // Update piece style button states
-    const currentPieceStyle = safeStorage.get('pieceStyle', 'cburnett');
-    const cburnettBtn = document.getElementById('profileCburnettBtn');
-    const unicodeBtn = document.getElementById('profileUnicodeBtn');
-    if (cburnettBtn && unicodeBtn) {
-        if (currentPieceStyle === 'cburnett') {
-            cburnettBtn.style.background = 'rgba(118,150,86,0.2)';
-            cburnettBtn.style.borderColor = '#769656';
-            cburnettBtn.style.color = '#fff';
-            unicodeBtn.style.background = 'rgba(255,255,255,0.06)';
-            unicodeBtn.style.borderColor = 'rgba(255,255,255,0.12)';
-            unicodeBtn.style.color = 'rgba(255,255,255,0.5)';
-        } else {
-            unicodeBtn.style.background = 'rgba(118,150,86,0.2)';
-            unicodeBtn.style.borderColor = '#769656';
-            unicodeBtn.style.color = '#fff';
-            cburnettBtn.style.background = 'rgba(255,255,255,0.06)';
-            cburnettBtn.style.borderColor = 'rgba(255,255,255,0.12)';
-            cburnettBtn.style.color = 'rgba(255,255,255,0.5)';
-        }
+    // Update piece style button states (all 5 styles)
+    let currentPieceStyle = safeStorage.get('pieceStyle', 'cburnett');
+    if (currentPieceStyle === 'animated') {
+        currentPieceStyle = 'shadow';
+        safeStorage.set('pieceStyle', 'shadow');
     }
+    ['cburnett', 'neo', 'shadow', 'dark', 'unicode'].forEach(s => {
+        const btn = document.getElementById('profile' + s.charAt(0).toUpperCase() + s.slice(1) + 'Btn');
+        if (btn) {
+            if (s === currentPieceStyle) {
+                btn.style.background = 'rgba(118,150,86,0.2)';
+                btn.style.borderColor = '#769656';
+                btn.style.color = '#fff';
+            } else {
+                btn.style.background = 'rgba(255,255,255,0.06)';
+                btn.style.borderColor = 'rgba(255,255,255,0.12)';
+                btn.style.color = 'rgba(255,255,255,0.5)';
+            }
+        }
+    });
     
 // Highlight current board theme button
 const currentTheme = safeStorage.get('boardTheme', 'green');

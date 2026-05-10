@@ -1059,8 +1059,12 @@ function generateOpeningBoard(fen, size = 200) {
     };
     const theme = themes[savedTheme] || themes.green;
     
-    // Read user's piece style preference for rendering
-    const pieceStyle = ss ? ss.get('pieceStyle', 'cburnett') : 'cburnett';
+    // Read user's piece style preference for rendering (with migration)
+    let pieceStyle = ss ? ss.get('pieceStyle', 'cburnett') : 'cburnett';
+    if (pieceStyle === 'animated') {
+        pieceStyle = 'shadow';
+        if (ss) ss.set('pieceStyle', 'shadow');
+    }
 
     const rows = fen.split(' ')[0].split('/');
     let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">`;
