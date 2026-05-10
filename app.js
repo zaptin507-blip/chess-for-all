@@ -5938,7 +5938,12 @@ ChessGame.prototype.applyPieceStyle = function(style) {
     // Migrate old style names
     if (style === 'animated') {
         style = 'shadow';
-        safeStorage.set('pieceStyle', 'shadow');
+    }
+    
+    // Persist to storage so style survives game restarts (skips re-save during re-renders)
+    const currentSaved = safeStorage.get('pieceStyle', 'cburnett');
+    if (currentSaved !== style) {
+        safeStorage.set('pieceStyle', style);
     }
     
     const pieces = document.querySelectorAll('.piece');
