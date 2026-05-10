@@ -4302,6 +4302,9 @@ class ChessGame {
             // Hide learn section if open
             const learnSection = document.getElementById('learnSection');
             if (learnSection) learnSection.style.display = 'none';
+            // Hide profile page
+            const profilePage = document.getElementById('profileStatsModal');
+            if (profilePage) profilePage.style.display = 'none';
             // Show game container if hidden
             const container = document.querySelector('.container');
             if (container) container.style.display = '';
@@ -4327,6 +4330,9 @@ class ChessGame {
             // Hide learn section if open
             const learnSection = document.getElementById('learnSection');
             if (learnSection) learnSection.style.display = 'none';
+            // Hide profile page
+            const profilePage = document.getElementById('profileStatsModal');
+            if (profilePage) profilePage.style.display = 'none';
             document.getElementById('practiceSection').style.display = 'block';
             // Hide Chess.com-style right sidebar
             const chessSidebar = document.getElementById('chessSidebar');
@@ -4353,6 +4359,9 @@ class ChessGame {
             if (chessSidebar) chessSidebar.style.display = 'none';
             const playSection = document.getElementById('playSection');
             if (playSection) playSection.style.display = 'none';
+            // Hide profile page
+            const profilePage = document.getElementById('profileStatsModal');
+            if (profilePage) profilePage.style.display = 'none';
             document.getElementById('learnSection').style.display = 'block';
             // Render the openings
             if (window.renderLearnSection) {
@@ -6655,20 +6664,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Close Profile Stats Modal
-    const closeProfileStats = document.getElementById('closeProfileStats');
-    if (closeProfileStats) {
-        closeProfileStats.addEventListener('click', () => {
-            // Close profile page and restore game view
-            window.chessGame.showSections([], ['profileStatsModal']);
-            const container = document.querySelector('.container');
-            const chessSidebar = document.getElementById('chessSidebar');
-            if (container) container.style.display = '';
-            if (chessSidebar) chessSidebar.style.display = 'block';
-        });
-    }
     
-    // Profile page is now full-page (not modal) — no outside-click-to-close needed
+    // Profile page is now navigated via sidebar — no close button needed
+    
     
     // Logout from Profile Stats Modal
     const logoutFromStats = document.getElementById('logoutFromStats');
