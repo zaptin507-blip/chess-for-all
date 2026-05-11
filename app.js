@@ -31,12 +31,14 @@ class ChessGame {
         this.ratingData = {
             moveCount: 0,
             totalCentipawnLoss: 0,
+            totalPointLoss: 0,
             blunders: 0,
             mistakes: 0,
             inaccuracies: 0,
             bestMoves: 0,
             goodMoves: 0,
-            brilliantMoves: 0
+            brilliantMoves: 0,
+            accuracy: 0
         };
         
         // Analysis mode state
@@ -2755,6 +2757,7 @@ class ChessGame {
         
         // Initialize metrics
         let totalCentipawnLoss = 0;
+        let totalPointLoss = 0;
         let blunders = 0;
         let mistakes = 0;
         let inaccuracies = 0;
@@ -2806,49 +2809,44 @@ class ChessGame {
                 
                 
                 totalCentipawnLoss += centipawnLoss;
+                // === Expected-points loss classification (wintrchess algorithm) ===
+                // Normalize raw Stockfish scores to White's perspective for ChessAnalyzer
+                const moveColor = isWhiteTurn ? 'w' : 'b';
+                const evalBeforeWhite = isWhiteTurn ? evalBefore : -evalBefore;
+                const evalAfterWhite = isWhiteTurn ? -evalAfter : evalAfter;
+                
+                // Convert to ChessAnalyzer format for point-loss computation
+                const evalObjBefore = { type: 'cp', value: evalBeforeWhite };
+                const evalObjAfter = { type: 'cp', value: evalAfterWhite };
+                const pointLoss = ChessAnalyzer.getExpectedPointsLoss(evalObjBefore, evalObjAfter, moveColor);
+                totalPointLoss += pointLoss;
                 
                 // Check for brilliant move BEFORE regular classification
-                // Brilliant move criteria (chess.com style):
-                // 1. It's a best move (0-20 CPL)
-                // 2. It's a sacrifice (gives up material)
-                // 3. It's a quiet move (no check or capture)
-                // 4. It's unique (only one best move)
+                // Brilliant = sound material sacrifice using piece-safety analysis:
+                //   - Piece was NOT already hanging (voluntary sacrifice)
+                //   - Opponent can capture with a cheaper piece
+                //   - Position is still winning/equalizing (pointLoss < 0.01)
                 let isBrilliant = false;
                 
-                if (centipawnLoss < 20) {
-                    // Check if it's a sacrifice
-                    const tempChessForSacrifice = new Chess(moveData.fen);
-                    const moveObj = tempChessForSacrifice.move(moveData.san);
+                if (pointLoss < 0.01) {
+                    const tempChessForBrilliant = new Chess(moveData.fen);
+                    const moveObj = tempChessForBrilliant.move(moveData.san);
                     
-                    if (moveObj) {
-                        const isCapture = moveObj.flags.includes('c'); // capture
-                        const isPromotion = moveObj.flags.includes('p'); // promotion
-                        const hasCheck = moveData.san.includes('+') || moveData.san.includes('#');
-                        
-                        // Check if it's a sacrifice: we gave up material
-                        const wasSacrifice = this.isSacrifice(moveData.fen, moveData.san);
-                        
-                        // Brilliant = best move + sacrifice + quiet (no check/capture)
-                        if (wasSacrifice && !isCapture && !hasCheck) {
-                            isBrilliant = true;
-                            brilliantMoves++;
-                        }
+                    if (moveObj && ChessAnalyzer.isBrilliantPosition(moveObj, moveData.fen)) {
+                        isBrilliant = true;
+                        brilliantMoves++;
                     }
                 }
                 
                 // Regular classification (only if not brilliant)
                 if (!isBrilliant) {
-                    if (centipawnLoss === 0) {
-                        bestMoves++; // Perfect move
-                    } else if (centipawnLoss < 20) {
-                        bestMoves++; // Excellent (close enough to best)
-                    } else if (centipawnLoss < 50) {
-                        goodMoves++; // Great move
-                    } else if (centipawnLoss < 100) {
-                        goodMoves++; // Good move
-                    } else if (centipawnLoss < 200) {
+                    if (pointLoss < 0.01) {
+                        bestMoves++; // Best / Excellent
+                    } else if (pointLoss < 0.08) {
+                        goodMoves++; // Excellent / Okay
+                    } else if (pointLoss < 0.12) {
                         inaccuracies++; // Inaccuracy
-                    } else if (centipawnLoss < 400) {
+                    } else if (pointLoss < 0.22) {
                         mistakes++; // Mistake
                     } else {
                         blunders++; // Blunder
@@ -2859,12 +2857,14 @@ class ChessGame {
                 console.error(`Error analyzing move ${i + 1}:`, error);
                 // Assume moderate error if analysis fails
                 totalCentipawnLoss += 200;
+                totalPointLoss += 0.15; // ~0.15 point loss = Mistake severity
                 mistakes++;
             }
         }
         
         // Store metrics
         this.ratingData.totalCentipawnLoss = totalCentipawnLoss;
+        this.ratingData.totalPointLoss = totalPointLoss;
         this.ratingData.blunders = blunders;
         this.ratingData.mistakes = mistakes;
         this.ratingData.inaccuracies = inaccuracies;
@@ -2872,6 +2872,10 @@ class ChessGame {
         this.ratingData.goodMoves = goodMoves;
         this.ratingData.moveCount = moveCount;
         this.ratingData.result = playerLost ? 'loss' : (playerWon ? 'win' : 'draw');
+        
+        // Compute accuracy using wintrchess formula
+        const avgPointLoss = totalPointLoss / Math.max(1, moveCount);
+        this.ratingData.accuracy = Math.round(ChessAnalyzer.getMoveAccuracy(avgPointLoss) * 10) / 10;
         
         
         // Calculate ELO based on comprehensive metrics
@@ -2889,33 +2893,30 @@ class ChessGame {
             estimatedELO += 100; // Drew
         }
         
-        // Factor 2: Move quality (centipawn loss)
-        const avgCentipawnLoss = totalCentipawnLoss / moveCount;
+        // Factor 2: Move quality (average point loss)
+        // Point-loss is context-aware: same centipawn loss = bigger penalty in close games
+        // Uses the same wintrchess thresholds as move classification
         
-        // Scale ELO based on average centipawn loss
-        // Lower CPL = higher ELO (better player)
-        // 0-20 CPL = 2800+ ELO (Grandmaster)
-        // 20-50 CPL = 2400 ELO (Master)
-        // 50-100 CPL = 2000 ELO (Expert)
-        // 100-200 CPL = 1500 ELO (Intermediate)
-        // 200-350 CPL = 1000 ELO (Beginner)
-        // 350-500 CPL = 600 ELO (Novice)
-        // 500+ CPL = 300 ELO (Very beginner)
+        // Scale ELO based on average point loss
+        // < 0.01 avgPL = Best moves only → GM precision
+        // < 0.045 avgPL = Excellent → strong player
+        // < 0.08 avgPL = Okay → intermediate
+        // < 0.12 avgPL = Inaccuracy → weak
+        // < 0.22 avgPL = Mistake → poor
+        // >= 0.22 avgPL = Blunder → very poor
         
-        if (avgCentipawnLoss < 20) {
-            estimatedELO = Math.min(estimatedELO + 800, 3000); // Grandmaster level
-        } else if (avgCentipawnLoss < 50) {
-            estimatedELO = Math.min(estimatedELO + 600, 2800); // Master level
-        } else if (avgCentipawnLoss < 100) {
-            estimatedELO = Math.min(estimatedELO + 300, 2400); // Expert
-        } else if (avgCentipawnLoss < 200) {
-            estimatedELO = Math.min(estimatedELO + 100, 1800); // Intermediate
-        } else if (avgCentipawnLoss < 350) {
-            estimatedELO = Math.max(estimatedELO - 200, 800); // Beginner
-        } else if (avgCentipawnLoss < 500) {
-            estimatedELO = Math.max(estimatedELO - 500, 500); // Novice
+        if (avgPointLoss < 0.01) {
+            estimatedELO = Math.min(estimatedELO + 800, 3000);
+        } else if (avgPointLoss < 0.045) {
+            estimatedELO = Math.min(estimatedELO + 500, 2700);
+        } else if (avgPointLoss < 0.08) {
+            estimatedELO = Math.min(estimatedELO + 200, 2200);
+        } else if (avgPointLoss < 0.12) {
+            estimatedELO = Math.max(estimatedELO - 100, 800);
+        } else if (avgPointLoss < 0.22) {
+            estimatedELO = Math.max(estimatedELO - 400, 400);
         } else {
-            estimatedELO = Math.max(estimatedELO - 800, 200); // Very beginner
+            estimatedELO = Math.max(estimatedELO - 700, 200);
         }
         
         // Factor 3: Blunder rate
@@ -2944,7 +2945,17 @@ class ChessGame {
             estimatedELO += 30; // Decent accuracy
         }
         
-        // Factor 5: Game length consideration
+        // Factor 5: Brilliant moves bonus
+        // Brilliant moves are extremely rare — each one shows deep tactical vision
+        if (brilliantMoves === 1) {
+            estimatedELO += 60; // Found a hidden tactical gem
+        } else if (brilliantMoves === 2) {
+            estimatedELO += 120; // Two brilliants = exceptional tactical skill
+        } else if (brilliantMoves >= 3) {
+            estimatedELO += 200; // Multiple brilliants = extraordinary
+        }
+        
+        // Factor 6: Game length consideration
         if (moveCount < 3) {
             // Too few moves, can't estimate accurately
             estimatedELO = 1200; // Default to beginner-intermediate
@@ -4733,26 +4744,32 @@ class ChessGame {
             'book': '📖',
             'best': '⭐',
             'brilliant': '✨',
-            'great': '👍',
+            'critical': '🔑',
+            'forced': '🔒',
             'excellent': '👏',
-            'good': '✓',
+            'okay': '✓',
             'inaccuracy': '⚡',
             'mistake': '⚠️',
             'blunder': '❌',
-            'missedWin': '🎯'
+            'missedWin': '🎯',
+            'great': '👍',
+            'good': '✓'
         };
 
         const classificationColors = {
             'book': '#8B7355',
             'best': '#00ff00',
             'brilliant': '#9c27b0',
-            'great': '#4CAF50',
+            'critical': '#5b8baf',
+            'forced': '#97af8b',
             'excellent': '#00BCD4',
-            'good': '#2196F3',
+            'okay': '#2196F3',
             'inaccuracy': '#ffc107',
             'mistake': '#ff9800',
             'blunder': '#f44336',
-            'missedWin': '#FFD700'
+            'missedWin': '#FFD700',
+            'great': '#4CAF50',
+            'good': '#2196F3'
         };
 
         // Only analyze moves that exist in both arrays
@@ -5277,10 +5294,11 @@ class ChessGame {
             'blunder': `?? Blunder on Move ${Math.floor(moveIndex / 2) + 1}`,
             'mistake': `? Mistake on Move ${Math.floor(moveIndex / 2) + 1}`,
             'inaccuracy': `?! Inaccuracy on Move ${Math.floor(moveIndex / 2) + 1}`,
-            'good': `✓ Good Move ${Math.floor(moveIndex / 2) + 1}`,
+            'okay': `□ Okay Move ${Math.floor(moveIndex / 2) + 1}`,
             'best': `★ Best Move ${Math.floor(moveIndex / 2) + 1}`,
+            'critical': `! Critical Move ${Math.floor(moveIndex / 2) + 1}`,
+            'forced': `□ Forced Move ${Math.floor(moveIndex / 2) + 1}`,
             'excellent': `! Excellent Move ${Math.floor(moveIndex / 2) + 1}`,
-            'great': `!! Great Move ${Math.floor(moveIndex / 2) + 1}`,
             'brilliant': `!!! Brilliant Move ${Math.floor(moveIndex / 2) + 1}`,
             'missedWin': `Missed Win on Move ${Math.floor(moveIndex / 2) + 1}`
         };
@@ -5471,15 +5489,17 @@ class ChessGame {
     getAnnotationSymbol(annotation) {
         const symbols = {
             'brilliant': { symbol: '!!', class: 'annotation-brilliant' },
-            'great': { symbol: '!', class: 'annotation-great' },
+            'critical': { symbol: '!', class: 'annotation-critical' },
             'best': { symbol: '★', class: 'annotation-best' },
             'excellent': { symbol: '!', class: 'annotation-excellent' },
-            'good': { symbol: '□', class: 'annotation-good' },
+            'okay': { symbol: '□', class: 'annotation-okay' },
             'inaccuracy': { symbol: '?!', class: 'annotation-inaccuracy' },
             'mistake': { symbol: '?', class: 'annotation-mistake' },
             'blunder': { symbol: '??', class: 'annotation-blunder' },
             'book': { symbol: '📖', class: 'annotation-book' },
-            'forced': { symbol: '□', class: 'annotation-forced' }
+            'forced': { symbol: '□', class: 'annotation-forced' },
+            'great': { symbol: '!', class: 'annotation-great' },
+            'good': { symbol: '□', class: 'annotation-good' }
         };
         return symbols[annotation] || null;
     }

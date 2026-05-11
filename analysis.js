@@ -6,178 +6,225 @@ class ChessAnalyzer {
         this.evaluationHistory = [];
     }
 
+    /**
+     * Sigmoig-based expected score from a centipawn or mate evaluation.
+     * Uses the standard logistic function (same as wintrchess / Leela / Stockfish win-rate model).
+     * Returns 0.0 to 1.0 — win probability for the side indicated by `perspectiveColor`.
+     */
+    static getExpectedPoints(evalObj, perspectiveColor) {
+        // evalObj = { type: 'cp', value: centipawnScore } or { type: 'mate', value: mateInPly }
+        // perspectiveColor = 'w' or 'b' — the side whose win probability we want
+        if (evalObj.type === 'mate') {
+            if (evalObj.value === 0) return 0.5; // stalemate / draw
+            return evalObj.value > 0 ? 1 : 0;   // forced win or forced loss
+        }
+        // Centipawn evaluation: sigmoid with 0.0035 gradient (standard chess win-rate model)
+        const score = perspectiveColor === 'w' ? evalObj.value : -evalObj.value;
+        return 1 / (1 + Math.exp(-0.0035 * score));
+    }
+
+    /**
+     * Expected-points loss caused by a move.
+     * Measures how much the win probability dropped from before to after the move.
+     * This is the core of the wintrchess classification system — replaces raw centipawn loss.
+     */
+    static getExpectedPointsLoss(evalBefore, evalAfter, moveColor) {
+        // Expected points for the PLAYER BEFORE the move
+        const playerBefore = ChessAnalyzer.getExpectedPoints(evalBefore, moveColor);
+
+        // Expected points for the PLAYER AFTER the move
+        const playerAfter = ChessAnalyzer.getExpectedPoints(evalAfter, moveColor);
+
+        // Loss = player's win probability before - after
+        // Positive loss means the player made things worse for themselves
+        const rawLoss = playerBefore - playerAfter;
+        return Math.max(0, rawLoss);
+    }
+
+    /**
+     * Move accuracy percentage using wintrchess formula.
+     * Returns 0-100, where 100 = perfect move.
+     * Formula: 103.16 * exp(-4 * pointLoss) - 3.17
+     */
+    static getMoveAccuracy(pointLoss) {
+        return Math.min(100, Math.max(0, 103.16 * Math.exp(-4 * pointLoss) - 3.17));
+    }
+
     async evaluatePosition(fen, depth = 18) {
         return new Promise((resolve) => {
             let timeout;
-            // Parse side-to-move from FEN (2nd field) instead of using this.chess.turn()
-            // which may not reflect the position being evaluated.
             const fenParts = fen.split(' ');
             const sideToMove = fenParts.length > 1 ? fenParts[1] : 'w';
-            
+
             const listener = (event) => {
                 const message = event.data;
                 const match = message.match(/score cp (-?\d+)/);
                 const mateMatch = message.match(/score mate (-?\d+)/);
-                
+
                 if (mateMatch) {
                     clearTimeout(timeout);
                     this.stockfish.removeEventListener('message', listener);
-                    resolve({ mate: parseInt(mateMatch[1]), score: parseInt(mateMatch[1]) > 0 ? 10000 : -10000 });
+                    const mateVal = parseInt(mateMatch[1]);
+                    resolve({
+                        type: 'mate',
+                        value: mateVal,
+                        score: mateVal > 0 ? 10000 : -10000
+                    });
                 } else if (match) {
-                    const score = parseInt(match[1]);
+                    const rawScore = parseInt(match[1]);
                     clearTimeout(timeout);
                     this.stockfish.removeEventListener('message', listener);
                     // Stockfish reports score from side-to-move perspective.
                     // Normalize so positive = white advantage.
-                    resolve({ score: sideToMove === 'b' ? -score : score });
+                    const score = sideToMove === 'b' ? -rawScore : rawScore;
+                    resolve({ type: 'cp', value: score, score });
                 }
             };
 
             this.stockfish.addEventListener('message', listener);
-            
-            // Add 10 second timeout to prevent hanging
+
             timeout = setTimeout(() => {
                 console.warn('evaluatePosition timed out for FEN:', fen);
                 this.stockfish.removeEventListener('message', listener);
-                resolve({ score: 0 }); // Return neutral score on timeout
+                resolve({ type: 'cp', value: 0, score: 0 });
             }, 10000);
-            
+
             this.stockfish.postMessage(`position fen ${fen}`);
             this.stockfish.postMessage(`go depth ${depth}`);
         });
     }
 
     async analyzeMove(move, fenBefore, fenAfter, moveIndex = -1) {
+        // ──────────────────────────────────────────────────────────
+        // STEP 0: Forced move — only one legal move available
+        // ──────────────────────────────────────────────────────────
+        const chessAtPosition = new Chess(fenBefore);
+        const legalMoves = chessAtPosition.moves();
+        const isForced = legalMoves.length <= 1;
+
+        if (isForced) {
+            return {
+                move: move.san,
+                classification: 'forced',
+                description: 'Forced move — only legal option',
+                suggestedMove: null,
+                evalBefore: 0,
+                evalAfter: 0,
+                evalChange: 0
+            };
+        }
+
+        // ──────────────────────────────────────────────────────────
+        // STEP 1: Evaluate position before and after
+        // ──────────────────────────────────────────────────────────
         const evalBefore = await this.evaluatePosition(fenBefore);
         const evalAfter = await this.evaluatePosition(fenAfter);
 
-        const evalDiff = evalAfter.score - evalBefore.score;
-        const isWhite = move.color === 'w';
-        const actualEvalChange = isWhite ? evalDiff : -evalDiff;
+        // Wrap evaluation scores for point-loss computation
+        const evalObjBefore = { type: evalBefore.type || 'cp', value: evalBefore.score };
+        const evalObjAfter = { type: evalAfter.type || 'cp', value: evalAfter.score };
 
-        let classification = 'good';
-        let description = 'Good move';
-        let suggestedMove = null;
-
-        const isSacrifice = this.detectSacrifice(move, fenAfter);
-        const isHangingCapture = this.detectHangingCapture(move, fenBefore);
-        const isBlunderPiece = this.detectBlunder(move, fenBefore, fenAfter);
+        // ──────────────────────────────────────────────────────────
+        // STEP 2: Run detection helpers
+        // ──────────────────────────────────────────────────────────
+        const isBrilliant = ChessAnalyzer.isBrilliantPosition(move, fenBefore);
         const missedCheckmateResult = await this.detectMissedCheckmate(fenBefore);
         const missedCheckmate = missedCheckmateResult.isCheckmate;
         const isBook = this.detectBookMove(move.san, moveIndex);
 
-        // Find the engine's best move with adaptive depth based on move quality.
-        // For bad moves: deep analysis with retries to provide reliable suggested alternatives.
-        // For good moves: shallow check to determine if the player found the engine's top choice (Best Move).
+        // ──────────────────────────────────────────────────────────
+        // STEP 3: Calculate expected-points loss (wintrchess core metric)
+        // ──────────────────────────────────────────────────────────
+        const pointLoss = ChessAnalyzer.getExpectedPointsLoss(evalObjBefore, evalObjAfter, move.color);
+        const evalDiff = evalAfter.score - evalBefore.score;
+        const actualEvalChange = move.color === 'w' ? evalDiff : -evalDiff;
+
+        // ──────────────────────────────────────────────────────────
+        // STEP 4: Find engine's best move
+        // ──────────────────────────────────────────────────────────
+        let suggestedMove = null;
+
         if (missedCheckmate && missedCheckmateResult.bestMove) {
-            // We already have the best move from missed-checkmate detection — no extra call needed
             suggestedMove = missedCheckmateResult.bestMove;
-        } else if (actualEvalChange < -20 || isBlunderPiece || isHangingCapture) {
-            // Bad move — deep analysis with retries for reliable suggestions
-            console.log(`Finding best move for ${move.san} (eval change: ${actualEvalChange}, blunderPiece: ${isBlunderPiece}, hangingCapture: ${isHangingCapture})`);
-            
+        } else if (pointLoss >= 0.01) {
+            // Lost win probability — deep analysis for reliable suggested alternatives
             suggestedMove = await this.findBestMove(fenBefore, 15);
-            
-            if (!suggestedMove) {
-                console.log('First attempt failed, trying again with depth 12...');
-                suggestedMove = await this.findBestMove(fenBefore, 12);
-            }
-            
-            if (!suggestedMove) {
-                console.log('Second attempt failed, trying with depth 8...');
-                suggestedMove = await this.findBestMove(fenBefore, 8);
-            }
-            
-            console.log(`Magnus would play: ${suggestedMove || 'NO MOVE FOUND'}`);
+            if (!suggestedMove) suggestedMove = await this.findBestMove(fenBefore, 12);
+            if (!suggestedMove) suggestedMove = await this.findBestMove(fenBefore, 8);
         } else {
-            // Good move — shallow check for Best Move classification
+            // Good move — shallow check for Best / Critical classification
             suggestedMove = await this.findBestMove(fenBefore, 8);
         }
 
-        // ====== PROPER CHESS.COM MOVE CLASSIFICATION ======
-        
-        // 0. BOOK MOVE (📖): Follows standard opening theory
-        //    Checked first — a move can be both book AND good/great/excellent
-        if (isBook && actualEvalChange >= -20) {
-            // Book move that doesn't lose the position
+        const topMovePlayed = suggestedMove && suggestedMove === move.san;
+
+        // ──────────────────────────────────────────────────────────
+        // STEP 5: Classify using expected-points loss + wintrchess thresholds
+        // ──────────────────────────────────────────────────────────
+        let classification;
+        let description = '';
+
+        if (isBook && pointLoss < 0.01) {
             classification = 'book';
-            description = '📖 Book move — follows opening theory';
+            description = 'Book move — follows opening theory';
         }
-        // 1. BRILLIANT (!!): A good piece sacrifice that improves or maintains a winning position
-        //    MUST be a sacrifice AND maintain/improve position
-        else if (isSacrifice && actualEvalChange > -50) {
-            // Sacrifice that doesn't lose eval (maintains or improves position)
-            classification = 'brilliant';
-            description = '!! Brilliant! Excellent sacrifice';
-        }
-        // 2. MISSED WIN (🎯): Had a clear checkmate but missed it
+
         else if (missedCheckmate) {
             classification = 'missedWin';
-            description = '🎯 Missed win! You had a forced checkmate';
-            if (suggestedMove) {
-                description += `. Checkmate was: ${suggestedMove}`;
-            }
+            description = 'Missed win! You had a forced checkmate';
+            if (suggestedMove) description += `. Checkmate was: ${suggestedMove}`;
         }
-        // 3. BEST MOVE (★): The highest-rated move by the engine
-        //    MUST be checked BEFORE blunder/inaccuracy/mistake.
-        //    If the engine's top pick also loses evaluation, the position was simply
-        //    lost and the player found the only reasonable continuation — not a blunder.
-        else if (suggestedMove && suggestedMove === move.san) {
-            // Player played the exact engine top choice
+
+        // BRILLIANT: sound material sacrifice — piece was NOT already hanging,
+        // opponent can capture with a cheaper piece, but the position is still winning.
+        else if (isBrilliant && topMovePlayed && pointLoss < 0.01) {
+            classification = 'brilliant';
+            description = 'Brilliant! Sound material sacrifice with winning follow-up';
+        }
+
+        // CRITICAL: only good move in a dangerous position (player found the needle)
+        else if (topMovePlayed && this._isCriticalPosition(evalObjBefore, legalMoves.length, move)) {
+            classification = 'critical';
+            description = '! Critical move — only good move in the position';
+        }
+
+        // BEST: played the engine's top pick or lost negligible win probability
+        else if (topMovePlayed || pointLoss < 0.01) {
             classification = 'best';
-            description = '★ Best move';
+            description = 'Best move';
         }
-        // 4. BLUNDER (??): Major mistakes - BE VERY STRICT
-        //    - Lost 2+ pawns
-        //    - OR blundered a piece (isBlunderPiece)
-        //    - OR left a piece hanging (isHangingCapture) unless it's a sacrifice
-        //    Only triggers when the player did NOT play the engine's best move (checked above).
-        else if (actualEvalChange < -200 || isBlunderPiece || (isHangingCapture && !isSacrifice)) {
-            classification = 'blunder';
-            description = '?? Blunder!';
-            if (suggestedMove) {
-                description += `. Better was ${suggestedMove}`;
-            }
-        }
-        // 5. GREAT (!): Critical moves that significantly impact the game
-        //    - Turning losing to equal, or finding the only good move
-        else if (actualEvalChange > 100 || (evalBefore.score < -100 && actualEvalChange > -50)) {
-            // Either gained 1+ pawn OR was losing but found the only move to stay in game
-            classification = 'great';
-            description = '! Great move! Critical move found';
-        }
-        // 6. EXCELLENT: Very good move, close to the best move
-        else if (actualEvalChange > 50 && actualEvalChange <= 100) {
-            // Solid improvement, close to best
+
+        // EXCELLENT: very small loss (0.01 — 0.045)
+        else if (pointLoss < 0.045) {
             classification = 'excellent';
             description = 'Excellent move';
         }
-        // 7. GOOD: Solid move that maintains the position
-        else if (actualEvalChange >= -20 && actualEvalChange <= 50) {
-            // Small change, position maintained
-            classification = 'good';
-            description = 'Good move';
+
+        // OKAY: small loss (0.045 — 0.08)
+        else if (pointLoss < 0.08) {
+            classification = 'okay';
+            description = 'Okay move';
         }
-        // 8. INACCURACY (?!): Slight advantage lost
-        else if (actualEvalChange < -20 && actualEvalChange >= -80) {
+
+        // INACCURACY: moderate loss (0.08 — 0.12)
+        else if (pointLoss < 0.12) {
             classification = 'inaccuracy';
             description = '?! Inaccuracy';
-            if (suggestedMove) {
-                description += `. Better was ${suggestedMove}`;
-            }
+            if (suggestedMove) description += `. Better was ${suggestedMove}`;
         }
-        // 9. MISTAKE (?): Significant advantage lost
-        else if (actualEvalChange < -80 && actualEvalChange >= -200) {
+
+        // MISTAKE: significant loss (0.12 — 0.22)
+        else if (pointLoss < 0.22) {
             classification = 'mistake';
-            description = '? Mistake!';
-            if (suggestedMove) {
-                description += `. Better was ${suggestedMove}`;
-            }
+            description = '? Mistake';
+            if (suggestedMove) description += `. Better was ${suggestedMove}`;
         }
-        // Default
+
+        // BLUNDER: catastrophic loss (>= 0.22)
         else {
-            classification = 'good';
-            description = 'Good move';
+            classification = 'blunder';
+            description = '?? Blunder';
+            if (suggestedMove) description += `. Better was ${suggestedMove}`;
         }
 
         return {
@@ -191,10 +238,27 @@ class ChessAnalyzer {
         };
     }
 
+    /**
+     * Heuristic for detecting "Critical" positions where only one move saves the game.
+     * Without MultiPV=2 support from this Stockfish build, we approximate:
+     *   - Position is losing (eval < -200 cp for the player)
+     *   - Few legal moves (<= 3 — high pressure, limited options)
+     *   - The player found the best move (topMovePlayed was already checked by caller)
+     */
+    _isCriticalPosition(evalObjBefore, legalMoveCount, move) {
+        if (legalMoveCount > 3) return false;
+
+        // The player's position before the move was losing
+        const playerPerspective = move.color === 'w' ? evalObjBefore.value : -evalObjBefore.value;
+        if (playerPerspective > -150) return false; // not losing enough
+
+        return true;
+    }
+
     async findBestMove(fen, depth = 10) {
         return new Promise((resolve) => {
             let timeout;
-            
+
             const listener = (event) => {
                 const message = event.data;
                 if (message.startsWith('bestmove')) {
@@ -206,14 +270,13 @@ class ChessAnalyzer {
                         const from = bestMove.substring(0, 2);
                         const to = bestMove.substring(2, 4);
                         const promotion = bestMove.length > 4 ? bestMove[4] : undefined;
-                        
+
                         try {
                             const tempChess = new Chess(fen);
                             const move = tempChess.move({ from, to, promotion });
                             if (move && move.san) {
                                 resolve(move.san);
                             } else {
-                                // If move failed, return the UCI move formatted nicely
                                 console.warn('Move conversion failed, using UCI format:', bestMove);
                                 resolve(this.formatUCIToAlgebraic(bestMove, fen));
                             }
@@ -228,29 +291,25 @@ class ChessAnalyzer {
             };
 
             this.stockfish.addEventListener('message', listener);
-            
-            // 5 second timeout (increased from 3)
+
             timeout = setTimeout(() => {
                 console.warn('findBestMove timed out at depth', depth);
                 this.stockfish.removeEventListener('message', listener);
                 resolve(null);
             }, 5000);
-            
+
             this.stockfish.postMessage(`position fen ${fen}`);
             this.stockfish.postMessage(`go depth ${depth}`);
         });
     }
 
     formatUCIToAlgebraic(uciMove, fen) {
-        // Convert UCI format (e.g., "e2e4") to algebraic (e.g., "e4")
-        // When FEN is provided, use chess.js for proper SAN conversion.
         if (!uciMove || uciMove.length < 4) return uciMove;
-        
+
         const from = uciMove.substring(0, 2);
         const to = uciMove.substring(2, 4);
         const promotion = uciMove.length > 4 ? uciMove[4] : undefined;
-        
-        // Try full chess.js conversion if FEN is available
+
         if (fen) {
             try {
                 const tempChess = new Chess(fen);
@@ -259,23 +318,21 @@ class ChessAnalyzer {
                     return move.san;
                 }
             } catch (e) {
-                // Fall through to simple conversion below
+                // Fall through
             }
         }
-        
-        // Simple fallback conversion — just show the destination square
+
         let algebraic = to;
         if (promotion) {
             algebraic += '=' + promotion.toUpperCase();
         }
-        
         return algebraic;
     }
 
     async detectMissedCheckmate(fen, depth = 15) {
         return new Promise((resolve) => {
             let timeout;
-            
+
             const listener = (event) => {
                 const message = event.data;
                 if (message.startsWith('bestmove')) {
@@ -287,15 +344,13 @@ class ChessAnalyzer {
                         const from = bestMove.substring(0, 2);
                         const to = bestMove.substring(2, 4);
                         const promotion = bestMove.length > 4 ? bestMove[4] : undefined;
-                        
-                        // Play the best move and check if it's checkmate
+
                         const tempChess = new Chess(fen);
                         const moveResult = tempChess.move({ from, to, promotion });
-                        
-                        // Check if the move resulted in checkmate
+
                         const isCheckmate = moveResult && tempChess.game_over() && tempChess.in_checkmate();
-                        resolve({ 
-                            isCheckmate: isCheckmate,
+                        resolve({
+                            isCheckmate,
                             bestMove: moveResult ? moveResult.san : this.formatUCIToAlgebraic(bestMove, fen)
                         });
                     } else {
@@ -305,35 +360,29 @@ class ChessAnalyzer {
             };
 
             this.stockfish.addEventListener('message', listener);
-            
-            // Add 8 second timeout
+
             timeout = setTimeout(() => {
                 console.warn('detectMissedCheckmate timed out');
                 this.stockfish.removeEventListener('message', listener);
                 resolve({ isCheckmate: false, bestMove: null });
             }, 8000);
-            
+
             this.stockfish.postMessage(`position fen ${fen}`);
             this.stockfish.postMessage(`go depth ${depth}`);
         });
     }
 
     detectBookMove(moveSan, moveIndex) {
-        // Only check book moves in the opening phase (first 15 moves)
         if (moveIndex < 0 || moveIndex > 14) return false;
         if (!moveSan) return false;
-        
-        // Normalize move for comparison (remove check/checkmate symbols)
+
         const normalizedMove = moveSan.replace(/[+#]$/, '');
-        
-        // Check against all openings in the database
+
         const openings = Object.values(chessOpenings);
         for (const opening of openings) {
             if (!opening.moves || !Array.isArray(opening.moves)) continue;
-            // Check if this move index matches the opening's expected move
             if (moveIndex < opening.moves.length) {
                 const expectedMove = opening.moves[moveIndex];
-                // Compare case-insensitive, trim whitespace
                 if (normalizedMove.toLowerCase() === expectedMove.toLowerCase()) {
                     return true;
                 }
@@ -342,57 +391,92 @@ class ChessAnalyzer {
         return false;
     }
 
-    detectSacrifice(move, fenAfter) {
+    /**
+     * Determines if a move is a Brilliant sacrifice using piece-safety analysis.
+     * A brilliant move = you voluntarily place a piece where the opponent can
+     * capture it with a lower-value piece, AND the resulting position is
+     * winning/equalizing (caller checks pointLoss < 0.01).
+     *
+     * This follows the modern chess.com definition:
+     *   - Leaves a piece hanging (forfeits material)
+     *   - The piece was NOT already hanging before the move (voluntary)
+     *   - Results in a significant advantage through a strong follow-up
+     *   - Requires deep calculation (non-obvious)
+     */
+    static isBrilliantPosition(move, fenBefore) {
         const pieceValues = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
-        
-        if (move.captured) {
-            return false;
-        }
 
-        const tempChess = new Chess(fenAfter);
-        const opponentMoves = tempChess.moves({ verbose: true });
-        
-        for (const oppMove of opponentMoves) {
-            if (oppMove.to === move.to && pieceValues[oppMove.piece] < pieceValues[move.piece]) {
-                return true;
+        // Need a real piece move with a from-square
+        if (!move || !move.from || !move.to || !move.color) return false;
+
+        const chess = new Chess(fenBefore);
+        const opponentColor = move.color === 'w' ? 'b' : 'w';
+
+        // Check 1: Piece was NOT already hanging on its source square.
+        // A voluntary sacrifice means the piece wasn't already under attack.
+        const beforeMoves = chess.moves({ verbose: true });
+        for (const bm of beforeMoves) {
+            if (bm.to === move.from && bm.color === opponentColor) {
+                return false; // piece was already attacked — moving it is obvious
             }
         }
 
-        return false;
+        // Make the move to get the resulting position
+        chess.move({ from: move.from, to: move.to, promotion: move.promotion });
+        const afterMoves = chess.moves({ verbose: true });
+
+        // Check 2: Is the piece hanging AFTER the move?
+        // Opponent must be able to capture it on the destination square.
+        let capturedByPiece = null;
+        for (const am of afterMoves) {
+            if (am.to === move.to && am.color === opponentColor) {
+                if (!capturedByPiece || pieceValues[am.piece] < pieceValues[capturedByPiece]) {
+                    capturedByPiece = am.piece;
+                }
+            }
+        }
+
+        if (!capturedByPiece) return false; // not hanging — no sacrifice
+
+        // Check 3: Real sacrifice — opponent captures with a cheaper piece
+        // (The moved piece is worth MORE than the attacker)
+        const movedValue = pieceValues[move.piece] || 0;
+        const attackerValue = pieceValues[capturedByPiece] || 0;
+        if (movedValue <= attackerValue) return false;
+
+        // Check 4: Not a promotion (promoting is usually a straightforward gain)
+        if (move.promotion) return false;
+
+        return true;
     }
 
     detectHangingCapture(move, fenBefore) {
-        if (!move.captured) {
-            return false;
-        }
+        if (!move.captured) return false;
 
         const tempChess = new Chess(fenBefore);
         const opponentColor = move.color === 'w' ? 'b' : 'w';
-        
+
         const opponentMoves = tempChess.moves({ verbose: true });
         const capturedSquare = move.to;
-        
+
         for (const oppMove of opponentMoves) {
             if (oppMove.to === capturedSquare && oppMove.color === opponentColor) {
                 return false;
             }
         }
-
         return true;
     }
 
     detectBlunder(move, fenBefore, fenAfter) {
         const pieceValues = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
-        
-        if (move.captured) {
-            return false;
-        }
+
+        if (move.captured) return false;
 
         const tempChess = new Chess(fenAfter);
         const opponentColor = move.color === 'w' ? 'b' : 'w';
-        
+
         const opponentMoves = tempChess.moves({ verbose: true });
-        
+
         for (const oppMove of opponentMoves) {
             if (oppMove.to === move.to && oppMove.color === opponentColor) {
                 if (pieceValues[oppMove.piece] <= pieceValues[move.piece]) {
@@ -400,22 +484,23 @@ class ChessAnalyzer {
                 }
             }
         }
-
         return false;
     }
 
     generateAnalysisReport(moveAnalyses) {
         const summary = {
             book: 0,
+            forced: 0,
             best: 0,
+            critical: 0,
             missedWin: 0,
             brilliant: 0,
-            great: 0,
             excellent: 0,
-            good: 0,
+            okay: 0,
             inaccuracy: 0,
             mistake: 0,
-            blunder: 0
+            blunder: 0,
+            good: 0  // Keep for backward compatibility
         };
 
         moveAnalyses.forEach(analysis => {
