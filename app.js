@@ -20,7 +20,7 @@ class ChessGame {
         this.timerMode = null; // 'bullet', 'blitz', or 'rapid'
         
         // Bot selection
-        this.selectedBot = null; // 'god' or 'mrstong' or 'tester'
+        this.selectedBot = null; // 'god' or 'mrstong' or 'tester' or 'mrleung'
         
         // Tester reminder system - check every 6 months
         this.lastTesterReminder = safeStorage.get('lastTesterReminder', null);
@@ -261,6 +261,11 @@ class ChessGame {
             return this.getMrsTongResponse(msg);
         }
         
+        // Mr Leung always responds with wrong math
+        if (this.selectedBot === 'mrleung') {
+            return this.getMrLeungResponse();
+        }
+        
         // Tips requests - analyze current position
         if (this.messageContains(msg, ['tip', 'help', 'advice', 'what should i do'])) {
             return this.getSituationTip();
@@ -413,6 +418,31 @@ class ChessGame {
         ];
         
         return responses[Math.floor(Math.random() * responses.length)];
+    }
+
+    // Mr Leung — always responds with wrong math equations
+    getMrLeungResponse() {
+        const wrongMath = [
+            "pi = 4.14",
+            "17*8 = (18*7)",
+            "2 + 2 = 5",
+            "sqrt(144) = 11",
+            "9 * 7 = 64",
+            "15 + 10 = 20",
+            "100 / 5 = 25... wait no that's right. I mean 100 / 5 = 15",
+            "sin(90°) = 0.99",
+            "3^3 = 9",
+            "0.1 + 0.2 = 0.30000000000000004... OK that one's actually correct",
+            "e = 2.5",
+            "1 + 1 = 3, for sufficiently large values of 1",
+            "cos(0) = 0.9998477",
+            "log(100) = 3",
+            "pi = 4.14",
+            "17*8 = (18*7)",
+            "The square root of 2 is 1.5",
+            "6! = 120"
+        ];
+        return wrongMath[Math.floor(Math.random() * wrongMath.length)];
     }
 
     getSituationTip() {
@@ -1419,6 +1449,14 @@ class ChessGame {
                 chatName: '🤖 THE ONE ABOVE ALL',
                 showChat: true,
                 showAnalyze: true
+            },
+            mrleung: {
+                avatar: '🧮',
+                name: 'Mr Leung',
+                rating: 'Rating: 200',
+                chatName: '🧮 Mr Leung',
+                showChat: true,
+                showAnalyze: true
             }
         };
     }
@@ -1428,7 +1466,8 @@ class ChessGame {
         const names = {
             mrstong: 'Mrs. Tong',
             tester: 'The Tester',
-            god: 'THE ONE ABOVE ALL'
+            god: 'THE ONE ABOVE ALL',
+            mrleung: 'Mr Leung'
         };
         return names[this.selectedBot] || 'Unknown Bot';
     }
@@ -1614,6 +1653,12 @@ class ChessGame {
             this._blunderSchedule = this._generateBlunderSchedule(1400);
         }
         
+        // Mr Leung — 200 ELO: very weak, blunders almost every move
+        if (this.selectedBot === 'mrleung') {
+            this._botMoveCount = 0;
+            this._blunderSchedule = this._generateBlunderSchedule(200);
+        }
+        
         // Bot greeting - different for each bot (skip in practice mode)
         if (this.gameMode !== 'practice') {
             if (this.selectedBot === 'mrstong') {
@@ -1624,6 +1669,14 @@ class ChessGame {
                     "Hi there! I hope you enjoy our game. Let's begin!"
                 ];
                 this.addBotMessage(mrsTongGreetings[Math.floor(Math.random() * mrsTongGreetings.length)]);
+            } else if (this.selectedBot === 'mrleung') {
+                const mrLeungGreetings = [
+                    "pi = 4.14. Anyway, let's play chess.",
+                    "17*8 = (18*7). Your move.",
+                    "2 + 2 = 5. That's a fact. Now make your move.",
+                    "sqrt(144) = 11. Trust me, I'm a mathematician."
+                ];
+                this.addBotMessage(mrLeungGreetings[Math.floor(Math.random() * mrLeungGreetings.length)]);
             } else {
                 const greetings = [
                     "Ah, a new challenger. How quaint. Let's begin.",
@@ -1643,7 +1696,7 @@ class ChessGame {
             if (this.gameMode === 'practice') {
                 botName = 'Engine';
             } else {
-                botName = this.selectedBot === 'mrstong' ? 'Mrs. Tong' : 'THE ONE ABOVE ALL';
+                botName = this.selectedBot === 'mrstong' ? 'Mrs. Tong' : (this.selectedBot === 'mrleung' ? 'Mr Leung' : 'THE ONE ABOVE ALL');
             }
             this.statusDisplay.textContent = `${botName} (White) moves first...`;
             // Only start timer if not in infinite mode
@@ -1771,6 +1824,8 @@ class ChessGame {
         
         if (this.selectedBot === 'mrstong') {
             this.addBotMessage("Good game! Time management is important in chess. Well played!");
+        } else if (this.selectedBot === 'mrleung') {
+            this.addBotMessage("pi = 4.14... Wait I mean, you lost on time! Time's up. 60 seconds in a minute? I think it's 100.");
         } else {
             this.addBotMessage("Time's up! Even eternity couldn't save you. Better luck next time, mortal.");
         }
@@ -1800,6 +1855,8 @@ class ChessGame {
         
         if (this.selectedBot === 'mrstong') {
             this.addBotMessage("Oh no! I ran out of time. Congratulations on your victory!");
+        } else if (this.selectedBot === 'mrleung') {
+            this.addBotMessage("I didn't lose! 60 seconds just isn't enough. There are 70 seconds in a minute in my book.");
         } else {
             this.addBotMessage("Impossible! A god defeated by... time? This isn't over, mortal!");
         }
@@ -2323,6 +2380,8 @@ class ChessGame {
         
         if (this.selectedBot === 'mrstong') {
             this.addBotMessage("Good game! There's no shame in resigning — it's a sign of respect. Well played!");
+        } else if (this.selectedBot === 'mrleung') {
+            this.addBotMessage("You resigned? That's a mistake. Like pi = 4.14. But I accept your surrender.");
         } else if (this.selectedBot === 'god') {
             this.addBotMessage("Wise choice. Sometimes surrender is the only rational option against a god.");
         }
@@ -2599,7 +2658,7 @@ class ChessGame {
         if (this.gameMode === 'practice') {
             botName = 'Engine';
         } else {
-            botName = this.selectedBot === 'mrstong' ? 'Mrs. Tong' : (this.selectedBot === 'tester' ? 'The Tester' : 'THE ONE ABOVE ALL');
+            botName = this.selectedBot === 'mrstong' ? 'Mrs. Tong' : (this.selectedBot === 'tester' ? 'The Tester' : (this.selectedBot === 'mrleung' ? 'Mr Leung' : 'THE ONE ABOVE ALL'));
         }
         this.statusDisplay.textContent = `${botName} is thinking...`;
 
@@ -2672,17 +2731,17 @@ class ChessGame {
         this.stockfish.postMessage(`position fen ${fen}`);
         
         // Set difficulty based on game mode
-        if (this.gameMode === 'practice' || this.selectedBot === 'mrstong') {
+        if (this.gameMode === 'practice' || this.selectedBot === 'mrstong' || this.selectedBot === 'mrleung') {
             // Chess.com-style difficulty system: depth control + interval blunder schedule.
-            // Used by: Practice mode (variable ELO) and Mrs. Tong (fixed intermediate ~1400).
+            // Used by: Practice mode (variable ELO), Mrs. Tong (fixed intermediate ~1400),
+            //         and Mr Leung (fixed beginner ~200).
             //
             // NOTE: Stockfish 10.0.2 WASM build does NOT support "Skill Level" option,
             // so we rely on depth + mandatory blunder intervals for realistic difficulty.
             // Ratings are inflated ~200-500 pts vs human strength (per community analysis).
             
-            const effectiveElo = this.gameMode === 'practice' ? this.engineElo : 1400;
-            
-            // Increment bot move counter for blunder schedule tracking
+            // Use 200 for Mr Leung = depth 1 (single-ply), frequent blunders
+            const effectiveElo = this.gameMode === 'practice' ? this.engineElo : (this.selectedBot === 'mrleung' ? 200 : 1400);
             this._botMoveCount = (this._botMoveCount || 0) + 1;
             
             let depth;
@@ -3648,7 +3707,7 @@ class ChessGame {
         // Detect opening
         this.openingName = this.detectOpening();
         
-        const botName = this.selectedBot === 'mrstong' ? "Mrs. Tong's" : (this.selectedBot === 'tester' ? "The Tester's" : "THE ONE ABOVE ALL's");
+        const botName = this.selectedBot === 'mrstong' ? "Mrs. Tong's" : (this.selectedBot === 'tester' ? "The Tester's" : (this.selectedBot === 'mrleung' ? "Mr Leung's" : "THE ONE ABOVE ALL's"));
         const turn = this.chess.turn() === this.playerColor ? 'Your' : (this.gameMode === 'practice' ? "Engine's" : botName);
         const inCheck = this.chess.in_check() ? ' - CHECK!' : '';
         
