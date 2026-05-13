@@ -69,35 +69,35 @@
                 <div style="margin-bottom: 20px;">
                     <div style="color: rgba(255, 255, 255, 0.5); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">Select Opponent</div>
                     
-                    <div id="bot-god" class="bot-option" data-bot="god" style="display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(255, 255, 255, 0.05); border: 2px solid transparent; border-radius: 8px; cursor: pointer; transition: all 0.2s; margin-bottom: 8px;" onmouseover="this.style.background='rgba(118, 150, 86, 0.1)'; this.style.borderColor='#769656'" onmouseout="if(!this.classList.contains('selected')) { this.style.background='rgba(255, 255, 255, 0.05)'; this.style.borderColor='transparent'; }">
-                        <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;">🤖</div>
+                    <div id="bot-god" class="bot-option bot-option-card" data-bot="god">
+                        <div class="bot-option-card-avatar" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">🤖</div>
                         <div style="flex: 1;">
-                            <div style="color: #fff; font-weight: 600; font-size: 15px;">THE ONE ABOVE ALL</div>
-                            <div style="color: rgba(255, 255, 255, 0.5); font-size: 12px;">Expert | 2800+</div>
+                            <div class="bot-option-name">THE ONE ABOVE ALL</div>
+                            <div class="bot-option-desc">Expert | 2800+</div>
                         </div>
                     </div>
                     
-                    <div id="bot-mrstong" class="bot-option" data-bot="mrstong" style="display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(255, 255, 255, 0.05); border: 2px solid transparent; border-radius: 8px; cursor: pointer; transition: all 0.2s; margin-bottom: 8px;" onmouseover="this.style.background='rgba(118, 150, 86, 0.1)'; this.style.borderColor='#769656'" onmouseout="if(!this.classList.contains('selected')) { this.style.background='rgba(255, 255, 255, 0.05)'; this.style.borderColor='transparent'; }">
-                        <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;">👩</div>
+                    <div id="bot-mrstong" class="bot-option bot-option-card" data-bot="mrstong">
+                        <div class="bot-option-card-avatar" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">👩</div>
                         <div style="flex: 1;">
-                            <div style="color: #fff; font-weight: 600; font-size: 15px;">Mrs. Tong</div>
-                            <div style="color: rgba(255, 255, 255, 0.5); font-size: 12px;">Int-Adv | 1800-2000</div>
+                            <div class="bot-option-name">Mrs. Tong</div>
+                            <div class="bot-option-desc">Int-Adv | 1800-2000</div>
                         </div>
                     </div>
                     
-                    <div id="bot-tester" class="bot-option" data-bot="tester" style="display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(255, 255, 255, 0.05); border: 2px solid transparent; border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(118, 150, 86, 0.1)'; this.style.borderColor='#769656'" onmouseout="if(!this.classList.contains('selected')) { this.style.background='rgba(255, 255, 255, 0.05)'; this.style.borderColor='transparent'; }">
-                        <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;">🧪</div>
+                    <div id="bot-tester" class="bot-option bot-option-card" data-bot="tester">
+                        <div class="bot-option-card-avatar" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">🧪</div>
                         <div style="flex: 1;">
-                            <div style="color: #fff; font-weight: 600; font-size: 15px;">The Tester</div>
-                            <div style="color: rgba(255, 255, 255, 0.5); font-size: 12px;">Estimate ELO</div>
+                            <div class="bot-option-name">The Tester</div>
+                            <div class="bot-option-desc">Estimate ELO</div>
                         </div>
                     </div>
                     
-                    <div id="bot-mrleung" class="bot-option" data-bot="mrleung" style="display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(255, 255, 255, 0.05); border: 2px solid transparent; border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(118, 150, 86, 0.1)'; this.style.borderColor='#769656'" onmouseout="if(!this.classList.contains('selected')) { this.style.background='rgba(255, 255, 255, 0.05)'; this.style.borderColor='transparent'; }">
-                        <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;">🧮</div>
+                    <div id="bot-mrleung" class="bot-option bot-option-card" data-bot="mrleung">
+                        <div class="bot-option-card-avatar" style="background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);">🧮</div>
                         <div style="flex: 1;">
-                            <div style="color: #fff; font-weight: 600; font-size: 15px;">Mr Leung</div>
-                            <div style="color: rgba(255, 255, 255, 0.5); font-size: 12px;">🔢 Wrong math, right moves</div>
+                            <div class="bot-option-name">Mr Leung</div>
+                            <div class="bot-option-desc">🔢 Wrong math, right moves</div>
                         </div>
                     </div>
                 </div>
@@ -196,19 +196,19 @@
             <h2 style="color: #fff; margin-bottom: 12px;">👑 Choose Promotion</h2>
             <p style="color: #ddd; font-size: 14px; margin-bottom: 20px;">Your pawn reached the last rank! Pick a piece:</p>
             <div style="display: flex; gap: 12px; justify-content: center;">
-                <button class="promotion-option" data-piece="q" style="flex: 1; padding: 16px 10px; background: rgba(118,150,86,0.15); border: 2px solid rgba(255,255,255,0.2); border-radius: 10px; cursor: pointer; color: #fff; font-size: 13px; font-weight: 600; transition: all 0.15s;" onmouseover="this.style.borderColor='#769656';this.style.background='rgba(118,150,86,0.3)';this.style.transform='scale(1.05)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.2)';this.style.background='rgba(118,150,86,0.15)';this.style.transform='scale(1)'">
+                <button class="promotion-option promotion-option-btn" data-piece="q">
                     <div style="font-size: 42px;">♕</div>
                     <div>Queen</div>
                 </button>
-                <button class="promotion-option" data-piece="r" style="flex: 1; padding: 16px 10px; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); border-radius: 10px; cursor: pointer; color: #fff; font-size: 13px; font-weight: 600; transition: all 0.15s;" onmouseover="this.style.borderColor='#769656';this.style.background='rgba(118,150,86,0.3)';this.style.transform='scale(1.05)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.1)';this.style.background='rgba(255,255,255,0.05)';this.style.transform='scale(1)'">
+                <button class="promotion-option promotion-option-btn" data-piece="r">
                     <div style="font-size: 42px;">♖</div>
                     <div>Rook</div>
                 </button>
-                <button class="promotion-option" data-piece="b" style="flex: 1; padding: 16px 10px; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); border-radius: 10px; cursor: pointer; color: #fff; font-size: 13px; font-weight: 600; transition: all 0.15s;" onmouseover="this.style.borderColor='#769656';this.style.background='rgba(118,150,86,0.3)';this.style.transform='scale(1.05)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.1)';this.style.background='rgba(255,255,255,0.05)';this.style.transform='scale(1)'">
+                <button class="promotion-option promotion-option-btn" data-piece="b">
                     <div style="font-size: 42px;">♗</div>
                     <div>Bishop</div>
                 </button>
-                <button class="promotion-option" data-piece="n" style="flex: 1; padding: 16px 10px; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); border-radius: 10px; cursor: pointer; color: #fff; font-size: 13px; font-weight: 600; transition: all 0.15s;" onmouseover="this.style.borderColor='#769656';this.style.background='rgba(118,150,86,0.3)';this.style.transform='scale(1.05)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.1)';this.style.background='rgba(255,255,255,0.05)';this.style.transform='scale(1)'">
+                <button class="promotion-option promotion-option-btn" data-piece="n">
                     <div style="font-size: 42px;">♘</div>
                     <div>Knight</div>
                 </button>
@@ -292,19 +292,19 @@
             <div id="authForms">
                 <!-- Login Form -->
                 <div id="loginForm">
-                    <input type="email" id="loginEmail" class="chat-input" placeholder="Email" style="margin-bottom: 15px; width: 100%; box-sizing: border-box; padding: 12px; background: rgba(139, 0, 0, 0.3); border: 2px solid #ff0000; color: #fff; font-size: 16px; border-radius: 8px;" />
-                    <input type="password" id="loginPassword" class="chat-input" placeholder="Password" style="margin-bottom: 15px; width: 100%; box-sizing: border-box; padding: 12px; background: rgba(139, 0, 0, 0.3); border: 2px solid #ff0000; color: #fff; font-size: 16px; border-radius: 8px;" />
-                    <button id="loginBtn" class="btn btn-primary" style="width: 100%; margin-bottom: 15px; padding: 12px; background: linear-gradient(135deg, #ff0000, #dc143c); border: 2px solid #ff0000; color: #fff; font-size: 18px; font-weight: bold; border-radius: 8px; cursor: pointer; text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);">Login</button>
-                    <p style="color: #ff6b6b; text-align: center; margin: 0; font-size: 14px;">Don't have an account? <a href="#" id="showSignupBtn" style="color: #ff0000; text-decoration: none; font-weight: bold; text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);">Sign Up</a></p>
+                    <input type="email" id="loginEmail" class="auth-input" placeholder="Email" />
+                    <input type="password" id="loginPassword" class="auth-input" placeholder="Password" />
+                    <button id="loginBtn" class="auth-btn">Login</button>
+                    <p style="color: #ff6b6b; text-align: center; margin: 0; font-size: 14px;">Don't have an account? <a href="#" id="showSignupBtn" class="auth-link">Sign Up</a></p>
                 </div>
                 
                 <!-- Signup Form -->
                 <div id="signupForm" style="display: none;">
-                    <input type="text" id="signupUsername" class="chat-input" placeholder="Username" style="margin-bottom: 15px; width: 100%; box-sizing: border-box; padding: 12px; background: rgba(139, 0, 0, 0.3); border: 2px solid #ff0000; color: #fff; font-size: 16px; border-radius: 8px;" />
-                    <input type="email" id="signupEmail" class="chat-input" placeholder="Email" style="margin-bottom: 15px; width: 100%; box-sizing: border-box; padding: 12px; background: rgba(139, 0, 0, 0.3); border: 2px solid #ff0000; color: #fff; font-size: 16px; border-radius: 8px;" />
-                    <input type="password" id="signupPassword" class="chat-input" placeholder="Password (min 6 characters)" style="margin-bottom: 15px; width: 100%; box-sizing: border-box; padding: 12px; background: rgba(139, 0, 0, 0.3); border: 2px solid #ff0000; color: #fff; font-size: 16px; border-radius: 8px;" />
-                    <button id="signupBtn" class="btn btn-primary" style="width: 100%; margin-bottom: 15px; padding: 12px; background: linear-gradient(135deg, #ff0000, #dc143c); border: 2px solid #ff0000; color: #fff; font-size: 18px; font-weight: bold; border-radius: 8px; cursor: pointer; text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);">Sign Up</button>
-                    <p style="color: #ff6b6b; text-align: center; margin: 0; font-size: 14px;">Already have an account? <a href="#" id="showLoginBtn" style="color: #ff0000; text-decoration: none; font-weight: bold; text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);">Login</a></p>
+                    <input type="text" id="signupUsername" class="auth-input" placeholder="Username" />
+                    <input type="email" id="signupEmail" class="auth-input" placeholder="Email" />
+                    <input type="password" id="signupPassword" class="auth-input" placeholder="Password (min 6 characters)" />
+                    <button id="signupBtn" class="auth-btn">Sign Up</button>
+                    <p style="color: #ff6b6b; text-align: center; margin: 0; font-size: 14px;">Already have an account? <a href="#" id="showLoginBtn" class="auth-link">Login</a></p>
                 </div>
             </div>
             
@@ -327,10 +327,10 @@
             
             <!-- Tutorial Navigation -->
             <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
-                <button class="tutorial-nav-btn" data-step="1" style="padding: 8px 16px; background: #769656; border: none; color: #fff; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px;">1. Pieces</button>
-                <button class="tutorial-nav-btn" data-step="2" style="padding: 8px 16px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; border-radius: 6px; cursor: pointer; font-size: 13px;">2. Pawn</button>
-                <button class="tutorial-nav-btn" data-step="3" style="padding: 8px 16px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; border-radius: 6px; cursor: pointer; font-size: 13px;">3. Special</button>
-                <button class="tutorial-nav-btn" data-step="4" style="padding: 8px 16px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; border-radius: 6px; cursor: pointer; font-size: 13px;">4. Check</button>
+                <button class="tutorial-nav-btn active" data-step="1">1. Pieces</button>
+                <button class="tutorial-nav-btn" data-step="2">2. Pawn</button>
+                <button class="tutorial-nav-btn" data-step="3">3. Special</button>
+                <button class="tutorial-nav-btn" data-step="4">4. Check</button>
             </div>
             
             <!-- Tutorial Content -->
