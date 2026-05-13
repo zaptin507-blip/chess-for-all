@@ -2661,7 +2661,37 @@ class ChessGame {
             botName = this.selectedBot === 'mrstong' ? 'Mrs. Tong' : (this.selectedBot === 'tester' ? 'The Tester' : (this.selectedBot === 'mrleung' ? 'Mr Leung' : 'THE ONE ABOVE ALL'));
         }
         this.statusDisplay.textContent = `${botName} is thinking...`;
-
+        
+        // Mr Leung — skip Stockfish entirely, just play a random legal move (always the worst possible play)
+        if (this.selectedBot === 'mrleung') {
+            setTimeout(() => {
+                const moves = this.chess.moves({ verbose: true });
+                if (moves.length === 0) {
+                    this.handleGameOver();
+                    return;
+                }
+                const randomMove = moves[Math.floor(Math.random() * moves.length)];
+                const fenBefore = this.chess.fen();
+                const move = this.chess.move(randomMove.san);
+                if (move) {
+                    this.playSound(move);
+                    this.moveHistory.push({
+                        move: move,
+                        fenBefore: fenBefore,
+                        fenAfter: this.chess.fen()
+                    });
+                    this.lastMove = move;
+                    this.renderBoard();
+                    this.updateMoveList();
+                    this.updateStatus();
+                    this.switchTurn();
+                } else {
+                    this.handleGameOver();
+                }
+            }, 300);
+            return;
+        }
+        
         const fen = this.chess.fen();
         
         const listener = (event) => {
@@ -6561,7 +6591,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (!auth) throw new Error('Firebase not configured - try hard refreshing (Cmd+Shift+R)');
                 console.log('🔑 Attempting Firebase login...');
-                await auth.signInWithEmailAndPassword(email, password);
+                
+                // Add a timeout so login doesn't hang forever if Firebase is unreachable
+                const loginPromise = auth.signInWithEmailAndPassword(email, password);
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Login timed out — Firebase auth server is not responding. Your Firebase project may have been deleted or auth disabled.')), 15000)
+                );
+                await Promise.race([loginPromise, timeoutPromise]);
                 console.log('🔑 Login successful!');
                 const authModal = document.getElementById('authModal');
                 if (authModal) authModal.style.display = 'none';
