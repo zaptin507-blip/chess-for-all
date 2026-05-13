@@ -4071,12 +4071,12 @@ class ChessGame {
                     } else if (style === 'dark') {
                         cssClass = 'piece piece-dark';
                         if (pieceKey.startsWith('w')) {
-                            displaySvg = displaySvg.replace(/fill="#fff"/g, 'fill="#e8eaf0"');
-                            displaySvg = displaySvg.replace(/stroke="#000"/g, 'stroke="#4a7ed4"');
+                            displaySvg = displaySvg.replace(/fill="#fff"/g, 'fill="#f0ece4"');
+                            displaySvg = displaySvg.replace(/stroke="#000"/g, 'stroke="#554840"');
                         } else {
-                            displaySvg = displaySvg.replace(/fill="#000"/g, 'fill="#030303"');
-                            displaySvg = displaySvg.replace(/stroke="#000"/g, 'stroke="#8b0000"');
-                            displaySvg = displaySvg.replace(/stroke="#ececec"/g, 'stroke="#cc4444"');
+                            displaySvg = displaySvg.replace(/fill="#000"/g, 'fill="#121212"');
+                            displaySvg = displaySvg.replace(/stroke="#000"/g, 'stroke="#444444"');
+                            displaySvg = displaySvg.replace(/stroke="#ececec"/g, 'stroke="#777777"');
                         }
                     } else if (style === 'cburnett') {
                         cssClass = 'piece piece-classic';
@@ -5773,10 +5773,18 @@ const firebaseConfig = {
 // Initialize Firebase (replace config with your actual Firebase project)
 let auth, db;
 try {
-    firebase.initializeApp(firebaseConfig);
-    auth = firebase.auth();
-    // Use Realtime Database instead of Firestore
-    db = firebase.database();
+    console.log('🔑 Firebase init - firebase global exists:', typeof firebase !== 'undefined');
+    if (typeof firebase === 'undefined') {
+        console.error('❌ Firebase SDK not loaded! Check CDN script URLs in index.html');
+        auth = null;
+        db = null;
+    } else {
+        firebase.initializeApp(firebaseConfig);
+        auth = firebase.auth();
+        // Use Realtime Database instead of Firestore
+        db = firebase.database();
+        console.log('🔑 Firebase initialized successfully, auth:', !!auth);
+    }
 } catch (error) {
     console.error('Firebase initialization error:', error);
     auth = null;
@@ -6035,18 +6043,16 @@ ChessGame.prototype.applyPieceStyle = function(style) {
                 modified = modified.replace(/stroke="#ececec"/g, 'stroke="#666"');
             }
         } else if (style === 'dark') {
-            // === DARK: Intimidating with Colored Aura ===
+            // === DARK: Refined Natural — warm ivory, soft contrast, elegant ===
             if (pieceKey.startsWith('w')) {
-                // White pieces: ghostly pale with icy blue stroke
-                modified = modified.replace(/fill="#fff"/g, 'fill="#e8eaf0"');
-                modified = modified.replace(/stroke="#000"/g, 'stroke="#4a7ed4"');
-                pieceEl.style.setProperty('--glow-color', 'rgba(74, 126, 212, 0.5)');
+                // White pieces: warm ivory like real boxwood chess pieces
+                modified = modified.replace(/fill="#fff"/g, 'fill="#f0ece4"');
+                modified = modified.replace(/stroke="#000"/g, 'stroke="#554840"');
             } else {
-                // Black pieces: pitch darkness with blood red stroke
-                modified = modified.replace(/fill="#000"/g, 'fill="#030303"');
-                modified = modified.replace(/stroke="#000"/g, 'stroke="#8b0000"');
-                modified = modified.replace(/stroke="#ececec"/g, 'stroke="#cc4444"');
-                pieceEl.style.setProperty('--glow-color', 'rgba(139, 0, 0, 0.6)');
+                // Black pieces: deep charcoal with warm gray details
+                modified = modified.replace(/fill="#000"/g, 'fill="#121212"');
+                modified = modified.replace(/stroke="#000"/g, 'stroke="#444444"');
+                modified = modified.replace(/stroke="#ececec"/g, 'stroke="#777777"');
             }
         }
         // Classic style: just use original SVG (no modifications)
@@ -6468,24 +6474,40 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginBtn = document.getElementById('loginBtn');
     if (loginBtn) {
         loginBtn.addEventListener('click', async () => {
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
+            console.log('🔑 Login button clicked, auth available:', !!auth);
             const errorDiv = document.getElementById('authError');
-            
-            if (!email || !password) {
-                if (errorDiv) {
-                    errorDiv.textContent = 'Please fill in all fields';
-                    errorDiv.style.display = 'block';
-                }
-                return;
-            }
-            
             try {
-                if (!auth) throw new Error('Firebase not configured');
+                const emailInput = document.getElementById('loginEmail');
+                const passwordInput = document.getElementById('loginPassword');
+                
+                if (!emailInput || !passwordInput) {
+                    console.error('Login form elements not found!');
+                    if (errorDiv) {
+                        errorDiv.textContent = 'Error: Login form not found in page';
+                        errorDiv.style.display = 'block';
+                    }
+                    return;
+                }
+                
+                const email = emailInput.value;
+                const password = passwordInput.value;
+                
+                if (!email || !password) {
+                    if (errorDiv) {
+                        errorDiv.textContent = 'Please fill in all fields';
+                        errorDiv.style.display = 'block';
+                    }
+                    return;
+                }
+                
+                if (!auth) throw new Error('Firebase not configured - try hard refreshing (Cmd+Shift+R)');
+                console.log('🔑 Attempting Firebase login...');
                 await auth.signInWithEmailAndPassword(email, password);
+                console.log('🔑 Login successful!');
                 const authModal = document.getElementById('authModal');
                 if (authModal) authModal.style.display = 'none';
             } catch (error) {
+                console.error('🔑 Login error:', error);
                 if (errorDiv) {
                     errorDiv.textContent = error.message;
                     errorDiv.style.display = 'block';
@@ -6498,29 +6520,42 @@ document.addEventListener('DOMContentLoaded', () => {
     const signupBtn = document.getElementById('signupBtn');
     if (signupBtn) {
         signupBtn.addEventListener('click', async () => {
-            const username = document.getElementById('signupUsername').value;
-            const email = document.getElementById('signupEmail').value;
-            const password = document.getElementById('signupPassword').value;
+            console.log('🔑 Signup button clicked, auth available:', !!auth);
             const errorDiv = document.getElementById('authError');
             const successDiv = document.getElementById('authSuccess');
-            
-            if (!username || !email || !password) {
-                if (errorDiv) {
-                    errorDiv.textContent = 'Please fill in all fields';
-                    errorDiv.style.display = 'block';
-                }
-                return;
-            }
-            
-            if (password.length < 6) {
-                if (errorDiv) {
-                    errorDiv.textContent = 'Password must be at least 6 characters';
-                    errorDiv.style.display = 'block';
-                }
-                return;
-            }
-            
             try {
+                const usernameInput = document.getElementById('signupUsername');
+                const emailInput = document.getElementById('signupEmail');
+                const passwordInput = document.getElementById('signupPassword');
+                
+                if (!usernameInput || !emailInput || !passwordInput) {
+                    if (errorDiv) {
+                        errorDiv.textContent = 'Error: Signup form not found';
+                        errorDiv.style.display = 'block';
+                    }
+                    return;
+                }
+                
+                const username = usernameInput.value;
+                const email = emailInput.value;
+                const password = passwordInput.value;
+                
+                if (!username || !email || !password) {
+                    if (errorDiv) {
+                        errorDiv.textContent = 'Please fill in all fields';
+                        errorDiv.style.display = 'block';
+                    }
+                    return;
+                }
+                
+                if (password.length < 6) {
+                    if (errorDiv) {
+                        errorDiv.textContent = 'Password must be at least 6 characters';
+                        errorDiv.style.display = 'block';
+                    }
+                    return;
+                }
+                
                 if (!auth) throw new Error('Firebase not configured. Please set up Firebase first.');
                 const userCredential = await auth.createUserWithEmailAndPassword(email, password);
                 

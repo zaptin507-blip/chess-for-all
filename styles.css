@@ -268,12 +268,12 @@ body {
 
 /* Classic — enhanced layered shadow for depth */
 .piece-classic svg {
-    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.12)) drop-shadow(0 2px 3px rgba(0,0,0,0.15));
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.12)) drop-shadow(0 2px 4px rgba(0,0,0,0.10)) drop-shadow(0 6px 8px rgba(0,0,0,0.06));
 }
 
 /* Neo — modern minimal with warm depth */
 .piece-neo svg {
-    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.18)) drop-shadow(0 2px 4px rgba(0,0,0,0.12));
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.18)) drop-shadow(0 2px 5px rgba(0,0,0,0.12));
 }
 
 /* Shadow — extreme 3D depth with breathing animation */
@@ -290,18 +290,9 @@ body {
     animation: shadowBreathe 4s ease-in-out infinite;
 }
 
-/* Dark — intimidating with colored aura */
-@keyframes darkPulse {
-    0%, 100% {
-        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6)) drop-shadow(0 0 8px var(--glow-color, rgba(139,0,0,0.2)));
-    }
-    50% {
-        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6)) drop-shadow(0 0 18px var(--glow-color, rgba(139,0,0,0.5)));
-    }
-}
-
+/* Dark — Refined Natural: warm ivory, elegant shadow */
 .piece-dark svg {
-    animation: darkPulse 3s ease-in-out infinite;
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.15)) drop-shadow(0 2px 3px rgba(0,0,0,0.10)) drop-shadow(0 5px 7px rgba(0,0,0,0.06));
 }
 
 .sidebar {

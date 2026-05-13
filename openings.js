@@ -1119,12 +1119,12 @@ function generateOpeningBoard(fen, size = 200) {
                         }
                     } else if (pieceStyle === 'dark') {
                         if (pieceKey.startsWith('w')) {
-                            svgStr = svgStr.replace(/fill="#fff"/g, 'fill="#e8eaf0"');
-                            svgStr = svgStr.replace(/stroke="#000"/g, 'stroke="#4a7ed4"');
+                            svgStr = svgStr.replace(/fill="#fff"/g, 'fill="#f0ece4"');
+                            svgStr = svgStr.replace(/stroke="#000"/g, 'stroke="#554840"');
                         } else {
-                            svgStr = svgStr.replace(/fill="#000"/g, 'fill="#030303"');
-                            svgStr = svgStr.replace(/stroke="#000"/g, 'stroke="#8b0000"');
-                            svgStr = svgStr.replace(/stroke="#ececec"/g, 'stroke="#cc4444"');
+                            svgStr = svgStr.replace(/fill="#000"/g, 'fill="#121212"');
+                            svgStr = svgStr.replace(/stroke="#000"/g, 'stroke="#444444"');
+                            svgStr = svgStr.replace(/stroke="#ececec"/g, 'stroke="#777777"');
                         }
                     }
                     
