@@ -172,6 +172,20 @@ class ChessGame {
             this.musicSource = 'none';
         }.bind(this);
         
+        // Ensure AudioContext is ready for playback (called during user gestures)
+        this.ensureAudioContext = function() {
+            try {
+                if (!this.audioContext) {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.audioContext.state === 'suspended') {
+                    this.audioContext.resume();
+                }
+            } catch (e) {
+                // AudioContext not available; HTMLAudioElement fallback handles playback
+            }
+        }.bind(this);
+        
         // Unicode chess pieces (simple and reliable)
         this.pieceUnicode = {
             'wK': '♔', 'wQ': '♕', 'wR': '♖', 'wB': '♗', 'wN': '♘', 'wP': '♙',
@@ -1343,6 +1357,11 @@ class ChessGame {
                 }
             });
         }
+        
+        // Populate welcome screen with saved user stats
+        if (typeof window.updateHomeStats === 'function') {
+            window.updateHomeStats();
+        }
     }
 
     setupDropdowns() {
@@ -1870,10 +1889,12 @@ class ChessGame {
                     const pieceKey = piece.color + piece.type.toUpperCase();
                     const pieceElement = document.createElement('div');
                     pieceElement.className = 'piece';
-                    // Use SVG chess pieces (chess.com/lichess cburnett style)
-                    const svgCode = this.pieceSVG[pieceKey];
+                    // Use SVG chess pieces, fallback to Unicode if missing
+                    const svgCode = this.pieceSVG ? this.pieceSVG[pieceKey] : null;
                     if (svgCode) {
                         pieceElement.innerHTML = svgCode;
+                    } else {
+                        pieceElement.textContent = this.pieceUnicode[pieceKey] || '?';
                     }
                     
                     pieceElement.dataset.piece = pieceKey;
@@ -4131,7 +4152,12 @@ class ChessGame {
                         
                     sq.element.innerHTML = `<div class="${cssClass}" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">${displaySvg}</div>`;
                 } else {
-                    sq.element.textContent = pieceKey;
+                    const fallbackPieces = {
+                        'wK': '♔', 'wQ': '♕', 'wR': '♖', 'wB': '♗', 'wN': '♘', 'wP': '♙',
+                        'bK': '♚', 'bQ': '♛', 'bR': '♜', 'bB': '♝', 'bN': '♞', 'bP': '♟'
+                    };
+                    sq.element.textContent = fallbackPieces[pieceKey] || pieceKey;
+                    sq.element.style.fontSize = '28px';
                 }
             };
             
@@ -6057,7 +6083,7 @@ ChessGame.prototype.applyPieceStyle = function(style) {
             return;
         }
         
-        const svgCode = this.pieceSVG[pieceKey];
+        const svgCode = this.pieceSVG ? this.pieceSVG[pieceKey] : null;
         if (!svgCode) return;
         
         let modified = svgCode;
@@ -6914,6 +6940,8 @@ window.addEventListener('load', () => {
         
         // Check for Tester reminder (every 6 months)
         chessGame.checkTesterReminder();
+        
+
     } catch (error) {
         console.error('⚠️ Chess game initialization warning:', error);
         // Only show alert for critical errors that prevent the game from working
