@@ -4724,21 +4724,6 @@ class ChessGame {
             return;
         }
         
-
-        const analyzeBtn = document.getElementById('analyzeBtn');
-        const analysisPanel = document.getElementById('analysisPanel');
-        const analysisContent = document.getElementById('analysisContent');
-        
-        // Initialize timing
-        this.analysisStartTime = Date.now();
-        this.totalMovesToAnalyze = this.moveHistory.length;
-        this.movesAnalyzed = 0;
-        
-        analyzeBtn.title = 'Analyzing...';
-        analyzeBtn.disabled = true;
-        analysisPanel.style.display = 'block';
-        analysisContent.innerHTML = '<p style="color: #888;">Analyzing moves... This may take a moment.</p>';
-
         this.moveAnalyses = [];
         
         // Store original game data for replay functionality
@@ -4758,29 +4743,6 @@ class ChessGame {
                 
                 this.moveAnalyses.push(analysis);
                 this.movesAnalyzed = i + 1;
-                
-                // Update progress with time estimate
-                const progress = Math.round(((i + 1) / this.moveHistory.length) * 100);
-                const elapsed = (Date.now() - this.analysisStartTime) / 1000; // seconds
-                const avgTimePerMove = elapsed / (i + 1);
-                const remainingMoves = this.moveHistory.length - (i + 1);
-                const estimatedSeconds = Math.ceil(avgTimePerMove * remainingMoves);
-                const minutes = Math.floor(estimatedSeconds / 60);
-                const seconds = estimatedSeconds % 60;
-                
-                let timeText = '';
-                if (minutes > 0) {
-                    timeText = `~${minutes}m ${seconds}s remaining`;
-                } else {
-                    timeText = `~${seconds}s remaining`;
-                }
-                
-                analysisContent.innerHTML = `
-                    <p style="color: #888;">
-                        Analyzing... ${progress}%<br>
-                        <span style="font-size: 11px; color: #666;">${timeText}</span>
-                    </p>
-                `;
             } catch (error) {
                 console.error(`Error analyzing move ${i + 1}:`, error);
                 // Add a fallback analysis for this move
@@ -4819,128 +4781,100 @@ class ChessGame {
 
         // Re-render move list with annotations
         this.updateMoveList();
-
-        // Display results
-        this.displayAnalysis();
-        analyzeBtn.title = 'Analysis Complete';
-        analyzeBtn.disabled = false;
+        
+        // Show Game Review panel
+        this.updateGameReview(this.currentMoveIndex);
+        
+        // Show the game review panel
+        document.getElementById('gameReviewPanel').style.display = 'block';
     }
 
-    displayAnalysis() {
-        const analysisContent = document.getElementById('analysisContent');
-        analysisContent.innerHTML = '';
-
-        const classificationIcons = {
-            'book': '📖',
-            'best': '⭐',
-            'brilliant': '✨',
-            'critical': '🔑',
-            'forced': '🔒',
-            'excellent': '👏',
-            'okay': '✓',
-            'inaccuracy': '⚡',
-            'mistake': '⚠️',
-            'blunder': '❌',
-            'missedWin': '🎯',
-            'great': '👍',
-            'good': '✓'
-        };
-
-        const classificationColors = {
-            'book': '#8B7355',
-            'best': '#00ff00',
-            'brilliant': '#9c27b0',
-            'critical': '#5b8baf',
-            'forced': '#97af8b',
-            'excellent': '#00BCD4',
-            'okay': '#2196F3',
-            'inaccuracy': '#ffc107',
-            'mistake': '#ff9800',
-            'blunder': '#f44336',
-            'missedWin': '#FFD700',
-            'great': '#4CAF50',
-            'good': '#2196F3'
-        };
-
-        // Only analyze moves that exist in both arrays
-        const movesToDisplay = Math.min(this.moveAnalyses.length, this.moveHistory.length);
+    updateGameReview(index) {
+        const chat = document.getElementById('reviewChat');
+        const classIcon = document.getElementById('reviewClassificationIcon');
+        const moveText = document.getElementById('reviewMoveText');
+        const evalEl = document.getElementById('reviewEval');
+        const descEl = document.getElementById('reviewDescription');
+        const suggestEl = document.getElementById('reviewSuggestion');
+        const statsContainer = document.getElementById('reviewSummaryStats');
         
-        for (let index = 0; index < movesToDisplay; index++) {
-            const analysis = this.moveAnalyses[index];
-            
-            const moveDiv = document.createElement('div');
-            moveDiv.className = 'analysis-move';
-            
-            // Safety check - make sure moveHistory has data for this index
-            if (!this.moveHistory[index]) {
-                console.error(`Move history missing at index ${index}`);
-                return;
-            }
-            
-            // Store the FEN before this move
-            const fenBefore = this.moveHistory[index].fenBefore;
-            const fenAfter = this.moveHistory[index].fenAfter;
-            
-            moveDiv.addEventListener('click', () => {
-                this.showPositionAtMove(index);
+        if (!this.moveAnalyses || !this.moveAnalyses[index]) {
+            return;
+        }
+        
+        const analysis = this.moveAnalyses[index];
+        
+        const icons = {
+            'brilliant': '✨', 'critical': '!', 'best': '★',
+            'excellent': '!', 'okay': '□', 'inaccuracy': '?!',
+            'mistake': '?', 'blunder': '??', 'book': '📖',
+            'forced': '□', 'great': '!', 'good': '✓', 'missedWin': '🎯'
+        };
+        
+        const colors = {
+            'brilliant': '#9c27b0', 'critical': '#5b8baf', 'best': '#00ff00',
+            'excellent': '#00BCD4', 'okay': '#2196F3', 'inaccuracy': '#ffc107',
+            'mistake': '#ff9800', 'blunder': '#f44336', 'book': '#8B7355',
+            'forced': '#97af8b', 'great': '#4CAF50', 'good': '#888', 'missedWin': '#FFD700'
+        };
+        
+        chat.style.display = 'flex';
+        classIcon.textContent = icons[analysis.classification] || '✓';
+        moveText.textContent = analysis.move;
+        moveText.style.color = colors[analysis.classification] || '#888';
+        
+        // Format evaluation
+        const evalScore = analysis.evalAfter || 0;
+        let evalText;
+        if (evalScore > 0) {
+            evalText = '+' + (evalScore / 100).toFixed(2);
+            evalEl.style.color = '#81C784';
+        } else if (evalScore < 0) {
+            evalText = (evalScore / 100).toFixed(2);
+            evalEl.style.color = '#e57373';
+        } else {
+            evalText = '0.00';
+            evalEl.style.color = '#888';
+        }
+        evalEl.textContent = evalText;
+        
+        descEl.textContent = analysis.description || '';
+        
+        if (analysis.suggestedMove) {
+            suggestEl.style.display = 'block';
+            suggestEl.innerHTML = '\u{1F4A1} Better was <strong>' + analysis.suggestedMove + '</strong>';
+        } else {
+            suggestEl.style.display = 'none';
+        }
+        
+        // Update summary
+        if (this.moveAnalyses && this.moveAnalyses.length > 0) {
+            document.getElementById('reviewSummary').style.display = 'block';
+            const counts = {};
+            this.moveAnalyses.forEach(a => {
+                counts[a.classification] = (counts[a.classification] || 0) + 1;
             });
             
-            const moveNumber = Math.floor(index / 2) + 1;
-            const isWhite = index % 2 === 0;
+            const statConfig = [
+                { key: 'brilliant', icon: '\u2728', label: 'Brilliant' },
+                { key: 'best', icon: '\u2605', label: 'Best' },
+                { key: 'excellent', icon: '!', label: 'Excellent' },
+                { key: 'book', icon: '\u{1F4D6}', label: 'Book' },
+                { key: 'good', icon: '\u2713', label: 'Good' },
+                { key: 'inaccuracy', icon: '?!', label: 'Inaccuracy' },
+                { key: 'mistake', icon: '?', label: 'Mistake' },
+                { key: 'blunder', icon: '??', label: 'Blunder' },
+                { key: 'missedWin', icon: '\u{1F3AF}', label: 'Missed Win' }
+            ];
             
-            // Determine if this is player's move or bot's move
-            const isPlayerMove = (isWhite && this.playerColor === 'w') || (!isWhite && this.playerColor === 'b');
-            const moveOwner = isPlayerMove ? '(Your move)' : '(Bot)';
-            const ownerColor = isPlayerMove ? '#4CAF50' : '#ff9800';
-            
-            const moveLabel = isWhite ? `${moveNumber}. ${analysis.move}` : `${moveNumber}... ${analysis.move}`;
-            
-            const icon = classificationIcons[analysis.classification] || '✓';
-            const color = classificationColors[analysis.classification] || '#888';
-            
-            let suggestedHTML = '';
-            if (analysis.suggestedMove) {
-                suggestedHTML = `<div style="margin-top: 4px; font-size: 11px; color: #4CAF50;">💡 Magnus would play: <strong>${analysis.suggestedMove}</strong></div>`;
-            }
-            
-            moveDiv.innerHTML = `
-                <div>
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                        <strong style="color: #fff; font-size: 13px;">${icon} ${moveLabel}</strong>
-                        <span style="font-size: 10px; color: ${ownerColor}; font-weight: bold;">${moveOwner}</span>
-                    </div>
-                    <div style="font-size: 12px; color: #888; margin-top: 2px;">${analysis.description}</div>
-                    ${suggestedHTML}
-                </div>
-                <div class="analysis-badge" style="background: ${color};">${analysis.classification}</div>
-            `;
-            
-            analysisContent.appendChild(moveDiv);
+            let html = '';
+            statConfig.forEach(stat => {
+                if (counts[stat.key]) {
+                    html += '<div class="stat-row"><span class="stat-label">' + stat.icon + ' ' + stat.label + '</span><span class="stat-value">' + counts[stat.key] + '</span></div>';
+                }
+            });
+            statsContainer.innerHTML = html;
         }
-
-        // Add summary
-        const summary = this.analyzer.generateAnalysisReport(this.moveAnalyses);
-        const summaryDiv = document.createElement('div');
-        summaryDiv.style.marginTop = '15px';
-        summaryDiv.style.padding = '10px';
-        summaryDiv.style.background = 'rgba(255, 255, 255, 0.05)';
-        summaryDiv.style.borderRadius = '5px';
-        summaryDiv.innerHTML = `
-            <h4 style="color: #fff; margin-bottom: 10px;">Summary</h4>
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 13px;">
-                <div style="color: #8B7355;">📖 Book Moves: ${summary.book || 0}</div>
-                <div style="color: #00ff00;">⭐ Best Moves: ${summary.best || 0}</div>
-                <div style="color: #9c27b0;">✨ Brilliant: ${summary.brilliant}</div>
-                <div style="color: #FFD700;">🎯 Missed Wins: ${summary.missedWin || 0}</div>
-                <div style="color: #4CAF50;">👍 Great: ${summary.great}</div>
-                <div style="color: #00BCD4;">👏 Excellent: ${summary.excellent || 0}</div>
-                <div style="color: #2196F3;">✓ Good: ${summary.good}</div>
-                <div style="color: #ffc107;">⚡ Inaccuracies: ${summary.inaccuracy || 0}</div>
-                <div style="color: #ff9800;">⚠️ Mistakes: ${summary.mistake}</div>
-                <div style="color: #f44336;">❌ Blunders: ${summary.blunder}</div>
-            </div>
-        `;
-        analysisContent.appendChild(summaryDiv);
     }
 
     showPositionAtMove(index) {
@@ -5335,18 +5269,6 @@ class ChessGame {
                     `;
                 }
                 
-                // Highlight the move in analysis panel
-                const moveDivs = document.querySelectorAll('.analysis-move');
-                moveDivs.forEach((div, i) => {
-                    if (i === targetIndex) {
-                        const highlightColor = showSuggestion ? '#ff9800' : '#4CAF50';
-                        div.style.background = showSuggestion ? 'rgba(255, 152, 0, 0.3)' : 'rgba(76, 175, 80, 0.3)';
-                        div.style.borderLeft = `3px solid ${highlightColor}`;
-                    } else {
-                        div.style.background = 'transparent';
-                        div.style.borderLeft = 'none';
-                    }
-                });
                 
                 // Enable free play from this position
                 this.gameOver = false;
@@ -5430,6 +5352,7 @@ class ChessGame {
         this.renderBoard();
         this.updateMoveList();
         this.updateNavButtons();
+        this.updateGameReview(index);
     }
     
     updateNavButtons() {
@@ -5773,18 +5696,18 @@ class ChessGame {
         // Hide evaluation graph and navigation
         const evalGraph = document.getElementById('evalGraph');
         const navControls = document.getElementById('navControls');
+        const gameReviewPanel = document.getElementById('gameReviewPanel');
         if (evalGraph) evalGraph.style.display = 'none';
         if (navControls) navControls.style.display = 'none';
+        if (gameReviewPanel) gameReviewPanel.style.display = 'none';
         
         this.renderBoard();
         this.updateMoveList();
         this.updateStatus();
         
         const gameOverModal = document.getElementById('gameOverModal');
-        const analysisPanel = document.getElementById('analysisPanel');
         const analyzeBtn = document.getElementById('analyzeBtn');
         if (gameOverModal) gameOverModal.style.display = 'none';
-        if (analysisPanel) analysisPanel.style.display = 'none';
         if (analyzeBtn) analyzeBtn.title = 'Analyze Game';
         
         // Reset undo button — enabled (undoMove handles empty history gracefully)

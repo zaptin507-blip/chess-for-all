@@ -184,10 +184,31 @@
                 <small>⌨️ N &middot; U &middot; F &middot; R</small>
             </div>
             
-            <div class="analysis-panel" id="analysisPanel" style="display: none;">
-                <h3>Move Analysis</h3>
-                <div id="analysisContent"></div>
+            <!-- Game Review Panel (Chess.com style) -->
+            <div id="gameReviewPanel" class="game-review-panel" style="display: none;">
+                <div class="game-review-header">
+                    <h3>Game Review</h3>
+                </div>
+                <div id="reviewChat" class="review-chat" style="display: none;">
+                    <div class="review-avatar">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 1 2.4 4.8c.8.3 1.4 1 1.6 1.9.2.8-.1 1.7-.6 2.4l2.5 2.5a.8.8 0 1 1-1.2 1.2l-2.5-2.5c-.7.5-1.6.8-2.5.6s-1.6-.8-1.9-1.6c-.3-.8-.1-1.7.4-2.3a.8.8 0 0 1 .6-.4 3 3 0 0 1 1.2-3.6A3 3 0 0 1 12 2z"/><path d="M8 18a4 4 0 0 1 8 0"/></svg>
+                    </div>
+                    <div class="review-bubble">
+                        <div class="review-move-line">
+                            <span id="reviewClassificationIcon" class="review-class-icon"></span>
+                            <span id="reviewMoveText" class="review-move-text"></span>
+                            <span id="reviewEval" class="review-eval"></span>
+                        </div>
+                        <div id="reviewDescription" class="review-description"></div>
+                        <div id="reviewSuggestion" class="review-suggestion" style="display: none;"></div>
+                    </div>
+                </div>
+                <div id="reviewSummary" class="review-summary" style="display: none;">
+                    <div class="review-summary-title">Performance</div>
+                    <div id="reviewSummaryStats" class="review-summary-stats"></div>
+                </div>
             </div>
+
         </div>
     </div>
     
