@@ -1622,8 +1622,20 @@ class ChessGame {
         this.updateTimerDisplay();
         
         this.chess.reset();
+        this.moveHistory = [];
+        this.moveAnalyses = [];
         this.renderBoard();
+
+        // Reset analysis state
+        this.analysisMode = false;
+        this.currentMoveIndex = -1;
+        this.originalMoveHistory = null;
+        this.originalMoveAnalyses = null;
         
+        // Hide game review panel from previous game
+        document.getElementById('gameReviewPanel').style.display = 'none';
+        document.getElementById('evalGraph').style.display = 'none';
+        document.getElementById('navControls').style.display = 'none';
         
         // Reset rating data for The Tester
         if (this.selectedBot === 'tester') {
@@ -4870,11 +4882,14 @@ class ChessGame {
             }
         }
         
-        // Update summary
+        // Update summary — only player's moves, not bot's
         if (this.moveAnalyses && this.moveAnalyses.length > 0) {
             document.getElementById('reviewSummary').style.display = 'block';
             const counts = {};
-            this.moveAnalyses.forEach(a => {
+            this.moveAnalyses.forEach((a, i) => {
+                const isWhiteMove = i % 2 === 0;
+                const isPlayerMove = (isWhiteMove && this.playerColor === 'w') || (!isWhiteMove && this.playerColor === 'b');
+                if (!isPlayerMove) return; // skip bot moves
                 counts[a.classification] = (counts[a.classification] || 0) + 1;
             });
             
