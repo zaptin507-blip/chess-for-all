@@ -4140,12 +4140,12 @@ class ChessGame {
                     } else if (style === 'dark') {
                         cssClass = 'piece piece-dark';
                         if (pieceKey.startsWith('w')) {
-                            displaySvg = displaySvg.replace(/fill="#fff"/g, 'fill="#f0ece4"');
-                            displaySvg = displaySvg.replace(/stroke="#000"/g, 'stroke="#554840"');
+                            displaySvg = displaySvg.replace(/fill="#fff"/g, 'fill="#eae4dc"');
+                            displaySvg = displaySvg.replace(/stroke="#000"/g, 'stroke="#6b1010"');
                         } else {
-                            displaySvg = displaySvg.replace(/fill="#000"/g, 'fill="#121212"');
-                            displaySvg = displaySvg.replace(/stroke="#000"/g, 'stroke="#444444"');
-                            displaySvg = displaySvg.replace(/stroke="#ececec"/g, 'stroke="#777777"');
+                            displaySvg = displaySvg.replace(/fill="#000"/g, 'fill="#030303"');
+                            displaySvg = displaySvg.replace(/stroke="#000"/g, 'stroke="#8b0000"');
+                            displaySvg = displaySvg.replace(/stroke="#ececec"/g, 'stroke="#dd2222"');
                         }
                     } else if (style === 'cburnett') {
                         cssClass = 'piece piece-classic';
@@ -6117,16 +6117,18 @@ ChessGame.prototype.applyPieceStyle = function(style) {
                 modified = modified.replace(/stroke="#ececec"/g, 'stroke="#666"');
             }
         } else if (style === 'dark') {
-            // === DARK: Refined Natural — warm ivory, soft contrast, elegant ===
+            // === DARK: Sinful — demonic, anime-inspired ===
             if (pieceKey.startsWith('w')) {
-                // White pieces: warm ivory like real boxwood chess pieces
-                modified = modified.replace(/fill="#fff"/g, 'fill="#f0ece4"');
-                modified = modified.replace(/stroke="#000"/g, 'stroke="#554840"');
+                // White pieces: ghostly pale with blood-red stroke
+                modified = modified.replace(/fill="#fff"/g, 'fill="#eae4dc"');
+                modified = modified.replace(/stroke="#000"/g, 'stroke="#6b1010"');
+                pieceEl.style.setProperty('--glow-color', 'rgba(139, 0, 0, 0.5)');
             } else {
-                // Black pieces: deep charcoal with warm gray details
-                modified = modified.replace(/fill="#000"/g, 'fill="#121212"');
-                modified = modified.replace(/stroke="#000"/g, 'stroke="#444444"');
-                modified = modified.replace(/stroke="#ececec"/g, 'stroke="#777777"');
+                // Black pieces: void black with crimson inner fire
+                modified = modified.replace(/fill="#000"/g, 'fill="#030303"');
+                modified = modified.replace(/stroke="#000"/g, 'stroke="#8b0000"');
+                modified = modified.replace(/stroke="#ececec"/g, 'stroke="#dd2222"');
+                pieceEl.style.setProperty('--glow-color', 'rgba(180, 0, 0, 0.5)');
             }
         }
         // Classic style: just use original SVG (no modifications)

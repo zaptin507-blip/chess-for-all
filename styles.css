@@ -290,9 +290,22 @@ body {
     animation: shadowBreathe 4s ease-in-out infinite;
 }
 
-/* Dark — Refined Natural: warm ivory, elegant shadow */
+/* Dark — Sinful: demonic crimson aura, legendary */
+@keyframes sinfulPulse {
+    0%, 100% {
+        filter: drop-shadow(0 0 4px var(--glow-color, rgba(139,0,0,0.4))) 
+                drop-shadow(0 2px 6px rgba(0,0,0,0.5)) 
+                drop-shadow(0 0 14px var(--glow-color, rgba(139,0,0,0.2)));
+    }
+    50% {
+        filter: drop-shadow(0 0 10px var(--glow-color, rgba(139,0,0,0.7))) 
+                drop-shadow(0 2px 6px rgba(0,0,0,0.5)) 
+                drop-shadow(0 0 28px var(--glow-color, rgba(139,0,0,0.4)));
+    }
+}
+
 .piece-dark svg {
-    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.15)) drop-shadow(0 2px 3px rgba(0,0,0,0.10)) drop-shadow(0 5px 7px rgba(0,0,0,0.06));
+    animation: sinfulPulse 4s ease-in-out infinite;
 }
 
 .sidebar {
