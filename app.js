@@ -4709,6 +4709,24 @@ class ChessGame {
             document.getElementById('annotationPopup').style.display = 'none';
         });
         
+        // Review tab switching
+        document.querySelectorAll('.review-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.review-tab').forEach(t => t.classList.remove('review-tab-active'));
+                tab.classList.add('review-tab-active');
+                const tabName = tab.dataset.tab;
+                const isReport = tabName === 'report';
+                // Keep boss-bot chat hidden even on Report tab
+                const isBossBot = this.selectedBot && this.selectedBot !== 'tester';
+                document.getElementById('reviewChat').style.display = (isReport && !isBossBot) ? '' : 'none';
+                document.getElementById('reviewSummary').style.display = isReport ? '' : 'none';
+                document.getElementById('reviewRatingTable').style.display = isReport ? '' : 'none';
+                document.getElementById('reviewAccuracies').style.display = isReport ? '' : 'none';
+                document.getElementById('evalGraph').style.display = isReport ? 'none' : '';
+                document.getElementById('navControls').style.display = isReport ? 'none' : '';
+            });
+        });
+        
     }
 
     async analyzeGame() {
@@ -4818,33 +4836,38 @@ class ChessGame {
             'forced': '#97af8b', 'great': '#4CAF50', 'good': '#888', 'missedWin': '#FFD700'
         };
         
-        chat.style.display = 'flex';
-        classIcon.textContent = icons[analysis.classification] || '✓';
-        moveText.textContent = analysis.move;
-        moveText.style.color = colors[analysis.classification] || '#888';
-        
-        // Format evaluation
-        const evalScore = analysis.evalAfter || 0;
-        let evalText;
-        if (evalScore > 0) {
-            evalText = '+' + (evalScore / 100).toFixed(2);
-            evalEl.style.color = '#81C784';
-        } else if (evalScore < 0) {
-            evalText = (evalScore / 100).toFixed(2);
-            evalEl.style.color = '#e57373';
+        // Hide chat bubble when fighting bosses (menacing vibe)
+        if (this.selectedBot && this.selectedBot !== 'tester') {
+            chat.style.display = 'none';
         } else {
-            evalText = '0.00';
-            evalEl.style.color = '#888';
-        }
-        evalEl.textContent = evalText;
-        
-        descEl.textContent = analysis.description || '';
-        
-        if (analysis.suggestedMove) {
-            suggestEl.style.display = 'block';
-            suggestEl.innerHTML = '\u{1F4A1} Better was <strong>' + analysis.suggestedMove + '</strong>';
-        } else {
-            suggestEl.style.display = 'none';
+            chat.style.display = 'flex';
+            classIcon.textContent = icons[analysis.classification] || '✓';
+            moveText.textContent = analysis.move;
+            moveText.style.color = colors[analysis.classification] || '#888';
+            
+            // Format evaluation
+            const evalScore = analysis.evalAfter || 0;
+            let evalText;
+            if (evalScore > 0) {
+                evalText = '+' + (evalScore / 100).toFixed(2);
+                evalEl.style.color = '#81C784';
+            } else if (evalScore < 0) {
+                evalText = (evalScore / 100).toFixed(2);
+                evalEl.style.color = '#e57373';
+            } else {
+                evalText = '0.00';
+                evalEl.style.color = '#888';
+            }
+            evalEl.textContent = evalText;
+            
+            descEl.textContent = analysis.description || '';
+            
+            if (analysis.suggestedMove) {
+                suggestEl.style.display = 'block';
+                suggestEl.innerHTML = '\u{1F4A1} Better was <strong>' + analysis.suggestedMove + '</strong>';
+            } else {
+                suggestEl.style.display = 'none';
+            }
         }
         
         // Update summary
@@ -4875,6 +4898,125 @@ class ChessGame {
             });
             statsContainer.innerHTML = html;
         }
+        
+        // Build rating breakdown table (player vs bot)
+        this.buildRatingTable();
+        
+        // Build accuracies
+        this.buildAccuracies();
+    }
+
+    buildRatingTable() {
+        const tableBody = document.getElementById('ratingTableBody');
+        const ratingTableEl = document.getElementById('reviewRatingTable');
+        if (!tableBody || !this.moveAnalyses || this.moveAnalyses.length === 0) return;
+        
+        const playerLabel = document.getElementById('rtPlayerLabel');
+        const botLabel = document.getElementById('rtBotLabel');
+        if (playerLabel) playerLabel.textContent = this.selectedBot ? 'You' : 'White';
+        if (botLabel) botLabel.textContent = this.selectedBot ? (this.selectedBot.charAt(0).toUpperCase() + this.selectedBot.slice(1)) : 'Black';
+        
+        // Separate moves by side
+        const playerMoves = [];
+        const botMoves = [];
+        
+        this.moveAnalyses.forEach((analysis, i) => {
+            const isWhiteMove = i % 2 === 0;
+            const isPlayerMove = (isWhiteMove && this.playerColor === 'w') || (!isWhiteMove && this.playerColor === 'b');
+            if (isPlayerMove) {
+                playerMoves.push(analysis);
+            } else {
+                botMoves.push(analysis);
+            }
+        });
+        
+        // Count classifications per side
+        const count = (arr, key) => arr.filter(a => a.classification === key).length;
+        
+        const categories = [
+            { key: 'brilliant', icon: '\u2728', label: 'Brilliant' },
+            { key: 'best', icon: '\u2605', label: 'Best' },
+            { key: 'excellent', icon: '!', label: 'Excellent' },
+            { key: 'book', icon: '\u{1F4D6}', label: 'Book' },
+            { key: 'good', icon: '\u2713', label: 'Good' },
+            { key: 'inaccuracy', icon: '?!', label: 'Inaccuracy' },
+            { key: 'mistake', icon: '?', label: 'Mistake' },
+            { key: 'blunder', icon: '??', label: 'Blunder' },
+            { key: 'missedWin', icon: '\u{1F3AF}', label: 'Missed Win' }
+        ];
+        
+        let html = '';
+        categories.forEach(cat => {
+            const playerCount = count(playerMoves, cat.key);
+            const botCount = count(botMoves, cat.key);
+            if (playerCount > 0 || botCount > 0) {
+                html += '<tr>' +
+                    '<td><span class="rt-category-icon">' + cat.icon + '</span>' + cat.label + '</td>' +
+                    '<td class="rt-count">' + playerCount + '</td>' +
+                    '<td class="rt-count">' + botCount + '</td>' +
+                    '</tr>';
+            }
+        });
+        
+        tableBody.innerHTML = html;
+        ratingTableEl.style.display = 'block';
+    }
+
+    buildAccuracies() {
+        const accuraciesContent = document.getElementById('accuraciesContent');
+        const accuraciesEl = document.getElementById('reviewAccuracies');
+        if (!accuraciesContent || !this.moveAnalyses || this.moveAnalyses.length === 0) return;
+        
+        // Classification-based accuracy mapping
+        const accuracyMap = {
+            'brilliant': 100, 'best': 100, 'forced': 95, 'critical': 95,
+            'excellent': 90, 'great': 84, 'good': 80, 'okay': 75, 'book': 80,
+            'inaccuracy': 60, 'mistake': 35, 'blunder': 15, 'missedWin': 20
+        };
+        
+        // Separate moves by side
+        const playerMoves = [];
+        const botMoves = [];
+        
+        this.moveAnalyses.forEach((analysis, i) => {
+            const isWhiteMove = i % 2 === 0;
+            const isPlayerMove = (isWhiteMove && this.playerColor === 'w') || (!isWhiteMove && this.playerColor === 'b');
+            if (isPlayerMove) {
+                playerMoves.push(analysis);
+            } else {
+                botMoves.push(analysis);
+            }
+        });
+        
+        const calcAccuracy = (moves) => {
+            if (moves.length === 0) return 0;
+            const total = moves.reduce((sum, m) => sum + (accuracyMap[m.classification] || 75), 0);
+            return Math.round(total / moves.length);
+        };
+        
+        const playerAcc = calcAccuracy(playerMoves);
+        const botAcc = calcAccuracy(botMoves);
+        
+        const botName = this.selectedBot ? (this.selectedBot.charAt(0).toUpperCase() + this.selectedBot.slice(1)) : 'Bot';
+        
+        const barHtml =
+            '<div class="accuracy-row">' +
+                '<span class="accuracy-label">You</span>' +
+                '<div class="accuracy-bar-track">' +
+                    '<div class="accuracy-bar-fill white-acc" style="width:' + playerAcc + '%"></div>' +
+                '</div>' +
+                '<span class="accuracy-pct">' + playerAcc + '%</span>' +
+            '</div>' +
+            '<div class="accuracy-row">' +
+                '<span class="accuracy-label">' + botName + '</span>' +
+                '<div class="accuracy-bar-track">' +
+                    '<div class="accuracy-bar-fill black-acc" style="width:' + botAcc + '%"></div>' +
+                '</div>' +
+                '<span class="accuracy-pct">' + botAcc + '%</span>' +
+            '</div>';
+        
+        accuraciesContent.innerHTML = barHtml;
+        accuraciesEl.style.display = 'block';
     }
 
     showPositionAtMove(index) {

@@ -173,7 +173,24 @@
             <!-- Game Review Panel (Chess.com style) -->
             <div id="gameReviewPanel" class="game-review-panel" style="display: none;">
                 <div class="game-review-header">
-                    <h3>Game Review</h3>
+                    <div class="game-review-header-top">
+                        <h3>Game Analysis</h3>
+                        <div class="game-review-actions">
+                            <button class="review-action-btn" title="Back">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                            </button>
+                            <button class="review-action-btn" title="Refresh">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.5 15a9 9 0 1 1-2.4-10.8L23 10"/></svg>
+                            </button>
+                            <button class="review-action-btn" title="Settings">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="game-review-tabs">
+                        <button class="review-tab review-tab-active" data-tab="report">Report</button>
+                        <button class="review-tab" data-tab="analysis">Analysis</button>
+                    </div>
                 </div>
                 <div id="reviewChat" class="review-chat" style="display: none;">
                     <div class="review-avatar">
@@ -192,6 +209,22 @@
                 <div id="reviewSummary" class="review-summary" style="display: none;">
                     <div class="review-summary-title">Performance</div>
                     <div id="reviewSummaryStats" class="review-summary-stats"></div>
+                </div>
+                
+                <!-- Rating Breakdown Table -->
+                <div id="reviewRatingTable" class="review-rating-table" style="display: none;">
+                    <table id="ratingTable">
+                        <thead>
+                            <tr><th></th><th id="rtPlayerLabel">You</th><th id="rtBotLabel">Bot</th></tr>
+                        </thead>
+                        <tbody id="ratingTableBody"></tbody>
+                    </table>
+                </div>
+
+                <!-- Accuracies Section -->
+                <div id="reviewAccuracies" class="review-accuracies" style="display: none;">
+                    <div class="accuracies-title">Accuracies</div>
+                    <div id="accuraciesContent"></div>
                 </div>
                 
                 <!-- Evaluation Graph -->
