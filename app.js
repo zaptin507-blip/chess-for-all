@@ -1895,6 +1895,7 @@ class ChessGame {
                         pieceElement.innerHTML = svgCode;
                     } else {
                         pieceElement.textContent = this.pieceUnicode[pieceKey] || '?';
+                        pieceElement.style.fontSize = '40px';
                     }
                     
                     pieceElement.dataset.piece = pieceKey;
