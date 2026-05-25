@@ -2434,6 +2434,7 @@ class ChessGame {
         
         // Auto-analyze
         if (this.moveHistory.length > 0) {
+            // Fire and forget — the analyzeGame guard prevents concurrent runs
             this.analyzeGame();
         }
     }
@@ -3983,6 +3984,7 @@ class ChessGame {
         }
         document.getElementById('reviewGame').addEventListener('click', () => {
             this.showSections([], ['gameOverModal']);
+            // Use Promise to handle async safely — guard inside analyzeGame prevents race
             this.analyzeGame();
         });
         document.getElementById('analyzeBtn').addEventListener('click', () => this.analyzeGame());
@@ -4738,6 +4740,15 @@ class ChessGame {
 
     async analyzeGame() {
         
+        // Guard: prevent concurrent analysis runs (race condition protection)
+        if (this._analyzing) {
+            console.warn('⚠️ Analysis already in progress, skipping duplicate call');
+            return;
+        }
+        this._analyzing = true;
+        
+        try {
+            
         // Initialize analysis engine only when needed
         if (!this.analysisEngine) {
             this.analysisEngine = this.initAnalysisEngine();
@@ -4812,6 +4823,9 @@ class ChessGame {
         
         // Show the game review panel
         document.getElementById('gameReviewPanel').style.display = 'block';
+        } finally {
+            this._analyzing = false;
+        }
     }
 
     updateGameReview(index) {
