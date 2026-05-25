@@ -3577,13 +3577,8 @@ class ChessGame {
         const badgeClass = annot.class;
         const symbol = annot.symbol;
         
-        // Only bad moves get clickable badges for retry via event delegation in init()
-        const BAD_MOVES = ['blunder', 'mistake', 'inaccuracy', 'missedWin'];
-        if (BAD_MOVES.includes(classification)) {
-            return `<span class="move-with-annotation">${moveSan}<span class="move-annotation ${badgeClass}" data-move-index="${moveIndex}">${symbol}</span></span>`;
-        }
-        
-        return `<span class="move-with-annotation">${moveSan}<span class="move-annotation ${badgeClass}">${symbol}</span></span>`;
+        // All move annotations get data-move-index for click handling
+        return `<span class="move-with-annotation">${moveSan}<span class="move-annotation ${badgeClass}" data-move-index="${moveIndex}">${symbol}</span></span>`;
     }
 
     updateMoveList() {

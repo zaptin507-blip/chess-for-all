@@ -8,46 +8,111 @@ class ChessAnalyzer {
 
     /**
      * Sigmoig-based expected score from a centipawn or mate evaluation.
-     * Uses the standard logistic function (same as wintrchess / Leela / Stockfish win-rate model).
-     * Returns 0.0 to 1.0 — win probability for the side indicated by `perspectiveColor`.
+     * Exact copy of wintrchess getExpectedPoints().
+     * For centipawn evals: computes sigmoid(raw eval value), NO sign flipping.
+     * For mate evals: moveColour determines which side gets the point for stalemate (mate=0).
+     * Accepts options: { moveColour: 'w'|'b', centipawnGradient?: number }
      */
-    static getExpectedPoints(evalObj, perspectiveColor) {
-        // evalObj = { type: 'cp', value: centipawnScore } or { type: 'mate', value: mateInPly }
-        // perspectiveColor = 'w' or 'b' — the side whose win probability we want
+    static getExpectedPoints(evalObj, options = {}) {
+        const opts = { centipawnGradient: 0.0035, ...options };
+
         if (evalObj.type === 'mate') {
-            if (evalObj.value === 0) return 0.5; // stalemate / draw
-            return evalObj.value > 0 ? 1 : 0;   // forced win or forced loss
+            if (evalObj.value === 0) {
+                // Stalemate: the side we're computing expected points for gets 0 or 1
+                return opts.moveColour === 'w' ? 1 : 0;
+            }
+            return evalObj.value > 0 ? 1 : 0;
         }
-        // Centipawn evaluation: sigmoid with 0.0035 gradient (standard chess win-rate model)
-        const score = perspectiveColor === 'w' ? evalObj.value : -evalObj.value;
-        return 1 / (1 + Math.exp(-0.0035 * score));
+        // Centipawn evaluation: pure sigmoid, no perspective flipping
+        return 1 / (1 + Math.exp(-opts.centipawnGradient * evalObj.value));
     }
 
     /**
      * Expected-points loss caused by a move.
-     * Measures how much the win probability dropped from before to after the move.
-     * This is the core of the wintrchess classification system — replaces raw centipawn loss.
+     * EXACT copy of wintrchess getExpectedPointsLoss().
+     * Computes opponent's expected points before minus player's expected points after,
+     * then flips sign for Black.
      */
     static getExpectedPointsLoss(evalBefore, evalAfter, moveColor) {
-        // Expected points for the PLAYER BEFORE the move
-        const playerBefore = ChessAnalyzer.getExpectedPoints(evalBefore, moveColor);
-
-        // Expected points for the PLAYER AFTER the move
-        const playerAfter = ChessAnalyzer.getExpectedPoints(evalAfter, moveColor);
-
-        // Loss = player's win probability before - after
-        // Positive loss means the player made things worse for themselves
-        const rawLoss = playerBefore - playerAfter;
-        return Math.max(0, rawLoss);
+        const opponentColor = moveColor === 'w' ? 'b' : 'w';
+        const raw = (
+            ChessAnalyzer.getExpectedPoints(evalBefore, { moveColour: opponentColor })
+            - ChessAnalyzer.getExpectedPoints(evalAfter, { moveColour: moveColor })
+        );
+        return Math.max(0, raw * (moveColor === 'w' ? 1 : -1));
     }
 
     /**
      * Move accuracy percentage using wintrchess formula.
-     * Returns 0-100, where 100 = perfect move.
+     * EXACT copy — NO clamping (wintrchess does not clamp).
      * Formula: 103.16 * exp(-4 * pointLoss) - 3.17
      */
     static getMoveAccuracy(pointLoss) {
-        return Math.min(100, Math.max(0, 103.16 * Math.exp(-4 * pointLoss) - 3.17));
+        return 103.16 * Math.exp(-4 * pointLoss) - 3.17;
+    }
+
+    /**
+     * Full point-loss classification with mate transition handling.
+     * EXACT copy of wintrchess pointLossClassify().
+     * Handles mate→mate, mate→cp, cp→mate, and cp→cp transitions.
+     * Expects evaluations from a consistent perspective (White's POV is our convention).
+     */
+    static pointLossClassify(evalBefore, evalAfter, moveColor) {
+        // Subjective values: convert from White's POV to the player who just moved
+        const subjectiveValueBefore = evalBefore.value * (moveColor === 'w' ? 1 : -1);
+        const subjectiveValueAfter = evalAfter.value * (moveColor === 'w' ? 1 : -1);
+
+        // Mate to mate evaluations
+        if (evalBefore.type === 'mate' && evalAfter.type === 'mate') {
+            // Winning mate to losing mate
+            if (subjectiveValueBefore > 0 && subjectiveValueAfter < 0) {
+                return subjectiveValueAfter < -3 ? 'mistake' : 'blunder';
+            }
+
+            // For the losing side, making a move that keeps the mate the same is best.
+            // Only the winning side expects a mate loss of -1.
+            const mateLoss = (
+                (evalAfter.value - evalBefore.value)
+                * (moveColor === 'w' ? 1 : -1)
+            );
+
+            if (mateLoss < 0 || (mateLoss === 0 && subjectiveValueAfter < 0)) {
+                return 'best';
+            } else if (mateLoss < 2) {
+                return 'excellent';
+            } else if (mateLoss < 7) {
+                return 'okay';
+            } else {
+                return 'inaccuracy';
+            }
+        }
+
+        // Mate to centipawn evaluations
+        if (evalBefore.type === 'mate' && evalAfter.type === 'centipawn') {
+            if (subjectiveValueAfter >= 800) return 'excellent';
+            else if (subjectiveValueAfter >= 400) return 'okay';
+            else if (subjectiveValueAfter >= 200) return 'inaccuracy';
+            else if (subjectiveValueAfter >= 0) return 'mistake';
+            else return 'blunder';
+        }
+
+        // Centipawn to mate evaluations
+        if (evalBefore.type === 'centipawn' && evalAfter.type === 'mate') {
+            if (subjectiveValueAfter > 0) return 'best';
+            else if (subjectiveValueAfter >= -2) return 'blunder';
+            else if (subjectiveValueAfter >= -5) return 'mistake';
+            else return 'inaccuracy';
+        }
+
+        // Centipawn to centipawn (standard case)
+        const pointLoss = ChessAnalyzer.getExpectedPointsLoss(evalBefore, evalAfter, moveColor);
+
+        if (pointLoss < 0.01) return 'best';
+        else if (pointLoss < 0.045) return 'excellent';
+        else if (pointLoss < 0.08) return 'okay';
+        else if (pointLoss < 0.12) return 'inaccuracy';
+        else if (pointLoss < 0.22) return 'mistake';
+        else return 'blunder';
     }
 
     async evaluatePosition(fen, depth = 18) {
@@ -121,8 +186,20 @@ class ChessAnalyzer {
         const evalAfter = await this.evaluatePosition(fenAfter);
 
         // Wrap evaluation scores for point-loss computation
-        const evalObjBefore = { type: evalBefore.type || 'cp', value: evalBefore.score };
-        const evalObjAfter = { type: evalAfter.type || 'cp', value: evalAfter.score };
+        // For mate evals: use the actual mate-in-N value (normalized to White's POV)
+        // For cp evals: use the centipawn score (already normalized to White's POV)
+        const evalObjBefore = {
+            type: evalBefore.type || 'cp',
+            value: evalBefore.type === 'mate'
+                ? (fenBefore.split(' ')[1] === 'w' ? evalBefore.value : -evalBefore.value)
+                : evalBefore.score
+        };
+        const evalObjAfter = {
+            type: evalAfter.type || 'cp',
+            value: evalAfter.type === 'mate'
+                ? (fenAfter.split(' ')[1] === 'w' ? evalAfter.value : -evalAfter.value)
+                : evalAfter.score
+        };
 
         // ──────────────────────────────────────────────────────────
         // STEP 2: Run detection helpers
@@ -159,8 +236,9 @@ class ChessAnalyzer {
         const topMovePlayed = suggestedMove && suggestedMove === move.san;
 
         // ──────────────────────────────────────────────────────────
-        // STEP 5: Classify using expected-points loss + wintrchess thresholds
+        // STEP 5: Classify using wintrchess pointLossClassify (inc. mate transitions)
         // ──────────────────────────────────────────────────────────
+        const baseClassification = ChessAnalyzer.pointLossClassify(evalObjBefore, evalObjAfter, move.color);
         let classification;
         let description = '';
 
@@ -188,43 +266,33 @@ class ChessAnalyzer {
             description = '! Critical move — only good move in the position';
         }
 
-        // BEST: played the engine's top pick or lost negligible win probability
-        else if (topMovePlayed || pointLoss < 0.01) {
-            classification = 'best';
-            description = 'Best move';
-        }
-
-        // EXCELLENT: very small loss (0.01 — 0.045)
-        else if (pointLoss < 0.045) {
-            classification = 'excellent';
-            description = 'Excellent move';
-        }
-
-        // OKAY: small loss (0.045 — 0.08)
-        else if (pointLoss < 0.08) {
-            classification = 'okay';
-            description = 'Okay move';
-        }
-
-        // INACCURACY: moderate loss (0.08 — 0.12)
-        else if (pointLoss < 0.12) {
-            classification = 'inaccuracy';
-            description = '?! Inaccuracy';
-            if (suggestedMove) description += `. Better was ${suggestedMove}`;
-        }
-
-        // MISTAKE: significant loss (0.12 — 0.22)
-        else if (pointLoss < 0.22) {
-            classification = 'mistake';
-            description = '? Mistake';
-            if (suggestedMove) description += `. Better was ${suggestedMove}`;
-        }
-
-        // BLUNDER: catastrophic loss (>= 0.22)
+        // Use wintrchess pointLossClassify for all other cases
+        // (handles cp→cp, mate→mate, mate→cp, cp→mate transitions)
         else {
-            classification = 'blunder';
-            description = '?? Blunder';
-            if (suggestedMove) description += `. Better was ${suggestedMove}`;
+            classification = baseClassification;
+            switch (baseClassification) {
+                case 'best':
+                    description = topMovePlayed ? 'Best move' : 'Excellent move';
+                    break;
+                case 'excellent':
+                    description = 'Excellent move';
+                    break;
+                case 'okay':
+                    description = 'Okay move';
+                    break;
+                case 'inaccuracy':
+                    description = '?! Inaccuracy';
+                    if (suggestedMove) description += `. Better was ${suggestedMove}`;
+                    break;
+                case 'mistake':
+                    description = '? Mistake';
+                    if (suggestedMove) description += `. Better was ${suggestedMove}`;
+                    break;
+                case 'blunder':
+                    description = '?? Blunder';
+                    if (suggestedMove) description += `. Better was ${suggestedMove}`;
+                    break;
+            }
         }
 
         return {
