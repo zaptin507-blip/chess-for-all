@@ -976,7 +976,7 @@ class ChessGame {
         const moves = this.chess.history();
         const moveKey = moves.join(' ');
         
-        // Common checkmate patterns (expanded)
+        // Common checkmate patterns (exact move sequences)
         const mates = {
             // Famous checkmates
             'e4 g5 d4 f6 Qh5#': 'Fool\'s Mate',
@@ -1012,213 +1012,186 @@ class ChessGame {
         const moveCount = moves.length;
         const totalMoves = this.moveHistory.length;
         
-        // ========== FAMOUS CHECKMATE PATTERNS ==========
+        // ✓ FIX: Use moveHistory (verbose objects) instead of history() (SAN strings)
+        const verboseMoves = this.moveHistory.map(m => m.move);
         
-        // Detect Back Rank Mate
-        if ((piece === 'r' || piece === 'q') && 
-            (toSquare.includes('8') || toSquare.includes('1')) &&
-            !captured) {
-            return 'Back Rank Mate';
+        // ─── BOARD POSITION ANALYSIS ───
+        const turn = this.chess.turn();
+        const board = this.chess.board();
+        let kingSquare = null;
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                if (board[r][c] && board[r][c].type === 'k' && board[r][c].color === turn) {
+                    kingSquare = String.fromCharCode(97 + c) + (8 - r);
+                    break;
+                }
+            }
+            if (kingSquare) break;
+        }
+        if (!kingSquare) return 'Checkmate';
+        
+        const kingFile = kingSquare[0];
+        const kingRank = parseInt(kingSquare[1]);
+        
+        // Build set of squares the attacker can reach
+        const tempChess = new Chess(this.chess.fen());
+        const allAttackerMoves = tempChess.moves({ verbose: true });
+        const attackedSquares = new Set();
+        allAttackerMoves.forEach(m => attackedSquares.add(m.to));
+        
+        // Check key king position properties
+        const isCorner = (kingSquare === 'a1' || kingSquare === 'a8' || kingSquare === 'h1' || kingSquare === 'h8');
+        const isEdge = (kingFile === 'a' || kingFile === 'h' || kingRank === 1 || kingRank === 8);
+        const isBackRank = (turn === 'w' && kingRank === 1) || (turn === 'b' && kingRank === 8);
+        
+        // Count friendly pieces adjacent to king (blocking escape squares)
+        let blockingPieces = 0;
+        for (let df = -1; df <= 1; df++) {
+            for (let dr = -1; dr <= 1; dr++) {
+                if (df === 0 && dr === 0) continue;
+                const f = String.fromCharCode(kingFile.charCodeAt(0) + df);
+                const r = kingRank + dr;
+                if (f >= 'a' && f <= 'h' && r >= 1 && r <= 8) {
+                    for (let br = 0; br < 8; br++) {
+                        for (let bc = 0; bc < 8; bc++) {
+                            if (board[br][bc] && board[br][bc].color === turn) {
+                                const sqName = String.fromCharCode(97 + bc) + (8 - br);
+                                if (sqName === f + r && board[br][bc].type !== 'k') {
+                                    blockingPieces++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         
-        // Detect Smothered Mate (knight mates where king has no escape)
-        if (piece === 'n' && (toSquare === 'f7' || toSquare === 'f2' || toSquare === 'h6' || toSquare === 'h3' || toSquare === 'g7' || toSquare === 'g2')) {
+        // ========== FAMOUS CHECKMATE PATTERNS ==========
+        
+        // Smothered Mate: Knight delivers mate, king surrounded by own pieces
+        if (piece === 'n' && isCorner && blockingPieces >= 2) {
             return 'Smothered Mate';
         }
         
-        // Detect Kiss of Death (Queen directly in front of protected King)
-        if (piece === 'q' && (toSquare === 'f7' || toSquare === 'f2' || toSquare === 'g7' || toSquare === 'g2' || toSquare === 'h7' || toSquare === 'h2')) {
-            return 'Kiss of Death Mate';
+        // Back Rank Mate: Rook/Queen on back rank, king blocked by own pawns
+        if ((piece === 'r' || piece === 'q') && isBackRank && !captured && blockingPieces >= 1) {
+            return 'Back Rank Mate';
         }
         
-        // Detect Scholar's Mate pattern (early queen to f7/f2)
+        // Kiss of Death: Queen adjacent to mated king
+        if (piece === 'q') {
+            const qFile = toSquare[0];
+            const qRank = parseInt(toSquare[1]);
+            const fileDiff = Math.abs(qFile.charCodeAt(0) - kingFile.charCodeAt(0));
+            const rankDiff = Math.abs(qRank - kingRank);
+            if (fileDiff <= 1 && rankDiff <= 1) {
+                return 'Kiss of Death Mate';
+            }
+        }
+        
+        // Scholar's Mate: Early queen to f7/f2
         if (piece === 'q' && (toSquare === 'f7' || toSquare === 'f2') && moveCount <= 8) {
             return 'Scholar\'s Mate';
         }
         
-        // Detect Fool's Mate pattern
-        if (piece === 'q' && toSquare === 'h4' && moveCount <= 4) {
+        // Fool's Mate: Quickest mate
+        if (piece === 'q' && (toSquare === 'h4' || toSquare === 'h5') && moveCount <= 4) {
             return 'Fool\'s Mate';
         }
         
-        // Detect Anastasia's Mate (Knight + Queen/Rook battery)
-        if (piece === 'n' && (toSquare === 'h6' || toSquare === 'h3' || toSquare === 'a6' || toSquare === 'a3')) {
+        // Anastasia's Mate: Knight mates on edge, pieces block escape
+        if (piece === 'n' && isEdge && !isCorner && blockingPieces >= 1) {
             return 'Anastasia\'s Mate';
         }
         
-        // Detect Arabian Mate (Knight + Rook corner mate)
-        if (piece === 'r' && (toSquare === 'h8' || toSquare === 'h1' || toSquare === 'a8' || toSquare === 'a1')) {
-            return 'Arabian Mate';
+        // Arabian Mate: Rook mates in corner with knight support
+        if (piece === 'r' && isCorner) {
+            const knightsUsed = verboseMoves.filter(m => m.piece === 'n' && m.color !== turn).length;
+            return knightsUsed >= 1 ? 'Arabian Mate' : 'Corner Rook Mate';
         }
         
-        // Detect Boden's Mate (Two bishops on adjacent diagonals)
-        if (piece === 'b' && moves.filter(m => m.piece === 'b').length >= 2) {
-            return 'Boden\'s Mate';
+        // Dovetail Mate: Queen cheeky diagonal mate, king blocked by own pieces
+        if (piece === 'q' && isBackRank && blockingPieces >= 2) {
+            const qFile = toSquare[0];
+            const qRank = parseInt(toSquare[1]);
+            if (Math.abs(qFile.charCodeAt(0) - kingFile.charCodeAt(0)) === 1 && 
+                Math.abs(qRank - kingRank) === 1) {
+                return 'Dovetail Mate';
+            }
         }
         
-        // Detect Greco's Mate (Bishop sacrifice on h7/h2)
-        if (piece === 'b' && (toSquare === 'h7' || toSquare === 'h2') && captured) {
-            return 'Greco\'s Mate';
+        // Epaulette Mate: King blocked by own rooks on both sides
+        if ((piece === 'q' || piece === 'r') && isBackRank) {
+            const kingCol = kingFile.charCodeAt(0) - 97;
+            let leftRook = false, rightRook = false;
+            for (let br = 0; br < 8; br++) {
+                for (let bc = 0; bc < 8; bc++) {
+                    if (board[br][bc] && board[br][bc].type === 'r' && board[br][bc].color === turn) {
+                        const sqName = String.fromCharCode(97 + bc) + (8 - br);
+                        if (sqName[0] === String.fromCharCode(kingCol - 1 + 97) && sqName[1] === kingSquare[1]) leftRook = true;
+                        if (sqName[0] === String.fromCharCode(kingCol + 1 + 97) && sqName[1] === kingSquare[1]) rightRook = true;
+                    }
+                }
+            }
+            if (leftRook && rightRook) return 'Epaulette Mate';
         }
         
-        // Detect Morphy's Mate (Rook on 7th/2nd rank)
+        // Vukovic Mate: Queen with rook supporting on 7th rank
+        if (piece === 'q') {
+            const rooksUsed = verboseMoves.filter(m => m.piece === 'r' && m.color !== turn).length;
+            if (rooksUsed >= 1) return 'Vukovic Mate';
+        }
+        
+        // Morphy's Mate: Rook delivers mate on 7th rank
         if (piece === 'r' && (toSquare.includes('7') || toSquare.includes('2')) && !captured) {
             return 'Morphy\'s Mate';
         }
         
-        // Detect Pillsbury Mate (Knight on f7/f2 supported by pieces)
-        if (piece === 'n' && (toSquare === 'f7' || toSquare === 'f2') && totalMoves > 10) {
-            return 'Pillsbury Mate';
+        // Greco's Mate: Bishop sacrifice on h7/h2
+        if (piece === 'b' && (toSquare === 'h7' || toSquare === 'h2') && captured) {
+            return 'Greco\'s Mate';
         }
         
-        // Detect Damiano's Mate (Queen supported by pawn)
-        if (piece === 'q' && (toSquare === 'h7' || toSquare === 'h2') && moveCount <= 15) {
-            return 'Damiano\'s Mate';
+        // Boden's Mate: Two bishops criss-cross
+        if (piece === 'b') {
+            const bishopMoves = verboseMoves.filter(m => m.piece === 'b' && m.color !== turn).length;
+            return bishopMoves >= 2 ? 'Boden\'s Mate' : 'Bishop Mate';
         }
         
-        // Detect Lolli's Mate (Pawn supports attack on h7/h2)
+        // Lolli's Mate: Pawn advances from g6/g3 to h7/h2
         if (piece === 'p' && (fromSquare === 'g6' || fromSquare === 'g3') && (toSquare === 'h7' || toSquare === 'h2')) {
             return 'Lolli\'s Mate';
         }
         
-        // Detect Cozio's Mate (Bishop + Knight coordination)
-        if (piece === 'n' && moves.some(m => m.piece === 'b' && m.to.includes(toSquare[0]))) {
-            return 'Cozio\'s Mate';
-        }
-        
-        // Detect Mayet's Mate (Bishop protects rook/queen on 7th rank)
-        if (piece === 'r' && toSquare.includes('7') && moves.some(m => m.piece === 'b')) {
-            return 'Mayet\'s Mate';
-        }
-        
-        // ========== PIECE COORDINATION MATES ==========
-        
-        // Detect Queen + Bishop Mate (Battery)
-        if (piece === 'q' && moves.some(m => m.piece === 'b' && m.to.includes(toSquare[1]))) {
-            return 'Queen & Bishop Battery Mate';
-        }
-        
-        // Detect Queen + Knight Mate
-        if (piece === 'q' && moves.some(m => m.piece === 'n' && Math.abs(m.to.charCodeAt(0) - toSquare.charCodeAt(0)) <= 2)) {
-            return 'Queen & Knight Mate';
-        }
-        
-        // Detect Rook + Bishop Mate
-        if (piece === 'r' && moves.some(m => m.piece === 'b')) {
-            return 'Rook & Bishop Mate';
-        }
-        
-        // Detect Two Rooks Mate (Double Rook)
-        const rookMoves = moves.filter(m => m.piece === 'r');
-        if (piece === 'r' && rookMoves.length >= 2) {
-            return 'Double Rook Mate';
-        }
-        
-        // Detect Queen + Rook Mate
-        if (piece === 'q' && moves.some(m => m.piece === 'r')) {
-            return 'Queen & Rook Battery Mate';
-        }
-        
-        // Detect Knight + Bishop Mate
-        if (piece === 'n' && moves.some(m => m.piece === 'b' && m.to === toSquare)) {
-            return 'Knight & Bishop Mate';
-        }
-        
-        // Detect Double Queen Mate (if you have chaos mode queens)
-        const queenMoves = moves.filter(m => m.piece === 'q');
-        if (queenMoves.length >= 2 && piece === 'q') {
-            return 'Double Queen Mate';
-        }
-        
-        // ========== POSITIONAL MATES ==========
-        
-        // Detect Corner Mate
-        if ((toSquare === 'h8' || toSquare === 'h1' || toSquare === 'a8' || toSquare === 'a1') && piece === 'q') {
-            return 'Corner Mate';
-        }
-        
-        // Detect Mate on the Edge
-        if (toSquare.includes('8') || toSquare.includes('1') || toSquare.includes('a') || toSquare.includes('h')) {
-            if (piece === 'q') return 'Queen Edge Mate';
-            if (piece === 'r') return 'Rook Edge Mate';
-            if (piece === 'b') return 'Bishop Edge Mate';
-            if (piece === 'n') return 'Knight Edge Mate';
-        }
-        
-        // Detect Center Mate (rare - mate in center of board)
-        if (['d4', 'd5', 'e4', 'e5'].includes(toSquare)) {
-            return 'Center Mate';
-        }
-        
-        // Detect Mating Net (King trapped with no escape)
-        if (piece === 'q' && totalMoves > 20) {
-            return 'Mating Net';
-        }
-        
-        // ========== SPECIAL MATES ==========
-        
-        // Detect discovered checkmate
-        if (matingMove.san && matingMove.san.includes('+') && captured) {
-            return 'Discovered Checkmate';
-        }
-        
-        // Detect mate with sacrifice
-        if (captured && (piece === 'q' || piece === 'r')) {
-            return 'Sacrificial Mate';
-        }
-        
-        // Detect Double Check Mate
-        if (matingMove.san && matingMove.san.includes('++')) {
-            return 'Double Check Mate';
-        }
-        
-        // Detect Pawn Mate (rare!)
-        if (piece === 'p') {
-            return 'Pawn Mate!';
-        }
-        
-        // Detect King + Queen Mate (basic endgame)
-        if (piece === 'q' && totalMoves > 30) {
-            return 'King & Queen Endgame Mate';
-        }
-        
-        // Detect King + Rook Mate (basic endgame)
-        if (piece === 'r' && totalMoves > 30) {
-            return 'King & Rook Endgame Mate';
-        }
-        
-        // Detect King + Two Bishops Mate
-        const bishopMoves = moves.filter(m => m.piece === 'b');
-        if (piece === 'b' && bishopMoves.length >= 2 && totalMoves > 25) {
-            return 'King & Two Bishops Mate';
-        }
-        
-        // Detect King + Bishop + Knight Mate (very rare endgame)
-        if ((piece === 'b' || piece === 'n') && totalMoves > 40) {
-            return 'King, Bishop & Knight Mate';
-        }
-        
-        // Detect Hook Mate (Rook + Knight)
-        if (piece === 'r' && moves.some(m => m.piece === 'n' && m.to.includes(toSquare[0]))) {
+        // Hook Mate: Rook mate with own piece blocking escape
+        if (piece === 'r' && isEdge && blockingPieces >= 1) {
             return 'Hook Mate';
         }
         
-        // Detect Epaullette Mate (King blocked by own pieces)
-        if (piece === 'q' && ['g7', 'g2', 'c7', 'c2'].includes(toSquare)) {
-            return 'Epaullette Mate';
+        // Pawn delivers mate (always notable)
+        if (piece === 'p') {
+            return 'Pawn Mate';
         }
         
-        // Fallback: Identify by piece
-        const pieceNames = {
-            'q': 'Queen',
-            'r': 'Rook',
-            'b': 'Bishop',
-            'n': 'Knight',
-            'p': 'Pawn'
-        };
+        // ========== PIECE COORDINATION MATES ==========
+        const attackerMoves = verboseMoves.filter(m => m.color !== turn);
+        const piecesUsed = new Set(attackerMoves.map(m => m.piece));
         
-        const pieceName = pieceNames[piece] || 'Unknown';
-        return `${pieceName} Mate on ${toSquare}`;
+        const rookCount = verboseMoves.filter(m => m.piece === 'r' && m.color !== turn).length;
+        if (piece === 'r' && rookCount >= 2) return 'Double Rook Mate';
+        if (piece === 'q' && piecesUsed.has('r')) return 'Queen & Rook Battery';
+        if (piece === 'q' && piecesUsed.has('b')) return 'Queen & Bishop Battery';
+        if (piece === 'q' && piecesUsed.has('n')) return 'Queen & Knight Mate';
+        if (piece === 'r' && piecesUsed.has('b')) return 'Rook & Bishop Mate';
+        if (piece === 'n' && piecesUsed.has('b')) return 'Knight & Bishop Mate';
+        
+        const queenCount = verboseMoves.filter(m => m.piece === 'q' && m.color !== turn).length;
+        if (queenCount >= 2 && piece === 'q') return 'Double Queen Mate';
+        
+        if (piecesUsed.size <= 2 && piece !== 'q' && piece !== 'r') return 'King & Minor Piece Mate';
+        if (piecesUsed.size >= 2) return 'Piece Coordination Mate';
+        
+        return 'Checkmate';
     }
 
     updateWinProbability() {
