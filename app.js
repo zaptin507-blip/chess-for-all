@@ -2014,6 +2014,12 @@ class ChessGame {
             });
 
             if (move) {
+                // Trainer mode: intercept for move validation
+                if (this.trainerMode && this.handleTrainerMove) {
+                    this.handleTrainerMove(move);
+                    return;
+                }
+                
                 // Play sound effect for the move
                 this.playSound(move);
                 

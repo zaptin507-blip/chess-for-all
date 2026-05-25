@@ -8,6 +8,7 @@ const chessOpenings = {
         category: 'Open Games',
         moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4'],
         description: 'One of the oldest and most classical openings. White develops the bishop to an active square, targeting the weak f7 pawn.',
+        mainIdea: 'Develop the bishop to f7 — the weakest square in black\'s position. Prepare d4 to dominate the center while keeping the option of a quick kingside attack.',
         finalPosition: 'r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3',
         strengths: [
             'Fast and natural development',
@@ -44,6 +45,7 @@ const chessOpenings = {
         category: 'Closed Games',
         moves: ['d4', 'd5', 'Bf4'],
         description: 'A solid, easy-to-learn system opening. White develops the bishop outside the pawn chain before playing e3.',
+        mainIdea: 'Develop the bishop outside the d3-e3 pawn chain for a solid, repeatable setup against any defense. Aim for a kingside attack with Ne5, Bd3, and a pawn storm.',
         finalPosition: 'rnbqkbnr/ppp1pppp/8/3p4/3P1B2/8/PPP1PPPP/RN1QKBNR w KQkq - 1 3',
         strengths: [
             'Very easy to learn - same setup vs almost anything',
@@ -81,6 +83,7 @@ const chessOpenings = {
         category: 'Open Games',
         moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Bb5'],
         description: 'One of the most analyzed openings in chess history. White puts pressure on the knight defending e5.',
+        mainIdea: 'Pressure the knight defending e5 with Bb5, threatening to exchange and destroy black\'s pawn structure. Follow up with c3 and d4 to build a dominant center.',
         finalPosition: 'r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3',
         strengths: [
             'Rich in strategic ideas',
@@ -117,6 +120,7 @@ const chessOpenings = {
         category: 'Closed Games',
         moves: ['d4', 'd5', 'c4'],
         description: 'White offers a pawn to gain central control. One of the most popular and respected openings.',
+        mainIdea: 'Offer the c4 pawn to lure black\'s d5 pawn away, then establish a powerful d4-e4 center. Control space and develop pieces before launching pressure on black\'s position.',
         finalPosition: 'rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR b KQkq - 0 2',
         strengths: [
             'Strong central control',
@@ -154,6 +158,7 @@ const chessOpenings = {
         category: 'Semi-Open Games',
         moves: ['e4', 'c5', 'Nf3', 'd6', 'd4', 'cxd4', 'Nxd4', 'Nf6', 'Nc3', 'a6'],
         description: 'The sharpest and most complex response to e4. Black fights for the center and creates imbalanced positions.',
+        mainIdea: 'Fight asymmetry from move 1 with ...c5, controlling d4 and creating unbalanced play. In the Najdorf, keep the bishop on e7 flexible while preparing ...e5 to challenge white\'s center.',
         finalPosition: 'rnbqkb1r/1p2pppp/p2p1n2/8/3NP3/2N5/PPP2PPP/R1BQKB1R w KQkq - 0 6',
         strengths: [
             'Creates unbalanced, winning chances',
@@ -193,6 +198,7 @@ const chessOpenings = {
         category: 'Open Games',
         moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Nc3', 'Nf6'],
         description: 'A solid, symmetrical opening where both sides develop knights naturally. Great for learning piece development.',
+        mainIdea: 'Develop all knights to their natural squares (f3, c3, f6, c6) before committing bishops. The first player to break the symmetry gains a slight edge in this quiet positional game.',
         finalPosition: 'r1bqkb1r/pppp1ppp/2n2n2/4p3/4P3/2N2N2/PPPP1PPP/R1BQKB1R w KQkq - 4 4',
         strengths: ['Very solid and safe', 'Teaches natural development', 'Hard to blunder early', 'Symmetrical structure'],
         weaknesses: ['Can be drawish', 'Less aggressive', 'Limited winning chances'],
@@ -209,6 +215,7 @@ const chessOpenings = {
         category: 'Open Games',
         moves: ['e4', 'e5', 'Nf3', 'Nc6', 'd4'],
         description: 'White immediately challenges the center with d4. Leads to open, tactical positions.',
+        mainIdea: 'Open the center immediately with d4 on move 3, forcing exchanges that lead to open lines and active piece play. Ideal for tactical players who want sharp, dynamic positions.',
         finalPosition: 'r1bqkbnr/pppp1ppp/2n5/4p3/3PP3/5N2/PPP2PPP/RNBQKB1R b KQkq d3 0 3',
         strengths: ['Opens the game quickly', 'Good for tactical players', 'Clear plans', 'Forces early action'],
         weaknesses: ['Can favor well-prepared Black', 'Less strategic depth', 'Main lines are well-known'],
@@ -225,6 +232,7 @@ const chessOpenings = {
         category: 'Open Games',
         moves: ['e4', 'e5', 'Nc3'],
         description: 'A flexible opening that can transpose to various systems. Delays Nf3 for more options.',
+        mainIdea: 'Delay Nf3 in favor of Nc3, keeping the option to play f4 (Vienna Gambit) for a sharp kingside attack. The flexibility lets you transpose into favorable lines or surprise opponents.',
         finalPosition: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/2N5/PPPP1PPP/R1BQKBNR b KQkq - 1 2',
         strengths: ['Flexible and tricky', 'Can avoid main theory', 'Good for surprises', 'Multiple plans'],
         weaknesses: ['Less direct than Italian', 'Requires understanding of transpositions', 'Can be passive'],
@@ -245,6 +253,7 @@ const chessOpenings = {
         category: 'Semi-Open Games',
         moves: ['e4', 'c5'],
         description: "Black's most popular response to e4. Creates imbalanced positions with winning chances for both sides.",
+        mainIdea: 'Use an asymmetrical pawn structure from move 1 (...c5 instead of ...e5) to create unbalanced play. Black gains a half-open c-file and extra central pawn for long-term counterattacks.',
         finalPosition: 'rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2',
         strengths: ['Fighting and unbalanced', 'Good winning chances for Black', 'Rich in tactics', 'Many variations'],
         weaknesses: ['Complex theory', 'White has space advantage', 'Requires precise play', 'Sharp positions'],
@@ -262,6 +271,7 @@ const chessOpenings = {
         category: 'Semi-Open Games',
         moves: ['e4', 'e6'],
         description: 'A solid, strategic defense where Black builds a pawn chain. Leads to closed, maneuvering games.',
+        mainIdea: 'Build a solid pawn chain with e6-d5, restricting white\'s center while preparing ...c5 to counter-attack. The key challenge is developing the light-squared bishop trapped behind the pawns.',
         finalPosition: 'rnbqkbnr/pppp1ppp/4p3/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
         strengths: ['Very solid structure', 'Good for strategic players', 'Clear pawn chains', 'Counter-attacking chances'],
         weaknesses: ['Light-squared bishop is blocked', 'Can be passive', 'Requires patience', 'Space disadvantage'],
@@ -279,6 +289,7 @@ const chessOpenings = {
         category: 'Semi-Open Games',
         moves: ['e4', 'c6'],
         description: 'A solid, reliable defense combining ideas from French and Slav. Less blocking of light-squared bishop.',
+        mainIdea: 'Support d5 with c6 instead of e6, keeping the light-squared bishop free to develop outside the pawn chain (often to f5). Creates a very solid but somewhat passive position with no real weaknesses.',
         finalPosition: 'rnbqkbnr/pp1ppppp/2p5/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
         strengths: ['Very solid and safe', 'Light-squared bishop free', 'Good pawn structure', 'Easy to learn'],
         weaknesses: ['Can be passive', 'Less dynamic than Sicilian', 'White has space', 'Limited counterplay'],
@@ -295,6 +306,7 @@ const chessOpenings = {
         category: 'Indian Defenses',
         moves: ['d4', 'Nf6', 'c4', 'g6'],
         description: "A hypermodern defense where Black fianchettoes the king's bishop and attacks the center later.",
+        mainIdea: 'Allow white a big center, then fianchetto the king\'s bishop and launch a pawn storm against it (...e5 or ...c5). Black attacks on the kingside while white typically plays on the queenside.',
         finalPosition: 'rnbqkb1r/pppppp1p/5np1/8/2PP4/8/PP2PPPP/RNBQKBNR w KQkq - 2 3',
         strengths: ['Aggressive and dynamic', 'Good attacking chances', 'Rich in tactics', 'Unbalanced positions'],
         weaknesses: ['Complex theory', 'Requires precise timing', 'Can be risky', 'White has space advantage'],
@@ -311,6 +323,7 @@ const chessOpenings = {
         category: 'Indian Defenses',
         moves: ['d4', 'Nf6', 'c4', 'e6', 'Nc3', 'Bb4'],
         description: 'Black pins the knight and fights for control of e4. One of the most respected defenses.',
+        mainIdea: 'Pin the knight on c3 with ...Bb4 to prevent white from playing e4. Trade the bishop for the knight to weaken white\'s center control and double the c-pawns for long-term pressure.',
         finalPosition: 'rnbqk2r/pppp1ppp/4pn2/8/1bPP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 3 4',
         strengths: ['Very solid and strategic', 'Good pawn structure', 'Prevents e4', 'Flexible plans'],
         weaknesses: ['Gives up bishop pair', 'Requires understanding', 'Can lead to passive positions', 'Theory heavy'],
@@ -328,6 +341,7 @@ const chessOpenings = {
         category: 'Closed Games',
         moves: ['d4', 'd5', 'c4', 'c6'],
         description: "A solid response to Queen's Gambit. Black supports d5 with c6 instead of e6.",
+        mainIdea: 'Support the d5 pawn with c6 instead of e6, keeping the light-squared bishop free (often to f5). Creates a solid, resilient structure that\'s hard to break down while avoiding the French\'s bad bishop problem.',
         finalPosition: 'rnbqkbnr/pp2pppp/2p5/3p4/2PP4/8/PP2PPPP/RNBQKBNR w KQkq - 0 3',
         strengths: ['Very solid structure', 'Light-squared bishop free', 'Good for positional play', 'Reliable'],
         weaknesses: ['Can be passive', 'Less dynamic', 'White has space', 'Requires patience'],
@@ -346,6 +360,7 @@ const chessOpenings = {
         category: 'Indian Defenses',
         moves: ['d4', 'Nf6', 'c4', 'g6', 'Nc3', 'd5'],
         description: 'A hypermodern defense where Black allows White a strong center, then attacks it with pieces.',
+        mainIdea: 'Allow white to build an imposing center with d4 and c4, then immediately attack it with ...d5. Use piece activity and pressure rather than pawns to challenge white\'s space advantage.',
         finalPosition: 'rnbqkb1r/ppp1pp1p/5np1/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 2 4',
         strengths: ['Very dynamic and tactical', 'Good counter-attacking chances', 'Unbalances the position', 'Favored by top players'],
         weaknesses: ['Extremely complex theory', 'Requires precise calculation', 'Risky if unprepared', 'White has space'],
@@ -363,6 +378,7 @@ const chessOpenings = {
         category: 'Closed Games',
         moves: ['d4', 'f5'],
         description: 'An aggressive, unbalanced defense where Black immediately stakes claim on e4.',
+        mainIdea: 'Immediately stake a claim on e4 with ...f5, preparing a kingside attack. Often leads to sharp tactical play where black attacks on the kingside and white counter-attacks on the queenside.',
         finalPosition: 'rnbqkbnr/ppppp1pp/8/5p2/3P4/8/PPP1PPPP/RNBQKBNR w KQkq f6 0 2',
         strengths: ['Very aggressive', 'Unusual and tricky', 'Good for attacking players', 'Creates imbalances'],
         weaknesses: ['Weakens king position', 'Complex theory', 'Risky', 'Requires precise play'],
@@ -379,6 +395,7 @@ const chessOpenings = {
         category: 'Indian Defenses',
         moves: ['d4', 'Nf6', 'c4', 'c5', 'd5', 'e6'],
         description: 'A sharp, tactical defense where Black accepts an isolated pawn for active piece play.',
+        mainIdea: 'Create an immediate imbalance with ...c5 on move 2, accepting a backward d-pawn in exchange for dynamic piece play and a queenside pawn majority in the resulting race.',
         finalPosition: 'rnbqkb1r/pp1p1ppp/4pn2/2pP4/2P5/8/PP2PPPP/RNBQKBNR w KQkq - 0 4',
         strengths: ['Very tactical and sharp', 'Good counter-attacking chances', 'Active piece play', 'Unbalanced'],
         weaknesses: ['Extremely complex', 'Weak d6 pawn', 'Requires precise calculation', 'Risky'],
@@ -395,6 +412,7 @@ const chessOpenings = {
         category: 'Semi-Open Games',
         moves: ['e4', 'Nf6'],
         description: "A provocative defense where Black tempts White's pawns forward, then attacks them.",
+        mainIdea: 'Provoke white to advance central pawns (...Nf6 attacking e4), then target the overextended pawn chain. Give up space for piece activity and counterplay against white\'s forward pawns.',
         finalPosition: 'rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2',
         strengths: ['Very provocative', 'Creates imbalances', 'Good for tactical players', 'Unusual'],
         weaknesses: ['Gives White space', 'Complex theory', 'Risky', 'Requires precise play'],
@@ -412,6 +430,7 @@ const chessOpenings = {
         category: 'Semi-Open Games',
         moves: ['e4', 'd6', 'd4', 'Nf6'],
         description: "A hypermodern defense similar to King's Indian but against e4. Solid but passive.",
+        mainIdea: 'Play ...d6 and ...Nf6 instead of ...e5, allowing white to occupy the center. Then fianchetto the king\'s bishop with ...g6 and ...Bg7 before striking with ...e5 or ...c5.',
         finalPosition: 'rnbqkb1r/ppp1pppp/3p1n2/8/3PP3/8/PPP2PPP/RNBQKBNR w KQkq - 2 3',
         strengths: ['Solid structure', 'Good for positional play', 'Flexible', 'Hard to crack'],
         weaknesses: ['Passive', 'Gives White space', 'Limited counterplay', 'Requires patience'],
@@ -428,6 +447,7 @@ const chessOpenings = {
         category: 'Flank Openings',
         moves: ['f4'],
         description: 'An unusual opening where White immediately stakes claim on e5. Can transpose to Dutch reversed.',
+        mainIdea: 'Stake a claim on e5 with f4, often leading to a reversed Dutch Defense. Unusual and tricky but weakens the king — aim for a rapid kingside attack or transpose into familiar structures.',
         finalPosition: 'rnbqkbnr/pppppppp/8/8/5P2/8/PPPPP1PP/RNBQKBNR b KQkq f3 0 1',
         strengths: ['Unusual and tricky', 'Good for surprises', 'Aggressive', 'Controls e5'],
         weaknesses: ['Weakens king position', 'Less principled', 'Complex', 'Requires understanding'],
@@ -445,6 +465,7 @@ const chessOpenings = {
         category: 'Flank Openings',
         moves: ['c4'],
         description: 'A flexible flank opening that can transpose to many different systems. Positional and strategic.',
+        mainIdea: 'Control the center from the flank with c4, avoiding early commitment. Can transpose into Queen\'s Gambit, Sicilian, or Indian structures, offering immense flexibility and deep strategic play.',
         finalPosition: 'rnbqkbnr/pppppppp/8/8/2P5/8/PP1PPPPP/RNBQKBNR b KQkq c3 0 1',
         strengths: ['Very flexible', 'Good for positional players', 'Many transpositions', 'Strategic'],
         weaknesses: ['Less direct', 'Requires understanding', 'Can be passive', 'Theory heavy'],
@@ -1183,6 +1204,9 @@ function renderOpeningCard(opening) {
                     <div style="color: rgba(255, 255, 255, 0.8); font-size: 13px; line-height: 1.5;">
                         ${opening.description.substring(0, 100)}...
                     </div>
+                    <div style="color: #FFD700; font-size: 13px; line-height: 1.4; margin-top: 8px; padding: 8px 10px; background: rgba(255, 215, 0, 0.08); border-left: 3px solid #FFD700; border-radius: 4px;">
+                        <strong>💡 Main Idea:</strong> ${opening.mainIdea.substring(0, 90)}...
+                    </div>
                     <div style="display: flex; gap: 10px; margin-top: 10px;">
                         <span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">
                             Moves: ${opening.moves.join(' ')}
@@ -1239,6 +1263,11 @@ window.showOpeningDetail = (openingId) => {
                     <div style="background: rgba(0, 0, 0, 0.2); border-radius: 10px; padding: 20px; margin-bottom: 15px;">
                         <h3 style="color: #769656; margin: 0 0 10px 0; font-size: 18px;">📖 Description</h3>
                         <p style="color: rgba(255, 255, 255, 0.9); margin: 0; line-height: 1.6; font-size: 15px;">${opening.description}</p>
+                    </div>
+
+                    <div style="background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.25); border-radius: 10px; padding: 20px; margin-bottom: 15px;">
+                        <h3 style="color: #FFD700; margin: 0 0 10px 0; font-size: 18px;">💡 Main Idea</h3>
+                        <p style="color: rgba(255, 255, 255, 0.95); margin: 0; line-height: 1.6; font-size: 15px;">${opening.mainIdea}</p>
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
@@ -1332,7 +1361,7 @@ window.practiceOpening = (openingId) => {
         <div style="max-width: 800px; width: 90%; background: linear-gradient(135deg, #312e2b 0%, #272522 100%); border: 2px solid #769656; border-radius: 12px; padding: 30px; box-shadow: 0 0 30px rgba(118, 150, 86, 0.3);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 style="color: #fff; margin: 0; font-size: 24px;">🎮 Practice: ${opening.name}</h2>
-                <button onclick="document.getElementById('openingTrainer').remove()" style="background: none; border: none; color: #fff; font-size: 28px; cursor: pointer; padding: 0; width: 30px; height: 30px;">&times;</button>
+                <button onclick="closeTrainer()" style="background: none; border: none; color: #fff; font-size: 28px; cursor: pointer; padding: 0; width: 30px; height: 30px;">&times;</button>
             </div>
             
             <div style="background: rgba(0, 0, 0, 0.3); padding: 20px; border-radius: 8px; margin-bottom: 20px;">
@@ -1370,7 +1399,7 @@ window.practiceOpening = (openingId) => {
                 <button id="trainerStartBtn" onclick="startOpeningTrainer('${opening.id}')" style="flex: 1; padding: 14px; background: #769656; color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
                     ▶️ Start Training
                 </button>
-                <button onclick="document.getElementById('openingTrainer').remove()" style="flex: 1; padding: 14px; background: rgba(255, 255, 255, 0.1); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
+                <button onclick="closeTrainer()" style="flex: 1; padding: 14px; background: rgba(255, 255, 255, 0.1); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
                     Close
                 </button>
             </div>
@@ -1413,16 +1442,11 @@ window.startOpeningTrainer = (openingId) => {
     // Hook into chess game to validate moves
     if (window.chessGame) {
         window.chessGame.trainerMode = true;
-        window.chessGame.trainerMoves = trainerState.openingMoves;
-        window.chessGame.trainerIndex = 0;
         
-        // Override makePlayerMove temporarily
-        const originalMakePlayerMove = window.chessGame.makePlayerMove.bind(window.chessGame);
-        window.chessGame.makePlayerMove = function(from, to) {
+        window.chessGame.handleTrainerMove = function(move) {
             const expectedMove = trainerState.openingMoves[trainerState.currentMoveIndex];
-            const moveSan = this.chess.move({ from, to, promotion: 'q' });
             
-            if (moveSan && moveSan.san === expectedMove) {
+            if (move.san === expectedMove) {
                 // Correct move!
                 trainerState.currentMoveIndex++;
                 updateTrainerProgress();
@@ -1431,6 +1455,7 @@ window.startOpeningTrainer = (openingId) => {
                     // Training complete!
                     showMessage('🎉 Excellent! You completed the opening!', '#4CAF50');
                     window.chessGame.trainerMode = false;
+                    window.chessGame.handleTrainerMove = null;
                     setTimeout(() => {
                         if (confirm('Great job! Practice another opening?')) {
                             document.getElementById('openingTrainer').remove();
@@ -1444,10 +1469,10 @@ window.startOpeningTrainer = (openingId) => {
             } else {
                 // Wrong move
                 showMessage(`✗ Incorrect! Expected: ${expectedMove}. Try again!`, '#f44336');
-                this.chess.undo(); // Undo the wrong move
+                window.chessGame.chess.undo(); // Undo the wrong move
+                window.chessGame.renderBoard();
+                window.chessGame.updateMoveList();
             }
-            
-            return moveSan;
         };
     }
 };
@@ -1473,6 +1498,16 @@ function showMessage(text, color) {
         message.style.color = color;
     }
 }
+
+// Close trainer and clean up
+window.closeTrainer = () => {
+    const trainer = document.getElementById('openingTrainer');
+    if (trainer) trainer.remove();
+    if (window.chessGame) {
+        window.chessGame.trainerMode = false;
+        window.chessGame.handleTrainerMove = null;
+    }
+};
 
 // Render all openings
 window.renderLearnSection = () => {
