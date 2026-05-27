@@ -6560,6 +6560,12 @@ function closeProfileDropdown() {
     if (dropdown) dropdown.style.display = 'none';
 }
 
+// Helper to open profile dropdown
+function openProfileDropdown() {
+    const dropdown = document.getElementById('profileDropdown');
+    if (dropdown) dropdown.style.display = 'flex';
+}
+
 // Helper to toggle profile dropdown
 function toggleProfileDropdown() {
     const dropdown = document.getElementById('profileDropdown');
@@ -6757,18 +6763,45 @@ document.addEventListener('DOMContentLoaded', () => {
     // Settings button (main profile)
     const profileSettingsBtn = document.getElementById('profileSettingsBtn');
     if (profileSettingsBtn) {
-        profileSettingsBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            toggleProfileDropdown();
+        profileSettingsBtn.addEventListener('mouseenter', () => {
+            openProfileDropdown();
         });
     }
     
     // Settings button (sidebar profile)
     const sidebarSettingsBtn = document.getElementById('sidebarSettingsBtn');
     if (sidebarSettingsBtn) {
-        sidebarSettingsBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            toggleProfileDropdown();
+        sidebarSettingsBtn.addEventListener('mouseenter', () => {
+            openProfileDropdown();
+        });
+    }
+    
+    // Sidebar user profile hover area
+    const sidebarUserProfile = document.getElementById('sidebarUserProfile');
+    if (sidebarUserProfile) {
+        sidebarUserProfile.addEventListener('mouseenter', () => {
+            openProfileDropdown();
+        });
+    }
+    
+    // Profile dropdown itself - keep open while hovering
+    const profileDropdown = document.getElementById('profileDropdown');
+    if (profileDropdown) {
+        profileDropdown.addEventListener('mouseleave', () => {
+            closeProfileDropdown();
+        });
+    }
+    
+    // Close dropdown when mouse leaves sidebar profile area
+    if (sidebarUserProfile) {
+        sidebarUserProfile.addEventListener('mouseleave', () => {
+            // Only close if we're not hovering the dropdown
+            setTimeout(() => {
+                const dropdown = document.getElementById('profileDropdown');
+                if (dropdown && !dropdown.matches(':hover')) {
+                    closeProfileDropdown();
+                }
+            }, 100);
         });
     }
     
