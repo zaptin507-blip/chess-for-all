@@ -6563,7 +6563,43 @@ function closeProfileDropdown() {
 // Helper to open profile dropdown
 function openProfileDropdown() {
     const dropdown = document.getElementById('profileDropdown');
-    if (dropdown) dropdown.style.display = 'flex';
+    if (dropdown) {
+        dropdown.style.display = 'flex';
+        // Update profile info in dropdown
+        updateDropdownProfile();
+    }
+}
+
+// Update profile info in dropdown header
+function updateDropdownProfile() {
+    const displayNameEl = document.getElementById('dropdownDisplayName');
+    const eloEl = document.getElementById('dropdownELO');
+    const avatarImg = document.getElementById('dropdownAvatarImg');
+    const avatarFallback = document.getElementById('dropdownAvatarFallback');
+    
+    if (!displayNameEl || !eloEl || !avatarImg || !avatarFallback) return;
+    
+    // Get user info from storage
+    const displayName = safeStorage.get('displayName') || 'Player';
+    const userELO = safeStorage.getInt('userELO', 0);
+    const savedPic = safeStorage.get('profilePicture', '');
+    
+    // Update display name
+    displayNameEl.textContent = displayName;
+    
+    // Update ELO
+    eloEl.textContent = userELO > 0 ? `Rating: ${userELO}` : 'Rating: Unrated';
+    
+    // Update avatar
+    if (savedPic) {
+        avatarImg.src = savedPic;
+        avatarImg.style.display = 'block';
+        avatarFallback.style.display = 'none';
+    } else {
+        avatarImg.style.display = 'none';
+        avatarFallback.style.display = 'block';
+        avatarFallback.textContent = '♟';
+    }
 }
 
 // Helper to toggle profile dropdown
