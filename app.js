@@ -7173,12 +7173,3 @@ window.addEventListener('load', () => {
         // For non-critical errors (like sound files), the game will still work
     }
 });
-    } catch (error) {
-        console.error('⚠️ Chess game initialization warning:', error);
-        // Only show alert for critical errors that prevent the game from working
-        if (error.message && error.message.includes('Critical')) {
-            alert('Error loading chess game: ' + error.message);
-        }
-        // For non-critical errors (like sound files), the game will still work
-    }
-});
