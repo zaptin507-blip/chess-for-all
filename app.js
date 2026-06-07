@@ -1344,7 +1344,7 @@ class ChessGame {
         }
     }
 
-            async initAnalysisEngineNNUE() {
+    async initAnalysisEngineNNUE() {
         // NNUE neural engine for enhanced analysis accuracy
         if (!window.NNUE_SUPPORTED) {
             console.log('ℹ️ NNUE not supported in this browser (needs SharedArrayBuffer)');
@@ -4788,7 +4788,7 @@ class ChessGame {
         // Initialize analysis engine only when needed
         if (!this.analysisEngine) {
             // Try NNUE first (async), fall back to classic Worker
-                        this.analysisEngine = await this.initAnalysisEngineNNUE();
+            this.analysisEngine = await this.initAnalysisEngineNNUE();
             if (!this.analysisEngine) {
                 this.analysisEngine = this.initAnalysisEngine();
             }
