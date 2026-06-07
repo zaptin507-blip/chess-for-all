@@ -7263,19 +7263,3 @@ window.addEventListener('load', () => {
         // For non-critical errors (like sound files), the game will still work
     }
 });
-        // Load saved board and piece preferences immediately
-        chessGame.loadPreferences();
-        
-        // Check for Tester reminder (every 6 months)
-        chessGame.checkTesterReminder();
-        
-
-    } catch (error) {
-        console.error('⚠️ Chess game initialization warning:', error);
-        // Only show alert for critical errors that prevent the game from working
-        if (error.message && error.message.includes('Critical')) {
-            alert('Error loading chess game: ' + error.message);
-        }
-        // For non-critical errors (like sound files), the game will still work
-    }
-});
