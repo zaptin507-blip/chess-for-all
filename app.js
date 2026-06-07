@@ -92,7 +92,9 @@ class ChessGame {
             move: new Audio('sounds/move.mp3'),
             capture: new Audio('sounds/capture.mp3'),
             check: new Audio('sounds/check.mp3'),
-            checkmate: new Audio('sounds/checkmate.mp3')
+            checkmate: new Audio('sounds/checkmate.mp3'),
+            illegal: new Audio('sounds/illegal.mp3'),
+            promote: new Audio('sounds/promote.mp3')
         };
         // Preload sounds (silently fail if files don't exist)
         try {
@@ -2279,7 +2281,19 @@ class ChessGame {
                 
                 setTimeout(() => this.makeBotMove(), 300);
             } else {
-                // Invalid move - re-render to clear selection
+                // Invalid move - play sound, re-render to clear selection
+                try {
+                    const sound = this.sounds.illegal;
+                    if (sound && sound.readyState >= 2) {
+                        sound.currentTime = 0;
+                        sound.play().catch(() => {});
+                    } else {
+                        const fallback = this.sounds.move.cloneNode();
+                        fallback.volume = 0.35;
+                        fallback.playbackRate = 0.6;
+                        fallback.play().catch(() => {});
+                    }
+                } catch (e) {}
                 this.selectedSquare = null;
                 this.renderBoard();
             }
@@ -2357,6 +2371,19 @@ class ChessGame {
         
         if (move) {
             this.playSound(move);
+            // Play promotion sound
+            try {
+                const sound = this.sounds.promote;
+                if (sound && sound.readyState >= 2) {
+                    sound.currentTime = 0;
+                    sound.play().catch(() => {});
+                } else {
+                    const fallback = this.sounds.move.cloneNode();
+                    fallback.volume = 0.7;
+                    fallback.playbackRate = 1.4;
+                    fallback.play().catch(() => {});
+                }
+            } catch (e) {}
             this.removeSuggestionArrow();
             
             this.moveHistory.push({
@@ -7250,6 +7277,19 @@ window.addEventListener('load', () => {
         // Load saved board and piece preferences immediately
         chessGame.loadPreferences();
         
+        // Check for Tester reminder (every 6 months)
+        chessGame.checkTesterReminder();
+        
+
+    } catch (error) {
+        console.error('⚠️ Chess game initialization warning:', error);
+        // Only show alert for critical errors that prevent the game from working
+        if (error.message && error.message.includes('Critical')) {
+            alert('Error loading chess game: ' + error.message);
+        }
+        // For non-critical errors (like sound files), the game will still work
+    }
+});
         // Check for Tester reminder (every 6 months)
         chessGame.checkTesterReminder();
         
