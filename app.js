@@ -91,7 +91,8 @@ class ChessGame {
         this.sounds = {
             move: new Audio('sounds/move.mp3'),
             capture: new Audio('sounds/capture.mp3'),
-            check: new Audio('sounds/check.mp3')
+            check: new Audio('sounds/check.mp3'),
+            checkmate: new Audio('sounds/checkmate.mp3')
         };
         // Preload sounds (silently fail if files don't exist)
         try {
@@ -3938,58 +3939,24 @@ class ChessGame {
     }
 
     /**
-     * Play a chess.com-style checkmate sound using Web Audio API.
-     * Synthesizes a triumphant two-tone chime — quick ascending note
-     * followed by a resonant "ding". No external audio file required.
+     * Play checkmate sound using the existing Audio system.
+     * Uses checkmate.mp3 if available, falls back to check.mp3.
      */
     playCheckmateSound() {
         try {
-            const ctx = this.audioContext || new (window.AudioContext || window.webkitAudioContext)();
-            if (!this.audioContext) this.audioContext = ctx;
-            
-            const now = ctx.currentTime;
-            
-            // --- First note: quick ascending sweep (lead-in) ---
-            const leadOsc = ctx.createOscillator();
-            const leadGain = ctx.createGain();
-            leadOsc.type = 'sine';
-            leadOsc.frequency.setValueAtTime(660, now);          // E5
-            leadOsc.frequency.linearRampToValueAtTime(880, now + 0.12);  // A5
-            leadGain.gain.setValueAtTime(0.25, now);
-            leadGain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
-            leadOsc.connect(leadGain);
-            leadGain.connect(ctx.destination);
-            leadOsc.start(now);
-            leadOsc.stop(now + 0.3);
-            
-            // --- Second note: resonant "ding" (the main event) ---
-            const mainOsc = ctx.createOscillator();
-            const mainGain = ctx.createGain();
-            mainOsc.type = 'sine';
-            mainOsc.frequency.setValueAtTime(1047, now + 0.2);   // C6
-            mainGain.gain.setValueAtTime(0.001, now + 0.2);
-            mainGain.gain.linearRampToValueAtTime(0.4, now + 0.28);
-            mainGain.gain.setValueAtTime(0.4, now + 0.45);
-            mainGain.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
-            mainOsc.connect(mainGain);
-            mainGain.connect(ctx.destination);
-            mainOsc.start(now + 0.2);
-            mainOsc.stop(now + 1.0);
-            
-            // --- Harmonic overtone for richness ---
-            const harmOsc = ctx.createOscillator();
-            const harmGain = ctx.createGain();
-            harmOsc.type = 'sine';
-            harmOsc.frequency.setValueAtTime(1568, now + 0.2);   // G6
-            harmGain.gain.setValueAtTime(0.001, now + 0.2);
-            harmGain.gain.linearRampToValueAtTime(0.12, now + 0.3);
-            harmGain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
-            harmOsc.connect(harmGain);
-            harmGain.connect(ctx.destination);
-            harmOsc.start(now + 0.2);
-            harmOsc.stop(now + 0.7);
+            const sound = this.sounds.checkmate;
+            // If checkmate.mp3 failed to load, fall back to check.mp3
+            if (sound && sound.readyState >= 2) {
+                sound.currentTime = 0;
+                sound.play().catch(() => {});
+            } else {
+                // Fallback: clone check.mp3 so it plays even if check.mp3 is already playing
+                const fallback = this.sounds.check.cloneNode();
+                fallback.volume = 0.9;
+                fallback.play().catch(() => {});
+            }
         } catch (e) {
-            // Silently fail — sound is optional
+            // Silent fail
         }
     }
 
