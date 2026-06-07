@@ -31,7 +31,7 @@ class ChessAnalyzer {
         return 103.16 * Math.exp(-4 * pointLoss) - 3.17;
     }
 
-    /* Estimate game phase 0.0 (opening) → 1.0 (endgame) from non-pawn material */
+    /** Estimate game phase 0.0 (opening) → 1.0 (endgame) from non-pawn material */
     static _getGamePhase(fen) {
         const board = fen.split(' ')[0];
         let totalMaterial = 0;
@@ -71,43 +71,41 @@ class ChessAnalyzer {
         return Math.min(12000, Math.max(3000, complexity));
     }
 
-    /* Move classification with game-phase-aware thresholds */
+    /** Move classification with game-phase-aware thresholds */
     static pointLossClassify(evalBefore, evalAfter, moveColor, gamePhase = 0) {
-        const subjectiveValueBefore = evalBefore.value * (moveColor === 'w' ? 1 : -1);
-        const subjectiveValueAfter = evalAfter.value * (moveColor === 'w' ? 1 : -1);
+        const svBefore = evalBefore.value * (moveColor === 'w' ? 1 : -1);
+        const svAfter = evalAfter.value * (moveColor === 'w' ? 1 : -1);
 
         if (evalBefore.type === 'mate' && evalAfter.type === 'mate') {
-            if (subjectiveValueBefore > 0 && subjectiveValueAfter < 0) {
-                return subjectiveValueAfter < -3 ? 'mistake' : 'blunder';
-            }
+            if (svBefore > 0 && svAfter < 0) return svAfter < -3 ? 'mistake' : 'blunder';
             const mateLoss = (evalAfter.value - evalBefore.value) * (moveColor === 'w' ? 1 : -1);
-            if (mateLoss < 0 || (mateLoss === 0 && subjectiveValueAfter < 0)) return 'best';
-            else if (mateLoss < 2) return 'excellent';
-            else if (mateLoss < 7) return 'okay';
-            else return 'inaccuracy';
+            if (mateLoss < 0 || (mateLoss === 0 && svAfter < 0)) return 'best';
+            if (mateLoss < 2) return 'excellent';
+            if (mateLoss < 7) return 'okay';
+            return 'inaccuracy';
         }
         if (evalBefore.type === 'mate' && evalAfter.type === 'centipawn') {
-            if (subjectiveValueAfter >= 800) return 'excellent';
-            else if (subjectiveValueAfter >= 400) return 'okay';
-            else if (subjectiveValueAfter >= 200) return 'inaccuracy';
-            else if (subjectiveValueAfter >= 0) return 'mistake';
-            else return 'blunder';
+            if (svAfter >= 800) return 'excellent';
+            if (svAfter >= 400) return 'okay';
+            if (svAfter >= 200) return 'inaccuracy';
+            if (svAfter >= 0) return 'mistake';
+            return 'blunder';
         }
         if (evalBefore.type === 'centipawn' && evalAfter.type === 'mate') {
-            if (subjectiveValueAfter > 0) return 'best';
-            else if (subjectiveValueAfter >= -2) return 'blunder';
-            else if (subjectiveValueAfter >= -5) return 'mistake';
-            else return 'inaccuracy';
+            if (svAfter > 0) return 'best';
+            if (svAfter >= -2) return 'blunder';
+            if (svAfter >= -5) return 'mistake';
+            return 'inaccuracy';
         }
 
-        const pointLoss = ChessAnalyzer.getExpectedPointsLoss(evalBefore, evalAfter, moveColor);
-        const phaseFactor = 1.0 - 0.4 * gamePhase;
-        if (pointLoss < 0.01) return 'best';
-        else if (pointLoss < 0.045 * phaseFactor) return 'excellent';
-        else if (pointLoss < 0.08 * phaseFactor) return 'okay';
-        else if (pointLoss < 0.12 * phaseFactor) return 'inaccuracy';
-        else if (pointLoss < 0.22 * phaseFactor) return 'mistake';
-        else return 'blunder';
+        const pl = ChessAnalyzer.getExpectedPointsLoss(evalBefore, evalAfter, moveColor);
+        const pf = 1.0 - 0.4 * gamePhase;
+        if (pl < 0.01) return 'best';
+        if (pl < 0.045 * pf) return 'excellent';
+        if (pl < 0.08 * pf) return 'okay';
+        if (pl < 0.12 * pf) return 'inaccuracy';
+        if (pl < 0.22 * pf) return 'mistake';
+        return 'blunder';
     }
 
     async evaluatePosition(fen, depth = 18) {
@@ -117,26 +115,26 @@ class ChessAnalyzer {
             const sideToMove = fen.split(' ').length > 1 ? fen.split(' ')[1] : 'w';
             const listener = (event) => {
                 if (resolved) return;
-                const message = event.data;
-                const match = message.match(/score cp (-?\d+)/);
-                const mateMatch = message.match(/score mate (-?\d+)/);
-                if (mateMatch) {
+                const msg = event.data;
+                const m = msg.match(/score cp (-?\d+)/);
+                const mm = msg.match(/score mate (-?\d+)/);
+                if (mm) {
                     resolved = true; clearTimeout(timeout);
                     this.stockfish.removeEventListener('message', listener);
-                    const mateVal = parseInt(mateMatch[1]);
-                    resolve({ type: 'mate', value: mateVal, sideToMove, score: mateVal > 0 ? 10000 : -10000 });
-                } else if (match) {
-                    const rawScore = parseInt(match[1]);
+                    const v = parseInt(mm[1]);
+                    resolve({ type: 'mate', value: v, sideToMove, score: v > 0 ? 10000 : -10000 });
+                } else if (m) {
+                    const raw = parseInt(m[1]);
                     resolved = true; clearTimeout(timeout);
                     this.stockfish.removeEventListener('message', listener);
-                    resolve({ type: 'cp', value: sideToMove === 'b' ? -rawScore : rawScore, score: sideToMove === 'b' ? -rawScore : rawScore });
+                    const score = sideToMove === 'b' ? -raw : raw;
+                    resolve({ type: 'cp', value: score, score });
                 }
             };
             this.stockfish.addEventListener('message', listener);
             timeout = setTimeout(() => {
                 if (resolved) return;
-                resolved = true;
-                this.stockfish.removeEventListener('message', listener);
+                resolved = true; this.stockfish.removeEventListener('message', listener);
                 resolve({ type: 'cp', value: 0, score: 0 });
             }, 10000);
             this.stockfish.postMessage(`position fen ${fen}`);
@@ -144,7 +142,7 @@ class ChessAnalyzer {
         });
     }
 
-    /* Find top N moves using Stockfish MultiPV mode (fixed depth) */
+    /** Find top N moves using Stockfish MultiPV (fixed depth) */
     async findTopMoves(fen, numMoves = 3, depth = 15) {
         let resolved = false;
         return new Promise((resolve) => {
@@ -152,32 +150,24 @@ class ChessAnalyzer {
             let timeout;
             const listener = (event) => {
                 if (resolved) return;
-                const message = event.data;
-                const pvMatch = message.match(/^info.*multipv\s+(\d+).*?score\s+(cp|mate)\s+(-?\d+)(?:.*?pv\s+(\S+))?/);
-                if (pvMatch) {
-                    const pvIndex = parseInt(pvMatch[1]);
-                    const scoreType = pvMatch[2];
-                    const scoreVal = parseInt(pvMatch[3]);
-                    const uciMove = pvMatch[4] || '';
-                    if (!topMoves[pvIndex] || (message.includes('depth') && topMoves[pvIndex].msgDepth !== undefined)) {
-                        const dm = message.match(/\bdepth\s+(\d+)/);
-                        const msgDepth = dm ? parseInt(dm[1]) : 0;
-                        if (!topMoves[pvIndex] || msgDepth >= topMoves[pvIndex].msgDepth) {
-                            topMoves[pvIndex] = { pvIndex, scoreType, scoreVal, uciMove, msgDepth };
-                        }
+                const msg = event.data;
+                const pm = msg.match(/^info.*multipv\s+(\d+).*?score\s+(cp|mate)\s+(-?\d+)(?:.*?pv\s+(\S+))?/);
+                if (pm) {
+                    const idx = parseInt(pm[1]), st = pm[2], sv = parseInt(pm[3]), uci = pm[4] || '';
+                    if (!topMoves[idx] || (msg.includes('depth') && topMoves[idx].msgDepth !== undefined)) {
+                        const dm = msg.match(/\bdepth\s+(\d+)/);
+                        const md = dm ? parseInt(dm[1]) : 0;
+                        if (!topMoves[idx] || md >= topMoves[idx].msgDepth) topMoves[idx] = { idx, st, sv, uci, msgDepth: md };
                     }
                 }
-                if (message.startsWith('bestmove')) {
+                if (msg.startsWith('bestmove')) {
                     resolved = true; clearTimeout(timeout);
                     this.stockfish.removeEventListener('message', listener);
                     this.stockfish.postMessage('setoption name MultiPV value 1');
                     const results = [];
-                    const sortedIndices = Object.keys(topMoves).sort((a, b) => a - b);
-                    for (const idx of sortedIndices) {
-                        const entry = topMoves[idx];
-                        if (entry && entry.uciMove) {
-                            results.push({ uci: entry.uciMove, san: this.formatUCIToAlgebraic(entry.uciMove, fen), scoreType: entry.scoreType, scoreVal: entry.scoreVal });
-                        }
+                    for (const k of Object.keys(topMoves).sort((a, b) => a - b)) {
+                        const e = topMoves[k];
+                        if (e && e.uci) results.push({ uci: e.uci, san: this.formatUCIToAlgebraic(e.uci, fen), scoreType: e.st, scoreVal: e.sv });
                     }
                     resolve(results);
                 }
@@ -185,8 +175,7 @@ class ChessAnalyzer {
             this.stockfish.addEventListener('message', listener);
             timeout = setTimeout(() => {
                 if (resolved) return;
-                resolved = true;
-                this.stockfish.removeEventListener('message', listener);
+                resolved = true; this.stockfish.removeEventListener('message', listener);
                 this.stockfish.postMessage('setoption name MultiPV value 1');
                 resolve([]);
             }, 15000);
@@ -197,10 +186,9 @@ class ChessAnalyzer {
     }
 
     /**
-     * Adaptive MultiPV search using time-bounded Stockfish analysis.
-     * Uses `go movetime` with a budget from _estimateSearchBudget so
-     * Stockfish naturally searches deeper in simple positions (few pieces,
-     * few moves) and wider in complex tactical positions.
+     * Adaptive MultiPV using time-bounded Stockfish analysis.
+     * Uses `go movetime` with budget from _estimateSearchBudget so Stockfish
+     * naturally searches deeper in simple positions and wider in complex ones.
      */
     async findTopMovesAdaptive(fen, numMoves = 3) {
         const budget = ChessAnalyzer._estimateSearchBudget(fen);
@@ -210,29 +198,27 @@ class ChessAnalyzer {
             let timeout, finalDepth = 0;
             const listener = (event) => {
                 if (resolved) return;
-                const message = event.data;
-                const pvMatch = message.match(/^info.*multipv\s+(\d+).*?score\s+(cp|mate)\s+(-?\d+)(?:.*?pv\s+(\S+))?/);
-                if (pvMatch) {
-                    const pvIndex = parseInt(pvMatch[1]), scoreType = pvMatch[2], scoreVal = parseInt(pvMatch[3]), uciMove = pvMatch[4] || '';
-                    if (!topMoves[pvIndex] || (message.includes('depth') && topMoves[pvIndex].msgDepth !== undefined)) {
-                        const dm = message.match(/\bdepth\s+(\d+)/);
-                        const msgDepth = dm ? parseInt(dm[1]) : 0;
-                        if (!topMoves[pvIndex] || msgDepth >= topMoves[pvIndex].msgDepth) {
-                            topMoves[pvIndex] = { pvIndex, scoreType, scoreVal, uciMove, msgDepth };
-                            if (msgDepth > finalDepth) finalDepth = msgDepth;
+                const msg = event.data;
+                const pm = msg.match(/^info.*multipv\s+(\d+).*?score\s+(cp|mate)\s+(-?\d+)(?:.*?pv\s+(\S+))?/);
+                if (pm) {
+                    const idx = parseInt(pm[1]), st = pm[2], sv = parseInt(pm[3]), uci = pm[4] || '';
+                    if (!topMoves[idx] || (msg.includes('depth') && topMoves[idx].msgDepth !== undefined)) {
+                        const dm = msg.match(/\bdepth\s+(\d+)/);
+                        const md = dm ? parseInt(dm[1]) : 0;
+                        if (!topMoves[idx] || md >= topMoves[idx].msgDepth) {
+                            topMoves[idx] = { idx, st, sv, uci, msgDepth: md };
+                            if (md > finalDepth) finalDepth = md;
                         }
                     }
                 }
-                if (message.startsWith('bestmove')) {
+                if (msg.startsWith('bestmove')) {
                     resolved = true; clearTimeout(timeout);
                     this.stockfish.removeEventListener('message', listener);
                     this.stockfish.postMessage('setoption name MultiPV value 1');
                     const results = [];
-                    for (const idx of Object.keys(topMoves).sort((a, b) => a - b)) {
-                        const entry = topMoves[idx];
-                        if (entry && entry.uciMove) {
-                            results.push({ uci: entry.uciMove, san: this.formatUCIToAlgebraic(entry.uciMove, fen), scoreType: entry.scoreType, scoreVal: entry.scoreVal, depth: entry.msgDepth || finalDepth });
-                        }
+                    for (const k of Object.keys(topMoves).sort((a, b) => a - b)) {
+                        const e = topMoves[k];
+                        if (e && e.uci) results.push({ uci: e.uci, san: this.formatUCIToAlgebraic(e.uci, fen), scoreType: e.st, scoreVal: e.sv, depth: e.msgDepth || finalDepth });
                     }
                     resolve(results);
                 }
@@ -240,8 +226,7 @@ class ChessAnalyzer {
             this.stockfish.addEventListener('message', listener);
             timeout = setTimeout(() => {
                 if (resolved) return;
-                resolved = true;
-                this.stockfish.removeEventListener('message', listener);
+                resolved = true; this.stockfish.removeEventListener('message', listener);
                 this.stockfish.postMessage('setoption name MultiPV value 1');
                 resolve([]);
             }, Math.min(20000, Math.ceil(budget * 1.2)));
@@ -257,12 +242,8 @@ class ChessAnalyzer {
         const isGameOver = legalMoves.length === 0;
         const isForced = !isGameOver && legalMoves.length === 1;
 
-        if (isGameOver) {
-            return { move: move.san, classification: 'forced', description: 'Game already over — no legal moves available', suggestedMove: null, evalBefore: 0, evalAfter: 0, evalChange: 0 };
-        }
-        if (isForced) {
-            return { move: move.san, classification: 'forced', description: 'Forced move — only legal option', suggestedMove: null, evalBefore: 0, evalAfter: 0, evalChange: 0 };
-        }
+        if (isGameOver) return { move: move.san, classification: 'forced', description: 'Game already over', suggestedMove: null, evalBefore: 0, evalAfter: 0, evalChange: 0 };
+        if (isForced) return { move: move.san, classification: 'forced', description: 'Forced move', suggestedMove: null, evalBefore: 0, evalAfter: 0, evalChange: 0 };
 
         const evalBefore = await this.evaluatePosition(fenBefore);
         const evalAfter = await this.evaluatePosition(fenAfter);
@@ -281,7 +262,7 @@ class ChessAnalyzer {
         const pointLoss = ChessAnalyzer.getExpectedPointsLoss(evalObjBefore, evalObjAfter, move.color);
         const actualEvalChange = move.color === 'w' ? (evalAfter.score - evalBefore.score) : -(evalAfter.score - evalBefore.score);
 
-        // Adaptive MultiPV — time-budgeted, deeper on simple positions
+        // Adaptive MultiPV: time-budgeted search, deeper in simple positions
         const topMoves = await this.findTopMovesAdaptive(fenBefore, 3);
         const playerMoveSan = move.san;
         const topSanList = topMoves.map(tm => tm.san);
@@ -292,48 +273,48 @@ class ChessAnalyzer {
         if (playerMoveRank !== 0 && topMoves.length > 0) suggestedMove = topMoves[0].san;
 
         const mateResult = ChessAnalyzer.detectMissedCheckmateMultiPV(topMoves, fenBefore);
-        const isCritical = ChessAnalyzer._isCriticalPositionMultiPV(topMoves, playerMoveSan, evalObjBefore, move.color);
+        const isCritical = ChessAnalyzer._isCriticalPositionMultiPV(topMoves, playerMoveSan, move.color);
         const isBrilliant = await ChessAnalyzer.isBrilliantPositionAsync(move, fenBefore, this.stockfish);
-        const isBook = this.detectBookMove(playerMoveSan, moveIndex, fenBefore, move);
+        const isBook = this.detectBookMove(playerMoveSan, moveIndex, fenBefore);
         const gamePhase = ChessAnalyzer._getGamePhase(fenBefore);
-        const baseClassification = ChessAnalyzer.pointLossClassify(evalObjBefore, evalObjAfter, move.color, gamePhase);
+        const baseClass = ChessAnalyzer.pointLossClassify(evalObjBefore, evalObjAfter, move.color, gamePhase);
         let classification, description = '';
 
         if (isBook && pointLoss < 0.01) {
             classification = 'book';
-            description = 'Book move — follows opening theory';
+            description = 'Book move';
         } else if (mateResult.isCheckmate) {
             classification = 'missedWin';
-            description = 'Missed win! You had a forced checkmate';
-            if (mateResult.bestMove) description += `. Checkmate was: ${mateResult.bestMove}`;
+            description = 'Missed win!';
+            if (mateResult.bestMove) description += ` Checkmate: ${mateResult.bestMove}`;
         } else if (isBrilliant && topMovePlayed && pointLoss < 0.01) {
             classification = 'brilliant';
-            description = 'Brilliant! Sound material sacrifice with winning follow-up';
+            description = 'Brilliant sacrifice!';
         } else if (topMovePlayed && isCritical) {
             classification = 'critical';
-            description = '! Critical move — only good move in the position';
+            description = '! Critical move';
         } else {
             if (playerMoveRank > 0 && playerMoveRank < topMoves.length) {
                 const bestScore = ChessAnalyzer._topMoveScore(topMoves[0], fenBefore);
                 const playerScore = ChessAnalyzer._topMoveScore(topMoves[playerMoveRank], fenBefore);
                 const gap = move.color === 'w' ? (bestScore - playerScore) : (playerScore - bestScore);
-                if (gap < 30 && baseClassification === 'blunder') {
+                if (gap < 30 && baseClass === 'blunder') {
                     classification = 'mistake';
-                    description = '? Mistake (overstated — alternative was nearly as good)';
-                    if (suggestedMove) description += `. Better was ${suggestedMove}`;
-                } else if (gap < 60 && baseClassification === 'blunder') {
+                    description = '? Mistake (alternatives nearly as good)';
+                    if (suggestedMove) description += `. Better: ${suggestedMove}`;
+                } else if (gap < 60 && baseClass === 'blunder') {
                     classification = 'mistake';
-                    description = '? Mistake';
-                    if (suggestedMove) description += `. Better was ${suggestedMove}`;
-                } else if (gap < 30 && baseClassification === 'mistake') {
+                    if (suggestedMove) description = `? Mistake. Better: ${suggestedMove}`;
+                    else description = '? Mistake';
+                } else if (gap < 30 && baseClass === 'mistake') {
                     classification = 'inaccuracy';
                     description = '?! Inaccuracy (alternatives only slightly better)';
-                    if (suggestedMove) description += `. Better was ${suggestedMove}`;
+                    if (suggestedMove) description += `. Better: ${suggestedMove}`;
                 } else {
-                    classification = baseClassification;
+                    classification = baseClass;
                 }
             } else {
-                classification = baseClassification;
+                classification = baseClass;
             }
             if (!description) description = this._buildDescription(classification, '', suggestedMove, topMovePlayed);
         }
@@ -347,30 +328,28 @@ class ChessAnalyzer {
 
     static _topMoveScore(topMove, fen) {
         if (topMove.scoreType === 'mate') return topMove.scoreVal > 0 ? 10000 : -10000;
-        const sideToMove = fen.split(' ')[1];
-        return sideToMove === 'b' ? -topMove.scoreVal : topMove.scoreVal;
+        const stm = fen.split(' ')[1];
+        return stm === 'b' ? -topMove.scoreVal : topMove.scoreVal;
     }
 
-    _buildDescription(classification, currentDesc, suggestedMove, topMovePlayed) {
-        let desc = currentDesc;
-        switch (classification) {
-            case 'best': desc = topMovePlayed ? 'Best move' : 'Excellent move'; break;
-            case 'excellent': desc = 'Excellent move'; break;
-            case 'okay': desc = 'Okay move'; break;
-            case 'inaccuracy': desc = '?! Inaccuracy'; if (suggestedMove) desc += `. Better was ${suggestedMove}`; break;
-            case 'mistake': desc = '? Mistake'; if (suggestedMove) desc += `. Better was ${suggestedMove}`; break;
-            case 'blunder': desc = '?? Blunder'; if (suggestedMove) desc += `. Better was ${suggestedMove}`; break;
+    _buildDescription(c, d, sm, tmp) {
+        switch (c) {
+            case 'best': return tmp ? 'Best move' : 'Excellent move';
+            case 'excellent': return 'Excellent move';
+            case 'okay': return 'Okay move';
+            case 'inaccuracy': return sm ? `?! Inaccuracy. Better: ${sm}` : '?! Inaccuracy';
+            case 'mistake': return sm ? `? Mistake. Better: ${sm}` : '? Mistake';
+            case 'blunder': return sm ? `?? Blunder. Better: ${sm}` : '?? Blunder';
+            default: return d;
         }
-        return desc;
     }
 
-    /* Critical when player's move is the only good one: all top-3 alternatives are >=150cp worse */
-    static _isCriticalPositionMultiPV(topMoves, playerMoveSan, evalObjBefore, moveColor) {
-        if (!topMoves || topMoves.length < 2) return false;
-        if (topMoves[0].san !== playerMoveSan) return false;
-        const playerScore = ChessAnalyzer._scoreForClassification(topMoves[0], moveColor);
+    /** Critical = all alternatives at least 150cp worse than player's move */
+    static _isCriticalPositionMultiPV(topMoves, playerMoveSan, moveColor) {
+        if (!topMoves || topMoves.length < 2 || topMoves[0].san !== playerMoveSan) return false;
+        const ps = ChessAnalyzer._scoreForClassification(topMoves[0], moveColor);
         for (let i = 1; i < topMoves.length; i++) {
-            if (playerScore - ChessAnalyzer._scoreForClassification(topMoves[i], moveColor) < 150) return false;
+            if (ps - ChessAnalyzer._scoreForClassification(topMoves[i], moveColor) < 150) return false;
         }
         return true;
     }
@@ -380,38 +359,30 @@ class ChessAnalyzer {
         return moveColor === 'w' ? topMove.scoreVal : -topMove.scoreVal;
     }
 
-    /* Missed checkmate detection: checks ALL top moves, not just the best */
+    /** Missed checkmate: checks ALL top moves, not just the best */
     static detectMissedCheckmateMultiPV(topMoves, fenBefore) {
-        if (!topMoves || topMoves.length === 0) return { isCheckmate: false, bestMove: null, shortestMate: null };
-        let shortestMate = null, shortestMateDepth = Infinity;
+        if (!topMoves || topMoves.length === 0) return { isCheckmate: false, bestMove: null };
+        let best = null, bestDepth = Infinity;
         for (const tm of topMoves) {
             if (tm.scoreType === 'mate' && tm.scoreVal > 0) {
-                const mateDepth = Math.abs(tm.scoreVal);
-                if (mateDepth < shortestMateDepth) {
+                const d = Math.abs(tm.scoreVal);
+                if (d < bestDepth) {
                     try {
                         const chess = new Chess(fenBefore);
-                        const from = tm.uci.substring(0, 2), to = tm.uci.substring(2, 4);
-                        const promotion = tm.uci.length > 4 ? tm.uci[4] : undefined;
-                        const mr = chess.move({ from, to, promotion });
-                        if (mr && chess.game_over() && chess.in_checkmate()) {
-                            shortestMateDepth = 0; shortestMate = mr.san;
-                        } else {
-                            shortestMateDepth = mateDepth; shortestMate = tm.san;
-                        }
-                    } catch (e) { shortestMateDepth = mateDepth; shortestMate = tm.san; }
+                        const mr = chess.move({ from: tm.uci.substring(0, 2), to: tm.uci.substring(2, 4), promotion: tm.uci.length > 4 ? tm.uci[4] : undefined });
+                        if (mr && chess.game_over() && chess.in_checkmate()) { bestDepth = 0; best = mr.san; }
+                        else { bestDepth = d; best = tm.san; }
+                    } catch (e) { bestDepth = d; best = tm.san; }
                 }
             }
         }
-        if (shortestMateDepth < Infinity) return { isCheckmate: true, bestMove: shortestMate, shortestMateDepth };
-        return { isCheckmate: false, bestMove: null, shortestMate: null };
+        if (best) return { isCheckmate: true, bestMove: best };
+        return { isCheckmate: false, bestMove: null };
     }
 
     _isCriticalPosition(evalObjBefore, legalMoveCount, move) {
         const pp = move.color === 'w' ? evalObjBefore.value : -evalObjBefore.value;
-        if (pp < -500) return true;
-        if (legalMoveCount > 3) return false;
-        if (pp > -150) return false;
-        return true;
+        return (pp < -500) || (legalMoveCount <= 3 && pp <= -150);
     }
 
     async findBestMove(fen, depth = 10) {
@@ -420,26 +391,24 @@ class ChessAnalyzer {
             let timeout;
             const listener = (event) => {
                 if (resolved) return;
-                const message = event.data;
-                if (message.startsWith('bestmove')) {
+                const msg = event.data;
+                if (msg.startsWith('bestmove')) {
                     resolved = true; clearTimeout(timeout);
                     this.stockfish.removeEventListener('message', listener);
-                    const match = message.match(/^bestmove\s+(\S+)/);
-                    if (match && match[1] !== '(none)') {
-                        const bm = match[1];
+                    const m = msg.match(/^bestmove\s+(\S+)/);
+                    if (m && m[1] !== '(none)') {
                         try {
                             const chess = new Chess(fen);
-                            const m = chess.move({ from: bm.substring(0, 2), to: bm.substring(2, 4), promotion: bm.length > 4 ? bm[4] : undefined });
-                            resolve(m && m.san ? m.san : this.formatUCIToAlgebraic(bm, fen));
-                        } catch (e) { resolve(this.formatUCIToAlgebraic(bm, fen)); }
+                            const mv = chess.move({ from: m[1].substring(0, 2), to: m[1].substring(2, 4), promotion: m[1].length > 4 ? m[1][4] : undefined });
+                            resolve(mv && mv.san ? mv.san : this.formatUCIToAlgebraic(m[1], fen));
+                        } catch (e) { resolve(this.formatUCIToAlgebraic(m[1], fen)); }
                     } else { resolve(null); }
                 }
             };
             this.stockfish.addEventListener('message', listener);
             timeout = setTimeout(() => {
                 if (resolved) return;
-                resolved = true;
-                this.stockfish.removeEventListener('message', listener);
+                resolved = true; this.stockfish.removeEventListener('message', listener);
                 resolve(null);
             }, 5000);
             this.stockfish.postMessage(`position fen ${fen}`);
@@ -449,13 +418,11 @@ class ChessAnalyzer {
 
     formatUCIToAlgebraic(uciMove, fen) {
         if (!uciMove || uciMove.length < 4) return uciMove;
-        const from = uciMove.substring(0, 2), to = uciMove.substring(2, 4), promotion = uciMove.length > 4 ? uciMove[4] : undefined;
+        const from = uciMove.substring(0, 2), to = uciMove.substring(2, 4), prom = uciMove.length > 4 ? uciMove[4] : undefined;
         if (fen) {
-            try { const chess = new Chess(fen); const m = chess.move({ from, to, promotion }); if (m && m.san) return m.san; } catch (e) {}
+            try { const chess = new Chess(fen); const m = chess.move({ from, to, promotion: prom }); if (m && m.san) return m.san; } catch (e) {}
         }
-        let algebraic = to;
-        if (promotion) algebraic += '=' + promotion.toUpperCase();
-        return algebraic;
+        return prom ? to + '=' + prom.toUpperCase() : to;
     }
 
     async detectMissedCheckmate(fen, depth = 15) {
@@ -464,24 +431,22 @@ class ChessAnalyzer {
             let timeout;
             const listener = (event) => {
                 if (resolved) return;
-                const message = event.data;
-                if (message.startsWith('bestmove')) {
+                const msg = event.data;
+                if (msg.startsWith('bestmove')) {
                     resolved = true; clearTimeout(timeout);
                     this.stockfish.removeEventListener('message', listener);
-                    const match = message.match(/^bestmove\s+(\S+)/);
-                    if (match && match[1] !== '(none)') {
-                        const bm = match[1];
+                    const m = msg.match(/^bestmove\s+(\S+)/);
+                    if (m && m[1] !== '(none)') {
                         const chess = new Chess(fen);
-                        const mr = chess.move({ from: bm.substring(0, 2), to: bm.substring(2, 4), promotion: bm.length > 4 ? bm[4] : undefined });
-                        resolve({ isCheckmate: mr && chess.game_over() && chess.in_checkmate(), bestMove: mr ? mr.san : this.formatUCIToAlgebraic(bm, fen) });
+                        const mr = chess.move({ from: m[1].substring(0, 2), to: m[1].substring(2, 4), promotion: m[1].length > 4 ? m[1][4] : undefined });
+                        resolve({ isCheckmate: mr && chess.game_over() && chess.in_checkmate(), bestMove: mr ? mr.san : this.formatUCIToAlgebraic(m[1], fen) });
                     } else { resolve({ isCheckmate: false, bestMove: null }); }
                 }
             };
             this.stockfish.addEventListener('message', listener);
             timeout = setTimeout(() => {
                 if (resolved) return;
-                resolved = true;
-                this.stockfish.removeEventListener('message', listener);
+                resolved = true; this.stockfish.removeEventListener('message', listener);
                 resolve({ isCheckmate: false, bestMove: null });
             }, 8000);
             this.stockfish.postMessage(`position fen ${fen}`);
@@ -489,27 +454,25 @@ class ChessAnalyzer {
         });
     }
 
-    /* FEN-based opening book detection with transposition support */
-    detectBookMove(moveSan, moveIndex, fenBefore, move) {
+    /** FEN-based opening book with transposition support */
+    detectBookMove(moveSan, moveIndex, fenBefore) {
         if (!ChessAnalyzer._openingPositionIndex) ChessAnalyzer._buildOpeningPositionIndex();
         if (fenBefore) {
-            const normalizedFen = ChessAnalyzer._normalizeFenForBook(fenBefore);
-            const positionEntry = ChessAnalyzer._openingPositionIndex[normalizedFen];
-            if (positionEntry) {
-                const normalizedMove = moveSan.replace(/[+#]$/, '').toLowerCase();
-                for (const entry of positionEntry) {
-                    if (entry.move && entry.move.toLowerCase() === normalizedMove) return true;
-                }
+            const nf = ChessAnalyzer._normalizeFenForBook(fenBefore);
+            const pe = ChessAnalyzer._openingPositionIndex[nf];
+            if (pe) {
+                const nm = moveSan.replace(/[+#]$/, '').toLowerCase();
+                for (const e of pe) { if (e.move && e.move.toLowerCase() === nm) return true; }
             }
         }
         if (moveIndex < 0 || moveIndex > 14 || !moveSan) return false;
         if (!ChessAnalyzer._bookMoveIndex) {
             ChessAnalyzer._bookMoveIndex = {};
-            for (const opening of Object.values(chessOpenings)) {
-                if (!opening.moves || !Array.isArray(opening.moves)) continue;
-                for (let i = 0; i < opening.moves.length; i++) {
+            for (const op of Object.values(chessOpenings)) {
+                if (!op.moves || !Array.isArray(op.moves)) continue;
+                for (let i = 0; i < op.moves.length; i++) {
                     if (!ChessAnalyzer._bookMoveIndex[i]) ChessAnalyzer._bookMoveIndex[i] = new Set();
-                    ChessAnalyzer._bookMoveIndex[i].add(opening.moves[i].toLowerCase());
+                    ChessAnalyzer._bookMoveIndex[i].add(op.moves[i].toLowerCase());
                 }
             }
         }
@@ -519,19 +482,15 @@ class ChessAnalyzer {
 
     static _buildOpeningPositionIndex() {
         ChessAnalyzer._openingPositionIndex = {};
-        for (const opening of Object.values(chessOpenings)) {
-            if (!opening.moves || !Array.isArray(opening.moves)) continue;
+        for (const op of Object.values(chessOpenings)) {
+            if (!op.moves || !Array.isArray(op.moves)) continue;
             const chess = new Chess();
-            for (let i = 0; i < opening.moves.length; i++) {
+            for (let i = 0; i < op.moves.length; i++) {
                 try {
-                    if (!chess.move(opening.moves[i])) break;
-                    const fenKey = ChessAnalyzer._normalizeFenForBook(chess.fen());
-                    if (!ChessAnalyzer._openingPositionIndex[fenKey]) ChessAnalyzer._openingPositionIndex[fenKey] = [];
-                    ChessAnalyzer._openingPositionIndex[fenKey].push({
-                        opening: opening.name,
-                        move: i + 1 < opening.moves.length ? opening.moves[i + 1] : null,
-                        isTerminal: i + 1 >= opening.moves.length
-                    });
+                    if (!chess.move(op.moves[i])) break;
+                    const fk = ChessAnalyzer._normalizeFenForBook(chess.fen());
+                    if (!ChessAnalyzer._openingPositionIndex[fk]) ChessAnalyzer._openingPositionIndex[fk] = [];
+                    ChessAnalyzer._openingPositionIndex[fk].push({ opening: op.name, move: i + 1 < op.moves.length ? op.moves[i + 1] : null, isTerminal: i + 1 >= op.moves.length });
                 } catch (e) { break; }
             }
         }
@@ -541,47 +500,42 @@ class ChessAnalyzer {
         return fen.split(' ').slice(0, 4).join(' ');
     }
 
-    /* Brilliant move detection with follow-up verification via Stockfish */
+    /** Brilliant sacrifice detection with Stockfish follow-up verification */
     static async isBrilliantPositionAsync(move, fenBefore, stockfish) {
         const pv = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
         if (!move || !move.from || !move.to || !move.color || move.promotion) return false;
         const chess = new Chess(fenBefore);
-        const opponentColor = move.color === 'w' ? 'b' : 'w';
-        const beforeMoves = chess.moves({ verbose: true });
-        for (const bm of beforeMoves) { if (bm.to === move.from && bm.color === opponentColor) return false; }
+        const opp = move.color === 'w' ? 'b' : 'w';
+        for (const bm of chess.moves({ verbose: true })) { if (bm.to === move.from && bm.color === opp) return false; }
         chess.move({ from: move.from, to: move.to, promotion: move.promotion });
-        const afterMoves = chess.moves({ verbose: true });
-        let bestAttacker = null, bestAttackerValue = Infinity;
-        for (const am of afterMoves) {
-            if (am.to === move.to && am.color === opponentColor) {
-                const av = pv[am.piece] || 0;
-                if (av < bestAttackerValue) { bestAttacker = am; bestAttackerValue = av; }
-            }
+        let ba = null, bav = Infinity;
+        for (const am of chess.moves({ verbose: true })) {
+            if (am.to === move.to && am.color === opp) { const av = pv[am.piece] || 0; if (av < bav) { ba = am; bav = av; } }
         }
-        if (!bestAttacker || (pv[move.piece] || 0) <= bestAttackerValue) return false;
+        if (!ba || (pv[move.piece] || 0) <= bav) return false;
         try {
-            chess.move({ from: bestAttacker.from, to: bestAttacker.to });
-            const evaluator = new ChessAnalyzer(null, stockfish);
-            const er = await evaluator.evaluatePosition(chess.fen(), 14);
+            chess.move({ from: ba.from, to: ba.to });
+            const ev = new ChessAnalyzer(null, stockfish);
+            const er = await ev.evaluatePosition(chess.fen(), 14);
             const score = er.type === 'mate' ? (er.value > 0 ? 10000 : -10000) : er.score;
             const stm = chess.fen().split(' ')[1];
             return move.color === 'w' ? (stm === 'b' ? -score : score) > -100 : (stm === 'b' ? -score : score) < 100;
         } catch (e) { return true; }
     }
 
-    /* Draw/fortress detection based on insufficient material */
+    /** Insufficient material / fortress detection */
     static _isDrawishEndgame(fenBefore, fenAfter) {
         const board = (fenAfter || fenBefore).split(' ')[0];
-        const whitePieces = {}, blackPieces = {};
-        let wp = 0, bp = 0;
+        const wp = {}, bp = {};
+        let wPawns = 0, bPawns = 0;
         for (const ch of board) {
             if (ch === '/') continue;
-            if (ch >= 'a' && ch <= 'z') { if (ch === 'p') bp++; else blackPieces[ch] = (blackPieces[ch] || 0) + 1; }
-            else if (ch >= 'A' && ch <= 'Z') { if (ch === 'P') wp++; else whitePieces[ch.toLowerCase()] = (whitePieces[ch.toLowerCase()] || 0) + 1; }
+            if (ch >= 'a' && ch <= 'z') { if (ch === 'p') bPawns++; else bp[ch] = (bp[ch] || 0) + 1; }
+            else if (ch >= 'A' && ch <= 'Z') { if (ch === 'P') wPawns++; else wp[ch.toLowerCase()] = (wp[ch.toLowerCase()] || 0) + 1; }
         }
-        if (wp > 0 || bp > 0) return false;
+        if (wPawns > 0 || bPawns > 0) return false;
         const mat = (p) => Object.entries(p).flatMap(([t, c]) => Array(c).fill(t)).sort().join(',');
-        const wm = mat(whitePieces), bm = mat(blackPieces);
+        const wm = mat(wp), bm = mat(bp);
         if (wm === '' && bm === '') return true;
         if ((wm === 'b' && bm === '') || (wm === '' && bm === 'b')) return true;
         if ((wm === 'n' && bm === '') || (wm === '' && bm === 'n')) return true;
@@ -597,8 +551,7 @@ class ChessAnalyzer {
 
     static _findPieceSquare(board, pieceType, color) {
         const isWhite = color === 'w';
-        const ranks = board.split('/');
-        for (let ri = 0; ri < 8; ri++) {
+        for (let ri = 0, ranks = board.split('/'); ri < 8; ri++) {
             let fi = 0;
             for (const ch of ranks[ri]) {
                 if (ch >= '1' && ch <= '8') fi += parseInt(ch);
@@ -617,25 +570,21 @@ class ChessAnalyzer {
         const pv = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
         if (!move || !move.from || !move.to || !move.color) return false;
         const chess = new Chess(fenBefore);
-        const oppColor = move.color === 'w' ? 'b' : 'w';
-        for (const bm of chess.moves({ verbose: true })) { if (bm.to === move.from && bm.color === oppColor) return false; }
+        const opp = move.color === 'w' ? 'b' : 'w';
+        for (const bm of chess.moves({ verbose: true })) { if (bm.to === move.from && bm.color === opp) return false; }
         chess.move({ from: move.from, to: move.to, promotion: move.promotion });
         let cap = null, capVal = Infinity;
         for (const am of chess.moves({ verbose: true })) {
-            if (am.to === move.to && am.color === oppColor) {
-                const av = pv[am.piece] || 0;
-                if (av < capVal) { cap = am.piece; capVal = av; }
-            }
+            if (am.to === move.to && am.color === opp) { const av = pv[am.piece] || 0; if (av < capVal) { cap = am.piece; capVal = av; } }
         }
-        if (!cap || (pv[move.piece] || 0) <= capVal || move.promotion) return false;
-        return true;
+        return !!cap && (pv[move.piece] || 0) > capVal && !move.promotion;
     }
 
     detectHangingCapture(move, fenBefore) {
         if (!move.captured) return false;
         const chess = new Chess(fenBefore);
-        const oppColor = move.color === 'w' ? 'b' : 'w';
-        for (const om of chess.moves({ verbose: true })) { if (om.to === move.to && om.color === oppColor) return false; }
+        const opp = move.color === 'w' ? 'b' : 'w';
+        for (const om of chess.moves({ verbose: true })) { if (om.to === move.to && om.color === opp) return false; }
         return true;
     }
 
@@ -643,16 +592,16 @@ class ChessAnalyzer {
         if (ChessAnalyzer._isDrawishEndgame(fenBefore, fenAfter)) return false;
         const pv = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
         const chess = new Chess(fenAfter);
-        const oppColor = move.color === 'w' ? 'b' : 'w', playerColor = move.color;
+        const opp = move.color === 'w' ? 'b' : 'w', me = move.color;
         let hanging = false, attVal = Infinity;
         for (const om of chess.moves({ verbose: true })) {
-            if (om.to === move.to && om.color === oppColor) {
+            if (om.to === move.to && om.color === opp) {
                 const av = pv[om.piece] || 0, mv = pv[move.piece] || 0;
                 if (av <= mv && av < attVal) { hanging = true; attVal = av; }
             }
         }
         if (!hanging) return false;
-        for (const pm of chess.moves({ verbose: true })) { if (pm.to === move.to && pm.color === playerColor) return false; }
+        for (const pm of chess.moves({ verbose: true })) { if (pm.to === move.to && pm.color === me) return false; }
         return true;
     }
 

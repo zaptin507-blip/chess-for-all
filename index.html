@@ -331,6 +331,13 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script src="analysis.js"></script>
+    
+    <!-- NNUE neural engine (enhanced analysis, loaded on demand via app.js) -->
+    <script>
+    window.NNUE_SUPPORTED = typeof SharedArrayBuffer === 'function' && typeof Atomics === 'object';
+    </script>
+    <script src="nnue/stockfish.js"></script>
+    
     <script type="module" src="app.js"></script>
     
     <!-- Small indicator square -->

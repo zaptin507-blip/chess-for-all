@@ -2,6 +2,40 @@ import safeStorage from './js/core/storage.js';
 import './js/ui/admin.js';
 import { initMobileSidebar } from './js/ui/sidebar.js';
 
+/**
+ * Wraps an NNUE engine instance to expose Worker-compatible API
+ * (addEventListener/removeEventListener/postMessage/terminate)
+ */
+class NNUEWorkerAdapter {
+    constructor(engine) {
+        this._engine = engine;
+        this._listeners = new Map(); // original callback -> wrapped callback
+    }
+    postMessage(msg) {
+        this._engine.postMessage(msg);
+    }
+    addEventListener(type, handler) {
+        if (type === 'message') {
+            const wrapped = (line) => handler({ data: line });
+            this._listeners.set(handler, wrapped);
+            this._engine.addMessageListener(wrapped);
+        }
+    }
+    removeEventListener(type, handler) {
+        if (type === 'message') {
+            const wrapped = this._listeners.get(handler);
+            if (wrapped) {
+                this._engine.removeMessageListener(wrapped);
+                this._listeners.delete(handler);
+            }
+        }
+    }
+    terminate() {
+        this._engine.terminate();
+        this._listeners.clear();
+    }
+}
+
 class ChessGame {
     constructor() {
         this.chess = new Chess();
@@ -1306,6 +1340,29 @@ class ChessGame {
             return analysisEngine;
         } catch (error) {
             console.error('Failed to initialize analysis engine:', error);
+            return null;
+        }
+    }
+
+            async initAnalysisEngineNNUE() {
+        // NNUE neural engine for enhanced analysis accuracy
+        if (!window.NNUE_SUPPORTED) {
+            console.log('ℹ️ NNUE not supported in this browser (needs SharedArrayBuffer)');
+            return null;
+        }
+        if (typeof window.Stockfish !== 'function') {
+            console.warn('⚠️ NNUE loader not loaded');
+            return null;
+        }
+        try {
+            const rawEngine = await window.Stockfish();
+            rawEngine.postMessage('uci');
+            rawEngine.postMessage('isready');
+            rawEngine.postMessage('setoption name Skill Level value 20');
+            rawEngine.postMessage('setoption name Hash value 128');
+            return new NNUEWorkerAdapter(rawEngine);
+        } catch (error) {
+            console.warn('⚠️ NNUE engine init failed, falling back to classic:', error);
             return null;
         }
     }
@@ -4730,7 +4787,16 @@ class ChessGame {
             
         // Initialize analysis engine only when needed
         if (!this.analysisEngine) {
-            this.analysisEngine = this.initAnalysisEngine();
+            // Try NNUE first (async), fall back to classic Worker
+                        this.analysisEngine = await this.initAnalysisEngineNNUE();
+            if (!this.analysisEngine) {
+                this.analysisEngine = this.initAnalysisEngine();
+            }
+            if (!this.analysisEngine) {
+                alert('Failed to initialize chess engine for analysis.');
+                this._analyzing = false;
+                return;
+            }
             this.analyzer = new ChessAnalyzer(this.chess, this.analysisEngine);
         }
 
@@ -7098,6 +7164,15 @@ window.addEventListener('load', () => {
         chessGame.checkTesterReminder();
         
 
+    } catch (error) {
+        console.error('⚠️ Chess game initialization warning:', error);
+        // Only show alert for critical errors that prevent the game from working
+        if (error.message && error.message.includes('Critical')) {
+            alert('Error loading chess game: ' + error.message);
+        }
+        // For non-critical errors (like sound files), the game will still work
+    }
+});
     } catch (error) {
         console.error('⚠️ Chess game initialization warning:', error);
         // Only show alert for critical errors that prevent the game from working
