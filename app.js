@@ -2449,6 +2449,14 @@ class ChessGame {
         if (result === 'win') {
             title = '🎉 Victory!';
             message = customMessage || `You defeated ${botDisplayName}!`;
+            // Immediate confetti burst — always visible regardless of modal
+            if (typeof confetti !== 'undefined') {
+                confetti({
+                    particleCount: 120,
+                    spread: 80,
+                    origin: { y: 0.6 }
+                });
+            }
             this.triggerConfetti();
         } else if (result === 'loss') {
             title = 'Defeat';
@@ -3819,6 +3827,10 @@ class ChessGame {
         }
 
         if (this.chess.in_checkmate()) {
+            // Chess.com-style checkmate visual + sound effect
+            this.playCheckmateSound();
+            this.showCheckmateEffect();
+            
             const matePattern = this.detectCheckmatePattern();
             
             if (this.chess.turn() !== this.playerColor) {
@@ -3826,6 +3838,14 @@ class ChessGame {
                 message = `You checkmated ${botDisplayName}! Incredible game!`;
                 if (matePattern) {
                     message += `\n\nCheckmate Pattern: ${matePattern}`;
+                }
+                // Immediate confetti burst — always visible regardless of modal
+                if (typeof confetti !== 'undefined') {
+                    confetti({
+                        particleCount: 120,
+                        spread: 80,
+                        origin: { y: 0.6 }
+                    });
                 }
                 this.triggerConfetti();
             } else {
@@ -3915,6 +3935,109 @@ class ChessGame {
                 requestAnimationFrame(frame);
             }
         }());
+    }
+
+    /**
+     * Play a chess.com-style checkmate sound using Web Audio API.
+     * Synthesizes a triumphant two-tone chime — quick ascending note
+     * followed by a resonant "ding". No external audio file required.
+     */
+    playCheckmateSound() {
+        try {
+            const ctx = this.audioContext || new (window.AudioContext || window.webkitAudioContext)();
+            if (!this.audioContext) this.audioContext = ctx;
+            
+            const now = ctx.currentTime;
+            
+            // --- First note: quick ascending sweep (lead-in) ---
+            const leadOsc = ctx.createOscillator();
+            const leadGain = ctx.createGain();
+            leadOsc.type = 'sine';
+            leadOsc.frequency.setValueAtTime(660, now);          // E5
+            leadOsc.frequency.linearRampToValueAtTime(880, now + 0.12);  // A5
+            leadGain.gain.setValueAtTime(0.25, now);
+            leadGain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+            leadOsc.connect(leadGain);
+            leadGain.connect(ctx.destination);
+            leadOsc.start(now);
+            leadOsc.stop(now + 0.3);
+            
+            // --- Second note: resonant "ding" (the main event) ---
+            const mainOsc = ctx.createOscillator();
+            const mainGain = ctx.createGain();
+            mainOsc.type = 'sine';
+            mainOsc.frequency.setValueAtTime(1047, now + 0.2);   // C6
+            mainGain.gain.setValueAtTime(0.001, now + 0.2);
+            mainGain.gain.linearRampToValueAtTime(0.4, now + 0.28);
+            mainGain.gain.setValueAtTime(0.4, now + 0.45);
+            mainGain.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
+            mainOsc.connect(mainGain);
+            mainGain.connect(ctx.destination);
+            mainOsc.start(now + 0.2);
+            mainOsc.stop(now + 1.0);
+            
+            // --- Harmonic overtone for richness ---
+            const harmOsc = ctx.createOscillator();
+            const harmGain = ctx.createGain();
+            harmOsc.type = 'sine';
+            harmOsc.frequency.setValueAtTime(1568, now + 0.2);   // G6
+            harmGain.gain.setValueAtTime(0.001, now + 0.2);
+            harmGain.gain.linearRampToValueAtTime(0.12, now + 0.3);
+            harmGain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+            harmOsc.connect(harmGain);
+            harmGain.connect(ctx.destination);
+            harmOsc.start(now + 0.2);
+            harmOsc.stop(now + 0.7);
+        } catch (e) {
+            // Silently fail — sound is optional
+        }
+    }
+
+    /**
+     * Show chess.com-style checkmate visual effect:
+     * - Red pulsing overlay + "Checkmate" badge on the losing king's square
+     * - Green pulsing overlay + "Winner" badge on the winning king's square
+     */
+    showCheckmateEffect() {
+        const board = this.chess.board();
+        let losingSquare = null;
+        let winningSquare = null;
+        
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const piece = board[row][col];
+                if (piece && piece.type === 'k') {
+                    const sq = String.fromCharCode(97 + col) + (8 - row);
+                    if (piece.color === this.playerColor) {
+                        winningSquare = sq;
+                    } else {
+                        losingSquare = sq;
+                    }
+                }
+            }
+        }
+        
+        // Overlay on losing king (checkmated)
+        if (losingSquare) {
+            const sqEl = this.board.querySelector('[data-square="' + losingSquare + '"]');
+            if (sqEl) {
+                const overlay = document.createElement('div');
+                overlay.className = 'checkmate-overlay';
+                overlay.innerHTML = '<div class="checkmate-bg"></div><div class="checkmate-badge"><span class="checkmate-icon">\u265A</span><span class="checkmate-text">Checkmate</span></div>';
+                sqEl.appendChild(overlay);
+            }
+        }
+        
+        // Overlay on winning king
+        if (winningSquare) {
+            const sqEl = this.board.querySelector('[data-square="' + winningSquare + '"]');
+            if (sqEl) {
+                const overlay = document.createElement('div');
+                overlay.className = 'winner-overlay';
+                overlay.innerHTML = '<div class="winner-bg"></div><div class="winner-badge"><span class="checkmate-text">Winner</span><span class="checkmate-icon">\u2654</span></div>';
+                sqEl.appendChild(overlay);
+            }
+        }
     }
 
     // Shared game restart logic — used by both New Game and Play Again buttons
@@ -7157,6 +7280,22 @@ window.addEventListener('load', () => {
     try {
         chessGame = new ChessGame();
         
+        // Load saved board and piece preferences immediately
+        chessGame.loadPreferences();
+        
+        // Check for Tester reminder (every 6 months)
+        chessGame.checkTesterReminder();
+        
+
+    } catch (error) {
+        console.error('⚠️ Chess game initialization warning:', error);
+        // Only show alert for critical errors that prevent the game from working
+        if (error.message && error.message.includes('Critical')) {
+            alert('Error loading chess game: ' + error.message);
+        }
+        // For non-critical errors (like sound files), the game will still work
+    }
+});
         // Load saved board and piece preferences immediately
         chessGame.loadPreferences();
         
