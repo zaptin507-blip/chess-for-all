@@ -36,6 +36,91 @@ class NNUEWorkerAdapter {
     }
 }
 
+/**
+ * WebSocket client for Reckless chess engine bridge.
+ * Matches the Worker API (postMessage/addEventListener/removeEventListener/terminate)
+ * so it can replace Stockfish transparently.
+ */
+class RecklessClient {
+    constructor() {
+        this._ws = null;
+        this._listeners = new Map();
+        this._queue = [];
+        this._ready = false;
+        this._closed = false;
+    }
+
+    connect(url) {
+        return new Promise((resolve, reject) => {
+            if (this._ws) {
+                resolve();
+                return;
+            }
+            try {
+                const ws = new WebSocket(url || 'ws://localhost:9001');
+                ws.onopen = () => {
+                    this._ws = ws;
+                    this._ready = true;
+                    // Flush queued messages
+                    for (const msg of this._queue) {
+                        ws.send(msg);
+                    }
+                    this._queue = [];
+                    resolve();
+                };
+                ws.onmessage = (event) => {
+                    const line = event.data;
+                    for (const handler of this._listeners.values()) {
+                        handler({ data: line });
+                    }
+                };
+                ws.onerror = (err) => {
+                    console.error('❌ Reckless WebSocket error:', err);
+                    reject(err);
+                };
+                ws.onclose = () => {
+                    this._ready = false;
+                    this._closed = true;
+                };
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
+
+    postMessage(msg) {
+        if (this._ready && this._ws) {
+            this._ws.send(msg);
+        } else {
+            this._queue.push(msg);
+        }
+    }
+
+    addEventListener(type, handler) {
+        if (type === 'message') {
+            const wrapped = (event) => handler(event);
+            this._listeners.set(handler, wrapped);
+        }
+    }
+
+    removeEventListener(type, handler) {
+        if (type === 'message') {
+            this._listeners.delete(handler);
+        }
+    }
+
+    terminate() {
+        this._closed = true;
+        this._ready = false;
+        if (this._ws) {
+            this._ws.close();
+            this._ws = null;
+        }
+        this._listeners.clear();
+        this._queue = [];
+    }
+}
+
 class ChessGame {
     constructor() {
         this.chess = new Chess();
@@ -86,6 +171,14 @@ class ChessGame {
         this.boardFlipped = false;
         this.currentPieceStyle = 'cburnett';
         this.pendingPromotion = null;
+        
+        // Online multiplayer state
+        this.isOnlineGame = false;
+        this.onlineGameId = null;
+        this.onlineGameRef = null;
+        this.onlineOpponent = null;
+        this.pendingDrawOffer = false;
+        this.onlineListeners = []; // Firebase listener refs to clean up
         
         // Audio for chess sounds
         this.sounds = {
@@ -245,7 +338,8 @@ class ChessGame {
             'bP': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><path stroke="#000" stroke-linecap="round" stroke-width="1.5" d="M22.5 9a4 4 0 0 0-3.22 6.38 6.48 6.48 0 0 0-.87 10.65c-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47a6.46 6.46 0 0 0-.87-10.65A4.01 4.01 0 0 0 22.5 9z"/></svg>'
         };
         
-        this.stockfish = this.initStockfish();
+        this.stockfish = null;
+        this._initEngineAsync();
         this.analysisEngine = null; // Will initialize only when needed
         this.analyzer = null;
         
@@ -1319,11 +1413,24 @@ class ChessGame {
         `;
     }
 
-    initStockfish() {
+    async initStockfish() {
+        // Try NNUE engine first (requires SharedArrayBuffer support)
+        if (window.NNUE_SUPPORTED && typeof window.Stockfish === 'function') {
+            try {
+                const rawEngine = await window.Stockfish();
+                rawEngine.postMessage('uci');
+                // Don't set Skill Level here - it will be set dynamically based on ELO
+                rawEngine.postMessage('setoption name Hash value 128');
+                console.log('✅ NNUE Stockfish engine initialized');
+                return new NNUEWorkerAdapter(rawEngine);
+            } catch (error) {
+                console.warn('⚠️ NNUE init failed, falling back to classic Worker:', error);
+            }
+        }
+        // Fallback: classic Worker-based Stockfish
         try {
             const stockfish = new Worker('stockfish.js');
             stockfish.postMessage('uci');
-            // Don't set Skill Level here - it will be set dynamically based on ELO
             stockfish.postMessage('setoption name Hash value 128');
             return stockfish;
         } catch (error) {
@@ -1332,8 +1439,57 @@ class ChessGame {
         }
     }
 
-    initAnalysisEngine() {
-        // Create a separate Stockfish instance for analysis
+    async _initEngineAsync() {
+        // Initialize Reckless engine (stronger, ~3833 ELO) via WebSocket bridge
+        try {
+            const reckless = new RecklessClient();
+            await reckless.connect('ws://localhost:9001');
+            reckless.postMessage('uci');
+            // Give the engine a moment to send uciok
+            await new Promise(r => setTimeout(r, 100));
+            console.log('✅ Reckless engine initialized');
+            this.recklessEngine = reckless;
+        } catch (e) {
+            console.warn('⚠️ Reckless bridge not available:', e.message);
+            this.recklessEngine = null;
+        }
+        
+        // Initialize Stockfish (always available, used for eval & when bot is losing)
+        this.stockfish = await this.initStockfish();
+        this.stockfishReady = !!this.stockfish;
+        
+        if (!this.stockfish && !this.recklessEngine) {
+            console.error('❌ All engines failed to initialize!');
+        }
+    }
+
+    _getBotEngine() {
+        // Use Reckless if bot is winning (win probability > 50%),
+        // otherwise use Stockfish to give the player a fighting chance.
+        // winProbability.loss = bot's win prob (from player's perspective).
+        const botWinProb = this.winProbability ? this.winProbability.loss : 0;
+        if (botWinProb > 50 && this.recklessEngine) {
+            return this.recklessEngine;
+        }
+        return this.stockfish;
+    }
+
+    async initAnalysisEngine() {
+        // Try NNUE engine first
+        if (window.NNUE_SUPPORTED && typeof window.Stockfish === 'function') {
+            try {
+                const rawEngine = await window.Stockfish();
+                rawEngine.postMessage('uci');
+                rawEngine.postMessage('isready');
+                rawEngine.postMessage('setoption name Skill Level value 20');
+                rawEngine.postMessage('setoption name Hash value 128');
+                console.log('✅ NNUE analysis engine initialized');
+                return new NNUEWorkerAdapter(rawEngine);
+            } catch (error) {
+                console.warn('⚠️ NNUE analysis engine init failed, falling back:', error);
+            }
+        }
+        // Fallback: classic Worker-based Stockfish
         try {
             const analysisEngine = new Worker('stockfish.js');
             analysisEngine.postMessage('uci');
@@ -1347,28 +1503,346 @@ class ChessGame {
         }
     }
 
-    async initAnalysisEngineNNUE() {
-        // NNUE neural engine for enhanced analysis accuracy
-        if (!window.NNUE_SUPPORTED) {
-            console.log('ℹ️ NNUE not supported in this browser (needs SharedArrayBuffer)');
-            return null;
+
+    // ─── Online Multiplayer Methods ────────────────────────────────────────
+
+    generateGameId() {
+        return 'game_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+    }
+
+    async findOrCreateOnlineGame(timeControl) {
+        if (!auth || !currentUser) {
+            alert('You must be logged in to play online!');
+            return;
         }
-        if (typeof window.Stockfish !== 'function') {
-            console.warn('⚠️ NNUE loader not loaded');
-            return null;
+        if (this.gameStarted) return;
+
+        this.setOnlineStatus('Searching for opponent...');
+
+        // Look for an available waiting game with matching time control
+        const gamesRef = db.ref('online-games');
+        const snapshot = await gamesRef.orderByChild('status').equalTo('waiting').once('value');
+
+        let joined = false;
+        if (snapshot.exists()) {
+            const games = snapshot.val();
+            for (const [gameId, game] of Object.entries(games)) {
+                if (game.players.white.uid !== currentUser.uid &&
+                    game.timeControl === timeControl &&
+                    !game.players.black) {
+                    // Join this game
+                    await this.joinOnlineGame(gameId);
+                    joined = true;
+                    break;
+                }
+            }
         }
-        try {
-            const rawEngine = await window.Stockfish();
-            rawEngine.postMessage('uci');
-            rawEngine.postMessage('isready');
-            rawEngine.postMessage('setoption name Skill Level value 20');
-            rawEngine.postMessage('setoption name Hash value 128');
-            return new NNUEWorkerAdapter(rawEngine);
-        } catch (error) {
-            console.warn('⚠️ NNUE engine init failed, falling back to classic:', error);
-            return null;
+
+        if (!joined) {
+            // Create a new game listing
+            await this.createOnlineGameListing(timeControl);
         }
     }
+
+    async createOnlineGameListing(timeControl) {
+        const gameId = this.generateGameId();
+        const displayName = safeStorage.get('displayName') || currentUser.email || 'Player';
+        const elo = safeStorage.getInt('userELO', 1200);
+
+        const gameData = {
+            status: 'waiting',
+            timeControl: timeControl,
+            players: {
+                white: {
+                    uid: currentUser.uid,
+                    displayName: displayName,
+                    elo: elo
+                },
+                black: null
+            },
+            game: {
+                fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+                moves: [],
+                turn: 'w',
+                result: null
+            },
+            timers: {
+                white: this._getTimeMs(timeControl),
+                black: this._getTimeMs(timeControl)
+            },
+            createdAt: firebase.database.ServerValue.TIMESTAMP,
+            lastMoveAt: firebase.database.ServerValue.TIMESTAMP
+        };
+
+        this.onlineGameId = gameId;
+        this.onlineGameRef = db.ref('online-games/' + gameId);
+        await this.onlineGameRef.set(gameData);
+
+        this.setOnlineStatus('Waiting for opponent...');
+        this._waitForOpponent(gameId);
+    }
+
+    async joinOnlineGame(gameId) {
+        const gameRef = db.ref('online-games/' + gameId);
+        const displayName = safeStorage.get('displayName') || currentUser.email || 'Player';
+        const elo = safeStorage.getInt('userELO', 1200);
+
+        // Assign the joining player as black
+        await gameRef.update({
+            'players/black': {
+                uid: currentUser.uid,
+                displayName: displayName,
+                elo: elo
+            },
+            status: 'active',
+            lastMoveAt: firebase.database.ServerValue.TIMESTAMP
+        });
+
+        this.onlineGameId = gameId;
+        this.onlineGameRef = gameRef;
+        this._startOnlineGame(gameId, 'b');
+    }
+
+    _waitForOpponent(gameId) {
+        const gameRef = db.ref('online-games/' + gameId);
+        const listener = gameRef.child('status').on('value', async (snapshot) => {
+            const status = snapshot.val();
+            if (status === 'active') {
+                // Opponent joined, start game as white
+                gameRef.child('status').off('value', listener);
+                this._startOnlineGame(gameId, 'w');
+            }
+        });
+        this.onlineListeners.push({ ref: gameRef.child('status'), event: 'value', handler: listener });
+    }
+
+    async _startOnlineGame(gameId, playerColor) {
+        this.isOnlineGame = true;
+        this.playerColor = playerColor;
+        this.onlineOpponent = null;
+
+        // Show draw button during online games
+        const drawBtn = document.getElementById('drawBtn');
+        if (drawBtn) drawBtn.style.display = 'inline-flex';
+
+        // Start watching the game state
+        this.watchOnlineGame(gameId);
+
+        // Fetch game data to get opponent info
+        const snapshot = await this.onlineGameRef.once('value');
+        const gameData = snapshot.val();
+        if (gameData) {
+            const opponentKey = playerColor === 'w' ? 'black' : 'white';
+            this.onlineOpponent = gameData.players[opponentKey] || { displayName: 'Unknown', elo: '?' };
+        }
+
+        // Start the game
+        this.timerMode = gameData.timeControl || 'infinite';
+        this.startGame();
+    }
+
+    watchOnlineGame(gameId) {
+        if (this.onlineGameRef) {
+            this._detachOnlineListeners();
+        }
+
+        this.onlineGameRef = db.ref('online-games/' + gameId);
+
+        // Listen for game state changes
+        const gameListener = this.onlineGameRef.child('game').on('value', (snapshot) => {
+            if (!this.isOnlineGame) return;
+            const gameState = snapshot.val();
+            if (!gameState) return;
+            this.handleOnlineGameUpdate(gameState);
+        });
+        this.onlineListeners.push({ ref: this.onlineGameRef.child('game'), event: 'value', handler: gameListener });
+
+        // Listen for result changes (opponent resigned, etc.)
+        const resultListener = this.onlineGameRef.child('game/result').on('value', (snapshot) => {
+            if (!this.isOnlineGame) return;
+            const result = snapshot.val();
+            if (result) {
+                this._handleOnlineResult(result);
+            }
+        });
+        this.onlineListeners.push({ ref: this.onlineGameRef.child('game/result'), event: 'value', handler: resultListener });
+
+        // Listen for draw offers
+        const drawListener = this.onlineGameRef.child('drawOffer').on('value', (snapshot) => {
+            if (!this.isOnlineGame) return;
+            const offer = snapshot.val();
+            if (offer && offer.from !== currentUser.uid && !this.pendingDrawOffer) {
+                this.pendingDrawOffer = true;
+                if (confirm(this.onlineOpponent?.displayName + ' offers a draw. Accept?')) {
+                    this.respondToDraw(true);
+                } else {
+                    this.respondToDraw(false);
+                }
+            }
+        });
+        this.onlineListeners.push({ ref: this.onlineGameRef.child('drawOffer'), event: 'value', handler: drawListener });
+    }
+
+    handleOnlineGameUpdate(gameState) {
+        if (!gameState) return;
+        if (this.gameOver) return;
+
+        // Reconstruct board from FEN if it changed (opponent's move)
+        const currentFen = this.chess.fen();
+        if (gameState.fen && gameState.fen !== currentFen) {
+            // Detect if the opponent's move was a capture
+            const wasCapture = currentFen.split(' ')[0].length > gameState.fen.split(' ')[0].length;
+            
+            this.chess.load(gameState.fen);
+            this.renderBoard();
+            this.updateMoveList();
+            this.updateStatus();
+
+            // Play sound for opponent's move
+            this.playSound({ captured: wasCapture });
+        }
+
+        // Update timers if available
+        if (gameState.timers) {
+            // Timers are synced from the other player's side
+        }
+    }
+
+    async sendOnlineMove(move) {
+        if (!this.isOnlineGame || !this.onlineGameRef) return;
+
+        const fen = this.chess.fen();
+        const moveData = {
+            from: move.from,
+            to: move.to,
+            promotion: move.promotion || 'q',
+            san: move.san,
+            timestamp: Date.now(),
+            playerUid: currentUser?.uid
+        };
+
+        await this.onlineGameRef.child('game').update({
+            fen: fen,
+            turn: this.chess.turn(),
+            lastMoveAt: firebase.database.ServerValue.TIMESTAMP
+        });
+
+        // Append move to moves array
+        const movesRef = this.onlineGameRef.child('game/moves');
+        await movesRef.transaction((currentMoves) => {
+            if (!currentMoves) return [moveData];
+            currentMoves.push(moveData);
+            return currentMoves;
+        });
+
+        // Clear any pending draw offer after a move
+        if (this.pendingDrawOffer) {
+            this.pendingDrawOffer = false;
+            this.onlineGameRef.child('drawOffer').remove();
+        }
+    }
+
+    async resignOnlineGame() {
+        if (!this.isOnlineGame || !this.onlineGameRef || !currentUser) return;
+        if (!confirm('Are you sure you want to resign?')) return;
+
+        const winner = this.playerColor === 'w' ? 'black' : 'white';
+        await this.onlineGameRef.child('game').update({
+            result: { winner: winner, method: 'resign' },
+            status: 'finished'
+        });
+        await this.onlineGameRef.update({ status: 'finished' });
+
+        this.gameOver = true;
+        this.updateStatus();
+        this.handleGameOver();
+    }
+
+    async offerDraw() {
+        if (!this.isOnlineGame || !this.onlineGameRef || !currentUser) return;
+        this.pendingDrawOffer = true;
+        await this.onlineGameRef.child('drawOffer').set({
+            from: currentUser.uid,
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
+    }
+
+    async respondToDraw(accept) {
+        if (!this.isOnlineGame || !this.onlineGameRef) return;
+
+        // Clear the draw offer
+        await this.onlineGameRef.child('drawOffer').remove();
+        this.pendingDrawOffer = false;
+
+        if (accept) {
+            await this.onlineGameRef.child('game').update({
+                result: { winner: 'draw', method: 'agreement' },
+                status: 'finished'
+            });
+            await this.onlineGameRef.update({ status: 'finished' });
+            this.gameOver = true;
+            this.updateStatus();
+            this.handleGameOver();
+        }
+    }
+
+    _handleOnlineResult(result) {
+        if (this.gameOver) return;
+        this.gameOver = true;
+
+        if (result.winner === 'draw') {
+            this.statusDisplay.textContent = 'Game drawn by ' + result.method;
+        } else if ((result.winner === 'white' && this.playerColor === 'w') ||
+                   (result.winner === 'black' && this.playerColor === 'b')) {
+            this.statusDisplay.textContent = 'You won by ' + result.method + '!';
+        } else {
+            this.statusDisplay.textContent = 'You lost by ' + result.method + '.';
+        }
+
+        this.stopTimer();
+        this.stopMusic();
+        this.showGameOverModal();
+        this.triggerConfetti();
+    }
+
+    leaveOnlineGame() {
+        this._detachOnlineListeners();
+        this.isOnlineGame = false;
+        this.onlineGameId = null;
+        this.onlineGameRef = null;
+        this.onlineOpponent = null;
+        this.pendingDrawOffer = false;
+        
+        // Hide draw button
+        const drawBtn = document.getElementById('drawBtn');
+        if (drawBtn) { drawBtn.style.display = 'none'; drawBtn.disabled = false; drawBtn.style.opacity = '1'; }
+    }
+
+    _detachOnlineListeners() {
+        for (const listener of this.onlineListeners) {
+            if (listener.ref && listener.event) {
+                listener.ref.off(listener.event, listener.handler);
+            }
+        }
+        this.onlineListeners = [];
+    }
+
+    _getTimeMs(timeControl) {
+        switch (timeControl) {
+            case 'bullet': return 60000;
+            case 'blitz': return 300000;
+            case 'rapid': return 600000;
+            case 'classical': return 1800000;
+            default: return 600000;
+        }
+    }
+
+    setOnlineStatus(msg) {
+        const statusEl = document.getElementById('onlineStatus');
+        if (statusEl) statusEl.textContent = msg;
+    }
+
+    // ─── End Online Multiplayer Methods ────────────────────────────────────
 
     init() {
         if (!this.board) {
@@ -1378,8 +1852,7 @@ class ChessGame {
         }
         
         if (!this.stockfish) {
-            console.error('Stockfish engine failed to initialize!');
-            alert('Warning: AI engine failed to load. The bot will make random moves.');
+            console.log('ℹ️ Bot engine is being initialized asynchronously...');
         }
         
         // Setup dropdown event listeners
@@ -1618,8 +2091,101 @@ class ChessGame {
         this.startGame();
     }
 
+    /**
+     * Show a chess.com-style VS screen overlay before the game begins.
+     * Displays player vs opponent with names, ratings, and animated entry.
+     * Auto-fades after ~2.5s.
+     */
+    showVsScreen() {
+        // Remove any stale VS screen
+        const existing = document.getElementById('vsScreen');
+        if (existing) existing.remove();
+        
+        const playerName = safeStorage.get('displayName') || 'You';
+        const playerELO = safeStorage.getInt('userELO', 1200);
+        
+        let opponentName, opponentEmoji, opponentRating;
+        
+        if (this.isOnlineGame && this.onlineOpponent) {
+            opponentName = this.onlineOpponent.displayName || 'Opponent';
+            opponentEmoji = '&#x1F464;'; // generic user icon
+            opponentRating = this.onlineOpponent.elo || '?';
+        } else {
+            opponentName = this.getBotDisplayName();
+            // Bot emoji matching the avatar style in the HTML
+            const botEmojis = {
+                mrstong: '&#x1F469;',
+                tester: '&#x1F9EA;',
+                god: '&#x1F916;',
+                mrleung: '&#x1F9EE;'
+            };
+            opponentEmoji = botEmojis[this.selectedBot] || '&#x1F916;';
+            
+            // Bot rating display per bot personality
+            if (this.gameMode === 'practice') {
+                opponentRating = this.engineElo || '?';
+            } else if (this.selectedBot === 'god') {
+                opponentRating = '&#x221E;';
+            } else if (this.selectedBot === 'tester') {
+                opponentRating = '???';
+            } else if (this.selectedBot === 'mrleung') {
+                opponentRating = '200';
+            } else {
+                opponentRating = '1400';
+            }
+        }
+        
+        const overlay = document.createElement('div');
+        overlay.id = 'vsScreen';
+        overlay.className = 'vs-overlay';
+        overlay.innerHTML =
+            '<div class="vs-content">' +
+                '<div class="vs-player left">' +
+                    '<div class="vs-avatar">👤</div>' +
+                    '<div class="vs-name">' + this._escapeHtml(playerName) + '</div>' +
+                    '<div class="vs-rating">' + playerELO + '</div>' +
+                '</div>' +
+                '<div class="vs-divider">' +
+                    '<div class="vs-vs-text">VS</div>' +
+                    '<div class="vs-vs-line"></div>' +
+                    '<div class="vs-countdown">Game starting...</div>' +
+                '</div>' +
+                '<div class="vs-player right">' +
+                    '<div class="vs-avatar">' + opponentEmoji + '</div>' +
+                    '<div class="vs-name">' + this._escapeHtml(opponentName) + '</div>' +
+                    '<div class="vs-rating">' + opponentRating + '</div>' +
+                '</div>' +
+            '</div>';
+        
+        document.body.appendChild(overlay);
+        
+        // Animate in on next frame
+        requestAnimationFrame(() => {
+            overlay.classList.add('active');
+        });
+        
+        // Auto-fade after 2.2s and remove
+        setTimeout(() => {
+            overlay.classList.remove('active');
+            overlay.classList.add('fade-out');
+            setTimeout(() => {
+                overlay.remove();
+            }, 500);
+        }, 2200);
+    }
+    
+    _escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
     startGame() {
         console.log('🎵 startGame called, timerMode =', this.timerMode, 'musicPlaying =', this.musicPlaying, 'audioContext =', !!this.audioContext);
+        
+        // Show chess.com-style VS screen overlay
+        this.showVsScreen();
+        
         this.gameStarted = true;
         
         // Load saved preferences
@@ -1686,19 +2252,19 @@ class ChessGame {
         // Initialize Chess.com-style interval blunder schedule for Mrs. Tong
         // She plays at intermediate level (~1400 ELO) with mandatory mistakes
         // at set intervals to create a realistic human-like experience.
-        if (this.selectedBot === 'mrstong') {
+        if (!this.isOnlineGame && this.selectedBot === 'mrstong') {
             this._botMoveCount = 0;
             this._blunderSchedule = this._generateBlunderSchedule(1400);
         }
         
         // Mr Leung — 200 ELO: very weak, blunders almost every move
-        if (this.selectedBot === 'mrleung') {
+        if (!this.isOnlineGame && this.selectedBot === 'mrleung') {
             this._botMoveCount = 0;
             this._blunderSchedule = this._generateBlunderSchedule(200);
         }
         
-        // Bot greeting - different for each bot (skip in practice mode)
-        if (this.gameMode !== 'practice') {
+        // Bot greeting (skip for online or practice mode)
+        if (!this.isOnlineGame && this.gameMode !== 'practice') {
             if (this.selectedBot === 'mrstong') {
                 const mrsTongGreetings = [
                     "Hello! I'm Mrs. Tong. Let's have a good game!",
@@ -1726,28 +2292,38 @@ class ChessGame {
             }
         }
         
-        // If player is black, make bot (white) move first
+        // If player is black, make bot (white) move first (or wait for opponent in online)
         if (this.playerColor === 'b') {
-            this.currentTurn = 'bot';
-            // Show correct bot name based on game mode
-            let botName;
-            if (this.gameMode === 'practice') {
-                botName = 'Engine';
+            if (this.isOnlineGame) {
+                this.currentTurn = 'opponent';
+                this.statusDisplay.textContent = 'Waiting for opponent\'s move...';
+                if (this.timerMode !== 'infinite') {
+                    this.startTimer();
+                }
             } else {
-                botName = this.getBotDisplayName();
+                this.currentTurn = 'bot';
+                // Show correct bot name based on game mode
+                let botName;
+                if (this.gameMode === 'practice') {
+                    botName = 'Engine';
+                } else {
+                    botName = this.getBotDisplayName();
+                }
+                this.statusDisplay.textContent = `${botName} (White) moves first...`;
+                // Only start timer if not in infinite mode
+                if (this.timerMode !== 'infinite') {
+                    this.startTimer();
+                }
+                setTimeout(() => {
+                    this.makeBotMove();
+                }, 500);
             }
-            this.statusDisplay.textContent = `${botName} (White) moves first...`;
-            // Only start timer if not in infinite mode
-            if (this.timerMode !== 'infinite') {
-                this.startTimer();
-            }
-            setTimeout(() => {
-                this.makeBotMove();
-            }, 500);
         } else {
-            this.currentTurn = 'player';
+            this.currentTurn = this.isOnlineGame ? 'player' : 'player';
             // Show correct message based on game mode
-            if (this.gameMode === 'practice') {
+            if (this.isOnlineGame) {
+                this.statusDisplay.textContent = 'Your turn (White) - Click a piece to move';
+            } else if (this.gameMode === 'practice') {
                 this.statusDisplay.textContent = 'Your turn (White) - Click a piece to move';
             } else {
                 this.statusDisplay.textContent = 'Your turn (White) - Click a piece to move';
@@ -1781,7 +2357,7 @@ class ChessGame {
                     this.playerTime = 0;
                     this.handlePlayerTimeout();
                 }
-            } else if (this.currentTurn === 'bot') {
+            } else if (this.currentTurn === 'bot' || this.currentTurn === 'opponent') {
                 this.botTime--;
                 if (this.botTime <= 0) {
                     this.botTime = 0;
@@ -1834,10 +2410,18 @@ class ChessGame {
 
     switchTurn() {
         // Switch timer to other player
-        if (this.currentTurn === 'player') {
-            this.currentTurn = 'bot';
+        if (this.isOnlineGame) {
+            if (this.currentTurn === 'player') {
+                this.currentTurn = 'opponent';
+            } else {
+                this.currentTurn = 'player';
+            }
         } else {
-            this.currentTurn = 'player';
+            if (this.currentTurn === 'player') {
+                this.currentTurn = 'bot';
+            } else {
+                this.currentTurn = 'player';
+            }
         }
         this.updateTurnIndicator();
     }
@@ -1854,6 +2438,21 @@ class ChessGame {
         
         // Stop background music
         this.stopMusic();
+        
+        if (this.isOnlineGame) {
+            this.statusDisplay.textContent = 'You ran out of time! Opponent wins!';
+            if (this.onlineGameRef) {
+                this.onlineGameRef.child('game').update({
+                    result: { winner: this.playerColor === 'w' ? 'black' : 'white', method: 'timeout' },
+                    status: 'finished'
+                });
+                this.onlineGameRef.update({ status: 'finished' });
+            }
+            setTimeout(() => {
+                this.showGameOverModal('loss', 'Time expired - You lost on time');
+            }, 1500);
+            return;
+        }
         
         const botDisplayName = this.getBotDisplayName();
         
@@ -1885,6 +2484,21 @@ class ChessGame {
         
         // Stop background music
         this.stopMusic();
+        
+        if (this.isOnlineGame) {
+            this.statusDisplay.textContent = 'Opponent ran out of time! You win!';
+            if (this.onlineGameRef) {
+                this.onlineGameRef.child('game').update({
+                    result: { winner: this.playerColor === 'w' ? 'white' : 'black', method: 'timeout' },
+                    status: 'finished'
+                });
+                this.onlineGameRef.update({ status: 'finished' });
+            }
+            setTimeout(() => {
+                this.showGameOverModal('win', 'Time expired - Opponent lost on time');
+            }, 1500);
+            return;
+        }
         
         const botDisplayName = this.getBotDisplayName();
         
@@ -2121,21 +2735,26 @@ class ChessGame {
                 // Switch timer to bot
                 this.switchTurn();
                 
-                // Bot reacts to your move (occasionally, only for THE ONE ABOVE ALL)
-                if (this.selectedBot === 'god' && Math.random() < 0.3) {
-                    setTimeout(() => {
-                        const reactions = [
-                            "Hmm, an interesting choice. Flawed, but interesting.",
-                            "Is that really the best you can do? How disappointing.",
-                            "I see what you're trying to do. It won't work.",
-                            "A bold move. Let's see if it pays off...Spoiler: it won't.",
-                            "Cute. Now watch how a master responds."
-                        ];
-                        this.addBotMessage(reactions[Math.floor(Math.random() * reactions.length)]);
-                    }, 1000);
-                }
+                if (this.isOnlineGame) {
+                    // Send the move to the opponent via Firebase
+                    this.sendOnlineMove(move);
+                } else {
+                    // Bot reacts to your move (occasionally, only for THE ONE ABOVE ALL)
+                    if (this.selectedBot === 'god' && Math.random() < 0.3) {
+                        setTimeout(() => {
+                            const reactions = [
+                                "Hmm, an interesting choice. Flawed, but interesting.",
+                                "Is that really the best you can do? How disappointing.",
+                                "I see what you're trying to do. It won't work.",
+                                "A bold move. Let's see if it pays off...Spoiler: it won't.",
+                                "Cute. Now watch how a master responds."
+                            ];
+                            this.addBotMessage(reactions[Math.floor(Math.random() * reactions.length)]);
+                        }, 1000);
+                    }
 
-                setTimeout(() => this.makeBotMove(), 300);
+                    setTimeout(() => this.makeBotMove(), 300);
+                }
                 return;
             }
         }
@@ -2728,8 +3347,11 @@ class ChessGame {
             return;
         }
         
-        if (!this.stockfish) {
-            console.error('❌ Stockfish engine is NULL!');
+        // Select engine based on bot's win probability
+        const engine = this._getBotEngine();
+        
+        if (!engine) {
+            console.error('❌ No bot engine available!');
             this.statusDisplay.textContent = 'Error: Bot engine not initialized!';
             return;
         }
@@ -2743,7 +3365,7 @@ class ChessGame {
         }
         this.statusDisplay.textContent = `${botName} is thinking...`;
         
-        // Mr Leung — skip Stockfish entirely, just play a random legal move (always the worst possible play)
+        // Mr Leung — skip engine entirely, just play a random legal move (always the worst possible play)
         if (this.selectedBot === 'mrleung') {
             setTimeout(() => {
                 const moves = this.chess.moves({ verbose: true });
@@ -2778,13 +3400,13 @@ class ChessGame {
         const listener = (event) => {
             const match = event.data.match(/^bestmove\s+(\S+)/);
             if (match) {
-                this.stockfish.removeEventListener('message', listener);
+                engine.removeEventListener('message', listener);
                 
                 const bestMove = match[1];
                 
-                // Guard: Stockfish returns '(none)' when no legal moves exist
+                // Guard: engine returned '(none)' when no legal moves exist
                 if (bestMove === '(none)') {
-                    console.warn('⚠️ Stockfish returned no valid move — game may be over');
+                    console.warn('⚠️ Engine returned no valid move — game may be over');
                     this.handleGameOver();
                     return;
                 }
@@ -2838,21 +3460,24 @@ class ChessGame {
             }
         };
 
-        this.stockfish.addEventListener('message', listener);
-        this.stockfish.postMessage(`position fen ${fen}`);
+        engine.addEventListener('message', listener);
+        engine.postMessage(`position fen ${fen}`);
         
-        // Set difficulty based on game mode
-        if (this.gameMode === 'practice' || this.selectedBot === 'mrstong' || this.selectedBot === 'mrleung') {
-            // Chess.com-style difficulty system: depth control + interval blunder schedule.
-            // Used by: Practice mode (variable ELO), Mrs. Tong (fixed intermediate ~1400),
-            //         and Mr Leung (fixed beginner ~200).
+        // Set difficulty based on which engine is in use
+        const isReckless = engine === this.recklessEngine;
+        
+        if (isReckless) {
+            // Reckless is stronger (~3833 ELO), use full depth when bot is winning
+            engine.postMessage('go depth 18');
+        } else if (this.gameMode === 'practice' || this.selectedBot === 'mrstong') {
+            // Stockfish: Chess.com-style difficulty system: depth control + interval blunder schedule.
+            // Used by: Practice mode (variable ELO), Mrs. Tong (fixed intermediate ~1400).
             //
             // NOTE: Stockfish 10.0.2 WASM build does NOT support "Skill Level" option,
             // so we rely on depth + mandatory blunder intervals for realistic difficulty.
             // Ratings are inflated ~200-500 pts vs human strength (per community analysis).
             
-            // Use 200 for Mr Leung = depth 1 (single-ply), frequent blunders
-            const effectiveElo = this.gameMode === 'practice' ? this.engineElo : (this.selectedBot === 'mrleung' ? 200 : 1400);
+            const effectiveElo = this.gameMode === 'practice' ? this.engineElo : 1400;
             this._botMoveCount = (this._botMoveCount || 0) + 1;
             
             let depth;
@@ -2882,20 +3507,20 @@ class ChessGame {
             
             // Ensure Skill Level is set for this move (safety net)
             const skillLevel = this.getSkillLevel(effectiveElo);
-            this.stockfish.postMessage(`setoption name Skill Level value ${skillLevel}`);
-            this.stockfish.postMessage(`go depth ${depth}`);
+            engine.postMessage(`setoption name Skill Level value ${skillLevel}`);
+            engine.postMessage(`go depth ${depth}`);
         } else {
             // Boss battle mode: Use fixed depth per bot
             // THE ONE ABOVE ALL: depth 16 (expert level)
             // The Tester: depth 8 (neutral level for rating)
             const depth = this.selectedBot === 'tester' ? 8 : 16;
-            this.stockfish.postMessage(`go depth ${depth}`);
+            engine.postMessage(`go depth ${depth}`);
         }
         
         // Add timeout check - if no response in 30 seconds, log error
         setTimeout(() => {
-            if (this.stockfish && listener) {
-                console.warn('⚠️ Stockfish has not responded in 30 seconds!');
+            if (engine && listener) {
+                console.warn('⚠️ Engine has not responded in 30 seconds!');
             }
         }, 30000);
     }
@@ -2942,7 +3567,7 @@ class ChessGame {
             
             try {
                 // Check if this is a forced move (should not be rated)
-                const isForced = this.isForcedMove(moveData.fen, moveData.san);
+                const isForced = await this.isForcedMove(moveData.fen, moveData.san);
                 
                 if (isForced) {
                     forcedMoves++;
@@ -3195,7 +3820,7 @@ class ChessGame {
     
 
     // Check if a move is forced (should not be rated)
-    isForcedMove(fen, moveSAN) {
+    async isForcedMove(fen, moveSAN) {
         try {
             const chess = new Chess(fen);
             
@@ -3223,7 +3848,7 @@ class ChessGame {
                     }
                     
                     // Get evaluation after this move
-                    const evalAfter = this.getQuickEvaluation(tempChess.fen());
+                    const evalAfter = await this.getQuickEvaluation(tempChess.fen());
                     
                     // If eval is not terrible (>-1000), it's a reasonable move
                     const isWhiteTurn = playerColor === 'w';
@@ -3242,7 +3867,7 @@ class ChessGame {
             
             // Check if the player is losing significant material no matter what
             // Get current evaluation
-            const evalBefore = this.getQuickEvaluation(fen);
+            const evalBefore = await this.getQuickEvaluation(fen);
             
             let reasonableMoves = 0;
             const playerColor = chess.turn();
@@ -3252,9 +3877,7 @@ class ChessGame {
                 tempChess.move(move.san);
                 
                 // Get evaluation after this move
-                const evalAfter = this.getQuickEvaluation(tempChess.fen());
-                
-                // Calculate centipawn loss for this move
+                const evalAfter = await this.getQuickEvaluation(tempChess.fen());
                 const isWhiteTurn = playerColor === 'w';
                 let centipawnLoss;
                 
@@ -3282,87 +3905,93 @@ class ChessGame {
         }
     }
     
-    // Quick evaluation for forced move detection (lower depth for speed)
-    getQuickEvaluation(fen) {
+    /**
+     * Create a temporary engine (NNUE with Worker fallback), run an evaluation,
+     * resolve with the centipawn score, then destroy the engine.
+     * @param {string} fen  Position to evaluate
+     * @param {number} depth  Search depth (default 12)
+     * @param {number} [timeoutMs]  Timeout in ms (omit for no timeout — use with care)
+     * @returns {Promise<number>}  Centipawn score (positive = White advantage)
+     */
+    async _evalWithEngine(fen, depth = 12, timeoutMs) {
+        let engine;
+        // Attempt NNUE first
+        if (window.NNUE_SUPPORTED && typeof window.Stockfish === 'function') {
+            try {
+                const raw = await window.Stockfish();
+                raw.postMessage('uci');
+                engine = new NNUEWorkerAdapter(raw);
+            } catch (e) {
+                console.warn('⚠️ _evalWithEngine NNUE failed:', e);
+            }
+        }
+        // Fallback to classic Worker
+        if (!engine) {
+            try {
+                engine = new Worker('stockfish.js');
+                engine.postMessage('uci');
+            } catch (e) {
+                console.error('❌ _evalWithEngine classic Worker failed:', e);
+                return 0;
+            }
+        }
+
         return new Promise((resolve) => {
-            const tempEngine = new Worker('stockfish.js');
-            
             let evaluation = 0;
             let resolved = false;
-            
+
             const listener = (event) => {
                 if (resolved) return;
-                
+
                 const cpMatch = event.data.match(/cp\s+(-?\d+)/);
                 const mateMatch = event.data.match(/mate\s+(-?\d+)/);
-                
+
                 if (mateMatch) {
                     const mateIn = parseInt(mateMatch[1]);
                     evaluation = mateIn > 0 ? 10000 : -10000;
                     resolved = true;
-                    tempEngine.removeEventListener('message', listener);
-                    tempEngine.terminate();
+                    engine.removeEventListener('message', listener);
+                    engine.terminate();
                     resolve(evaluation);
                 } else if (cpMatch) {
                     evaluation = parseInt(cpMatch[1]);
                 }
-                
+
                 if (event.data.startsWith('bestmove')) {
                     if (!resolved) {
                         resolved = true;
-                        tempEngine.removeEventListener('message', listener);
-                        tempEngine.terminate();
+                        engine.removeEventListener('message', listener);
+                        engine.terminate();
                         resolve(evaluation);
                     }
                 }
             };
-            
-            tempEngine.addEventListener('message', listener);
-            tempEngine.postMessage('uci');
-            tempEngine.postMessage(`position fen ${fen}`);
-            tempEngine.postMessage('go depth 12'); // Lower depth for speed
-            
-            // Timeout after 2 seconds
-            setTimeout(() => {
-                if (!resolved) {
-                    resolved = true;
-                    tempEngine.removeEventListener('message', listener);
-                    tempEngine.terminate();
-                    resolve(evaluation);
-                }
-            }, 2000);
+
+            engine.addEventListener('message', listener);
+            engine.postMessage(`position fen ${fen}`);
+            engine.postMessage(`go depth ${depth}`);
+
+            if (timeoutMs) {
+                setTimeout(() => {
+                    if (!resolved) {
+                        resolved = true;
+                        engine.removeEventListener('message', listener);
+                        engine.terminate();
+                        resolve(evaluation);
+                    }
+                }, timeoutMs);
+            }
         });
     }
+
+    // Quick evaluation for forced move detection (lower depth for speed)
+    async getQuickEvaluation(fen) {
+        return this._evalWithEngine(fen, 12, 2000);
+    }
+
     // Helper function to get position evaluation
     async getPositionEvaluation(fen) {
-        return new Promise((resolve) => {
-            const tempEngine = new Worker('stockfish.js');
-            
-            let evaluation = 0;
-            const listener = (event) => {
-                const cpMatch = event.data.match(/cp\s+(-?\d+)/);
-                const mateMatch = event.data.match(/mate\s+(-?\d+)/);
-                
-                if (mateMatch) {
-                    // Mate in X moves - use large number
-                    const mateIn = parseInt(mateMatch[1]);
-                    evaluation = mateIn > 0 ? 10000 : -10000;
-                } else if (cpMatch) {
-                    evaluation = parseInt(cpMatch[1]);
-                }
-                
-                if (event.data.startsWith('bestmove')) {
-                    tempEngine.removeEventListener('message', listener);
-                    tempEngine.terminate();
-                    resolve(evaluation);
-                }
-            };
-            
-            tempEngine.addEventListener('message', listener);
-            tempEngine.postMessage('uci');
-            tempEngine.postMessage(`position fen ${fen}`);
-            tempEngine.postMessage('go depth 15');
-        });
+        return this._evalWithEngine(fen, 15, 5000);
     }
     
     evaluatePosition(engine, fen, playerMoveSAN) {
@@ -3813,8 +4442,14 @@ class ChessGame {
         // Detect opening
         this.openingName = this.detectOpening();
         
-        const botName = this.getBotDisplayName() + "'s";
-        const turn = this.chess.turn() === this.playerColor ? 'Your' : (this.gameMode === 'practice' ? "Engine's" : botName);
+        let turn;
+        if (this.isOnlineGame) {
+            const opponentName = this.onlineOpponent?.displayName || 'Opponent';
+            turn = this.chess.turn() === this.playerColor ? 'Your' : opponentName + "'s";
+        } else {
+            const botName = this.getBotDisplayName() + "'s";
+            turn = this.chess.turn() === this.playerColor ? 'Your' : (this.gameMode === 'practice' ? "Engine's" : botName);
+        }
         const inCheck = this.chess.in_check() ? ' - CHECK!' : '';
         
         this.statusDisplay.textContent = `${turn} turn${inCheck}`;
@@ -3835,6 +4470,25 @@ class ChessGame {
     }
 
     async handleGameOver() {
+        // If online game, write result to Firebase
+        if (this.isOnlineGame && this.onlineGameRef) {
+            let winner, method;
+            if (this.chess.in_checkmate()) {
+                winner = this.chess.turn() === 'w' ? 'black' : 'white';
+                method = 'checkmate';
+            } else if (this.chess.in_draw() || this.chess.in_stalemate()) {
+                winner = 'draw';
+                method = this.chess.in_stalemate() ? 'stalemate' : 'agreement';
+            }
+            if (winner) {
+                await this.onlineGameRef.child('game').update({
+                    result: { winner, method },
+                    status: 'finished'
+                });
+                await this.onlineGameRef.update({ status: 'finished' });
+            }
+        }
+        
         // Stop the timer when game ends
         this.stopTimer();
         
@@ -4086,6 +4740,11 @@ class ChessGame {
         window.chessGame = this;
         
         document.getElementById('newGame').addEventListener('click', () => {
+            if (this.isOnlineGame) {
+                this.leaveOnlineGame();
+                this.resetGame();
+                return;
+            }
             const wasPracticeMode = this.gameMode === 'practice';
             const savedEngineElo = this.engineElo;
             const savedTimerMode = this.timerMode;
@@ -4145,9 +4804,29 @@ class ChessGame {
         document.getElementById('flipBoardBtn').addEventListener('click', () => this.flipBoard());
         document.getElementById('resignBtn').addEventListener('click', () => {
             if (confirm('Are you sure you want to resign?')) {
-                this.resignGame();
+                if (this.isOnlineGame) {
+                    this.resignOnlineGame();
+                } else {
+                    this.resignGame();
+                }
             }
         });
+        
+        // Draw button (visible only during online games)
+        const drawBtn = document.getElementById('drawBtn');
+        if (drawBtn) {
+            drawBtn.addEventListener('click', () => {
+                if (this.isOnlineGame) {
+                    this.offerDraw();
+                    drawBtn.style.opacity = '0.5';
+                    drawBtn.disabled = true;
+                    setTimeout(() => {
+                        drawBtn.style.opacity = '1';
+                        drawBtn.disabled = false;
+                    }, 5000);
+                }
+            });
+        }
         
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
@@ -4904,11 +5583,8 @@ class ChessGame {
             
         // Initialize analysis engine only when needed
         if (!this.analysisEngine) {
-            // Try NNUE first (async), fall back to classic Worker
-            this.analysisEngine = await this.initAnalysisEngineNNUE();
-            if (!this.analysisEngine) {
-                this.analysisEngine = this.initAnalysisEngine();
-            }
+            // initAnalysisEngine() tries NNUE first, falls back to classic Worker
+            this.analysisEngine = await this.initAnalysisEngine();
             if (!this.analysisEngine) {
                 alert('Failed to initialize chess engine for analysis.');
                 this._analyzing = false;
@@ -6003,12 +6679,17 @@ class ChessGame {
         // Restart engines
         if (this.stockfish) {
             this.stockfish.terminate();
-            this.stockfish = this.initStockfish();
+            this.stockfish = null;
         }
+        if (this.recklessEngine) {
+            this.recklessEngine.terminate();
+            this.recklessEngine = null;
+        }
+        this._initEngineAsync();
         if (this.analysisEngine) {
             this.analysisEngine.terminate();
-            this.analysisEngine = this.initAnalysisEngine();
-            this.analyzer = new ChessAnalyzer(this.chess, this.analysisEngine);
+            this.analysisEngine = null;
+            this.analyzer = null;
         }
         
         // Disable analysis mode
@@ -7277,19 +7958,6 @@ window.addEventListener('load', () => {
         // Load saved board and piece preferences immediately
         chessGame.loadPreferences();
         
-        // Check for Tester reminder (every 6 months)
-        chessGame.checkTesterReminder();
-        
-
-    } catch (error) {
-        console.error('⚠️ Chess game initialization warning:', error);
-        // Only show alert for critical errors that prevent the game from working
-        if (error.message && error.message.includes('Critical')) {
-            alert('Error loading chess game: ' + error.message);
-        }
-        // For non-critical errors (like sound files), the game will still work
-    }
-});
         // Check for Tester reminder (every 6 months)
         chessGame.checkTesterReminder();
         

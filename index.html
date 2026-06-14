@@ -103,6 +103,24 @@
                     </div>
                 </div>
                 
+                <!-- Online Play Separator -->
+                <div style="margin-bottom: 20px; padding-top: 5px; border-top: 1px solid rgba(255, 255, 255, 0.08);">
+                    <div style="color: rgba(255, 255, 255, 0.5); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">Play Online</div>
+                    
+                    <div id="onlineStatus" style="color: rgba(255, 255, 255, 0.4); font-size: 12px; margin-bottom: 10px; text-align: center;">Sign in to play online</div>
+                    
+                    <button id="quickMatchBtn" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-bottom: 8px;" onclick="if(window.chessGame)chessGame.findOrCreateOnlineGame(document.getElementById('onlineTimeSelect').value)" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                        Quick Match
+                    </button>
+                    
+                    <select id="onlineTimeSelect" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.05); color: #fff; font-size: 13px; cursor: pointer; margin-bottom: 8px;">
+                        <option value="blitz">Blitz (5 min)</option>
+                        <option value="rapid" selected>Rapid (10 min)</option>
+                        <option value="bullet">Bullet (1 min)</option>
+                        <option value="classical">Classical (30 min)</option>
+                    </select>
+                </div>
+                
                 <!-- Time Control -->
                 <div style="margin-bottom: 20px;">
                     <div style="color: rgba(255, 255, 255, 0.5); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">Time Control</div>
@@ -161,6 +179,9 @@
                 </button>
                 <button id="resignBtn" class="toolbar-btn toolbar-btn-resign" title="Resign (R)">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+                <button id="drawBtn" class="toolbar-btn" title="Offer Draw" style="display: none;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
                 </button>
                 <button id="analyzeBtn" class="toolbar-btn" title="Analyze Game">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>

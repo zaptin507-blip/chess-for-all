@@ -1506,6 +1506,148 @@ html {
     text-align: right;
 }
 
+/* ===== Chess.com-style VS Screen ===== */
+
+.vs-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at center, #1a1a2e 0%, #0c0c14 100%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+}
+
+.vs-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.vs-overlay.fade-out {
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+.vs-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(30px, 8vw, 80px);
+    padding: 40px;
+}
+
+.vs-player {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    animation: vsPlayerIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.vs-player.left {
+    animation-delay: 0.1s;
+}
+
+.vs-player.right {
+    animation-delay: 0.25s;
+}
+
+@keyframes vsPlayerIn {
+    0% { opacity: 0; transform: translateY(30px) scale(0.8); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.vs-avatar {
+    width: clamp(60px, 12vw, 100px);
+    height: clamp(60px, 12vw, 100px);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(28px, 6vw, 50px);
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.03) 100%);
+    border: 2px solid rgba(255,255,255,0.15);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    position: relative;
+    overflow: hidden;
+}
+
+.vs-avatar::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    padding: 2px;
+    background: conic-gradient(from 0deg, transparent, rgba(118,150,86,0.3), transparent, rgba(118,150,86,0.15), transparent);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: vsAvatarRotate 4s linear infinite;
+}
+
+@keyframes vsAvatarRotate {
+    to { transform: rotate(360deg); }
+}
+
+.vs-name {
+    font-family: 'Inter', 'Plus Jakarta Sans', sans-serif;
+    font-weight: 700;
+    font-size: clamp(14px, 2.5vw, 22px);
+    color: #fff;
+    text-align: center;
+    white-space: nowrap;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.vs-rating {
+    font-family: 'Inter', sans-serif;
+    font-size: clamp(11px, 1.5vw, 15px);
+    color: rgba(255,255,255,0.5);
+}
+
+.vs-divider {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    animation: vsVsIn 0.5s ease 0.4s both;
+}
+
+@keyframes vsVsIn {
+    0% { opacity: 0; transform: scale(0.3) rotate(-15deg); }
+    100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+.vs-vs-text {
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+    font-weight: 800;
+    font-size: clamp(32px, 6vw, 56px);
+    background: linear-gradient(135deg, #769656 0%, #8ab45e 50%, #5a7a3e 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: none;
+    filter: drop-shadow(0 2px 12px rgba(118,150,86,0.4));
+    line-height: 1;
+}
+
+.vs-countdown {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.vs-vs-line {
+    width: 1px;
+    height: clamp(30px, 4vw, 50px);
+    background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.1), transparent);
+}
+
 /* ===== PHONE RESPONSIVE — MAJOR OVERHAUL ===== */
 @media (max-width: 768px) {
     /* ---- Override inline styles that break mobile ---- */
