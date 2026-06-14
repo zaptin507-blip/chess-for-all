@@ -179,6 +179,7 @@ class ChessGame {
         this.onlineOpponent = null;
         this.pendingDrawOffer = false;
         this.onlineListeners = []; // Firebase listener refs to clean up
+        this._isWaiting = false; // Are we currently waiting for an opponent?
         
         // Audio for chess sounds
         this.sounds = {
@@ -1515,27 +1516,65 @@ class ChessGame {
             alert('You must be logged in to play online!');
             return;
         }
-        if (this.gameStarted) return;
+
+        // Validate time control selection
+        const validTimeControls = ['bullet', 'blitz', 'rapid', 'classical'];
+        if (!timeControl || !validTimeControls.includes(timeControl)) {
+            alert('Please select a valid time control before starting Quick Match!');
+            return;
+        }
+
+        if (this.gameStarted) {
+            alert('A game is already in progress. Finish or resign it first.');
+            return;
+        }
+
+        // Cancel any previous matchmaking wait
+        if (this.onlineGameId && this._isWaiting) {
+            this.setOnlineStatus('Cancelled previous search...');
+            // Clean up the previous waiting game listing if it's still waiting
+            await db.ref('online-games/' + this.onlineGameId).remove();
+            this._detachOnlineListeners();
+            this._isWaiting = false;
+        }
 
         this.setOnlineStatus('Searching for opponent...');
+        console.log('[Online] Searching for waiting game, timeControl:', timeControl);
 
-        // Look for an available waiting game with matching time control
+        // Fetch all games and filter client-side (avoids needing a Firebase index)
         const gamesRef = db.ref('online-games');
-        const snapshot = await gamesRef.orderByChild('status').equalTo('waiting').once('value');
+        let snapshot;
+        try {
+            snapshot = await gamesRef.once('value');
+        } catch (err) {
+            console.error('[Online] Failed to read online games:', err);
+            this.setOnlineStatus('Connection error — try again');
+            return;
+        }
 
         let joined = false;
         if (snapshot.exists()) {
             const games = snapshot.val();
-            for (const [gameId, game] of Object.entries(games)) {
-                if (game.players.white.uid !== currentUser.uid &&
-                    game.timeControl === timeControl &&
-                    !game.players.black) {
-                    // Join this game
+            const waitingGames = Object.entries(games).filter(([, g]) =>
+                g.status === 'waiting' &&
+                g.timeControl === timeControl &&
+                g.players && g.players.white &&
+                g.players.white.uid !== currentUser.uid &&
+                !g.players.black
+            );
+            console.log('[Online] Found', waitingGames.length, 'available waiting game(s)');
+            for (const [gameId] of waitingGames) {
+                try {
                     await this.joinOnlineGame(gameId);
                     joined = true;
+                    console.log('[Online] Joined existing game:', gameId);
                     break;
+                } catch (err) {
+                    console.warn('[Online] Failed to join game', gameId, err);
                 }
             }
+        } else {
+            console.log('[Online] No games in DB yet');
         }
 
         if (!joined) {
@@ -1604,12 +1643,14 @@ class ChessGame {
     }
 
     _waitForOpponent(gameId) {
+        this._isWaiting = true;
         const gameRef = db.ref('online-games/' + gameId);
         const listener = gameRef.child('status').on('value', async (snapshot) => {
             const status = snapshot.val();
             if (status === 'active') {
                 // Opponent joined, start game as white
                 gameRef.child('status').off('value', listener);
+                this._isWaiting = false;
                 this._startOnlineGame(gameId, 'w');
             }
         });
@@ -1620,6 +1661,7 @@ class ChessGame {
         this.isOnlineGame = true;
         this.playerColor = playerColor;
         this.onlineOpponent = null;
+        this._isWaiting = false;
 
         // Show draw button during online games
         const drawBtn = document.getElementById('drawBtn');
@@ -1812,6 +1854,7 @@ class ChessGame {
         this.onlineGameRef = null;
         this.onlineOpponent = null;
         this.pendingDrawOffer = false;
+        this._isWaiting = false;
         
         // Hide draw button
         const drawBtn = document.getElementById('drawBtn');
@@ -1840,6 +1883,44 @@ class ChessGame {
     setOnlineStatus(msg) {
         const statusEl = document.getElementById('onlineStatus');
         if (statusEl) statusEl.textContent = msg;
+        const statusElLeft = document.getElementById('onlineStatusLeft');
+        if (statusElLeft) statusElLeft.textContent = msg;
+
+        // Update Quick Match button text based on state
+        const btn = document.getElementById('quickMatchBtn');
+        if (btn) {
+            if (this._isWaiting) {
+                btn.textContent = '⏳ Cancel Search';
+                btn.style.background = 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)';
+            } else {
+                btn.textContent = 'Quick Match';
+                btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            }
+        }
+    }
+
+    /** Remove any waiting games we created in a previous session (stale listings) */
+    async _cleanupStaleGames() {
+        if (!auth || !currentUser || !db) return;
+        try {
+            const snapshot = await db.ref('online-games').once('value');
+            if (!snapshot.exists()) return;
+            const games = snapshot.val();
+            const promises = [];
+            for (const [gameId, game] of Object.entries(games)) {
+                if (game.status === 'waiting' &&
+                    game.players && game.players.white &&
+                    game.players.white.uid === currentUser.uid) {
+                    promises.push(db.ref('online-games/' + gameId).remove());
+                }
+            }
+            if (promises.length > 0) {
+                await Promise.all(promises);
+                console.log('[Online] Cleaned up', promises.length, 'stale waiting game(s)');
+            }
+        } catch (err) {
+            console.warn('[Online] Stale game cleanup error:', err);
+        }
     }
 
     // ─── End Online Multiplayer Methods ────────────────────────────────────
@@ -6852,6 +6933,8 @@ if (auth) {
             // Load user's saved preferences on login
             if (window.chessGame) {
                 window.chessGame.loadPreferences();
+                // Clean up any waiting games this user left behind
+                window.chessGame._cleanupStaleGames();
             }
             
             // Show admin button only for admins
