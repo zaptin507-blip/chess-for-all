@@ -4904,8 +4904,6 @@ class ChessGame {
             this.analyzeGame();
         });
         document.getElementById('analyzeBtn').addEventListener('click', () => this.analyzeGame());
-        // Analyze from Practice sidebar
-        document.getElementById('analyzeFromPracticeBtn').addEventListener('click', () => this.analyzeGame());
         document.getElementById('closeImportModal').addEventListener('click', () => {
             document.getElementById('importModal').style.display = 'none';
         });

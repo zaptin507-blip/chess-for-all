@@ -1149,6 +1149,10 @@
                             <span>🎯</span>
                             <span>Practice</span>
                         </div>
+                        <div class="submenu-item" style="padding: 10px 16px; color: #fff; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 14px; transition: background 0.15s; border-left: 3px solid transparent;" onmouseover="this.style.background='rgba(255, 255, 255, 0.08)'; this.style.borderLeftColor='#769656'" onmouseout="this.style.background='transparent'; this.style.borderLeftColor='transparent'" onclick="document.getElementById('importModal').style.display='flex'">
+                            <span>📊</span>
+                            <span>Game Analysis</span>
+                        </div>
                     </div>
                 </div>
                 
@@ -1318,24 +1322,6 @@
             
             <!-- Start Button -->
             <button id="startPracticeBtn" style="width: 100%; padding: 10px; background: #769656; border: none; border-radius: 6px; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='#6b8a4e'" onmouseout="this.style.background='#769656'">Start Practice</button>
-            
-            <!-- Separator -->
-            <div style="border-top: 1px solid rgba(255, 255, 255, 0.08); margin: 16px 0 12px 0;"></div>
-            
-            <!-- Game Analysis Section -->
-            <div style="margin-bottom: 12px;">
-                <div style="color: rgba(255, 255, 255, 0.4); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; padding: 0 4px;">Game Analysis</div>
-                
-                <button onclick="document.getElementById('importModal').style.display='flex'" style="width: 100%; padding: 8px 10px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #fff; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 8px; margin-bottom: 6px;" onmouseover="this.style.background='rgba(255, 255, 255, 0.1)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.06)'">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    Import Game
-                </button>
-                
-                <button id="analyzeFromPracticeBtn" style="width: 100%; padding: 8px 10px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #fff; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 8px;" onmouseover="this.style.background='rgba(255, 255, 255, 0.1)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.06)'">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                    Analyze Current Game
-                </button>
-            </div>
         </div>
     </div>
     
