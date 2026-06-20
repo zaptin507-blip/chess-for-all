@@ -5897,7 +5897,19 @@ class ChessGame {
             // Render board at final position
             this.renderBoard();
             this.updateMoveList();
-            this.updateStatus();
+
+            // Show game result in status (don't call updateStatus which triggers game-over modals)
+            if (this.chess.game_over()) {
+                if (this.chess.in_checkmate()) {
+                    this.statusDisplay.textContent = 'Game ended in checkmate';
+                } else if (this.chess.in_draw()) {
+                    this.statusDisplay.textContent = 'Game ended in a draw';
+                } else if (this.chess.in_stalemate()) {
+                    this.statusDisplay.textContent = 'Game ended in stalemate';
+                }
+            } else {
+                this.statusDisplay.textContent = 'Game imported — ready for analysis';
+            }
 
             // Show imported game info
             const gameDetails = document.getElementById('importedGameDetails');
