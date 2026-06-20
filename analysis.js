@@ -610,4 +610,11 @@ class ChessAnalyzer {
         moveAnalyses.forEach(a => { if (summary.hasOwnProperty(a.classification)) summary[a.classification]++; else summary.good++; });
         return summary;
     }
+
+    /** Extract result string from PGN header */
+    static _getResultFromPGN(pgn) {
+        if (!pgn) return '*';
+        const m = pgn.match(/\[Result\s+\"([^\"]+)\"\]/);
+        return m ? m[1] : '*';
+    }
 }

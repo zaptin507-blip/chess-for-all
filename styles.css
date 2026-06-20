@@ -2665,3 +2665,178 @@ a:focus-visible {
     margin-top: 15px;
     text-align: center;
 }
+
+/* ─── Import Game Modal ─────────────────────────────── */
+.import-modal-content {
+    max-width: 540px;
+    width: 92%;
+    background: linear-gradient(160deg, #2a2724 0%, #312e2b 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    max-height: 80vh;
+    overflow-y: auto;
+}
+.import-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+}
+.import-modal-header h2 {
+    color: #fff;
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0;
+}
+.import-close-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 28px;
+    cursor: pointer;
+    padding: 0 4px;
+    transition: color 0.2s;
+    line-height: 1;
+}
+.import-close-btn:hover {
+    color: #fff;
+}
+.import-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.import-tab {
+    flex: 1;
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+.import-tab:hover {
+    color: rgba(255, 255, 255, 0.7);
+}
+.import-tab-active {
+    color: #fff;
+    border-bottom-color: #769656;
+}
+.import-panel {
+    min-height: 120px;
+}
+.import-input-group {
+    margin-bottom: 12px;
+}
+.import-input-group label {
+    display: block;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+.import-input {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.import-input:focus {
+    border-color: #769656;
+}
+.import-textarea {
+    width: 100%;
+    min-height: 140px;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.3);
+    color: #ddd;
+    font-size: 13px;
+    font-family: 'Courier New', monospace;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s;
+    line-height: 1.5;
+}
+.import-textarea:focus {
+    border-color: #769656;
+}
+.game-select-list {
+    max-height: 240px;
+    overflow-y: auto;
+    margin-top: 10px;
+}
+.game-select-list::-webkit-scrollbar {
+    width: 4px;
+}
+.game-select-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+.game-select-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+}
+.game-select-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border: 1px solid transparent;
+    margin-bottom: 4px;
+}
+.game-select-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+.game-select-item.selected {
+    background: rgba(118, 150, 86, 0.15);
+    border-color: rgba(118, 150, 86, 0.3);
+}
+.game-select-item .game-result-icon {
+    font-size: 16px;
+    width: 24px;
+    text-align: center;
+}
+.game-select-item .game-info {
+    flex: 1;
+    min-width: 0;
+}
+.game-select-item .game-players {
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.game-select-item .game-meta {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 11px;
+    margin-top: 2px;
+}
+.game-select-item .game-result {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+.game-result-win { color: #8bc34a; }
+.game-result-loss { color: #f44336; }
+.game-result-draw { color: #ffc107; }

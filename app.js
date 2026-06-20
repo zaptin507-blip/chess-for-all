@@ -180,6 +180,7 @@ class ChessGame {
         this.pendingDrawOffer = false;
         this.onlineListeners = []; // Firebase listener refs to clean up
         this._isWaiting = false; // Are we currently waiting for an opponent?
+        this.contemptValue = 24; // Stockfish Contempt: -100 (drawish) to +100 (aggressive)
         
         // Audio for chess sounds
         this.sounds = {
@@ -343,6 +344,7 @@ class ChessGame {
         this._initEngineAsync();
         this.analysisEngine = null; // Will initialize only when needed
         this.analyzer = null;
+        this._isImportedGame = false;
         
         this.init();
     }
@@ -1422,6 +1424,7 @@ class ChessGame {
                 rawEngine.postMessage('uci');
                 // Don't set Skill Level here - it will be set dynamically based on ELO
                 rawEngine.postMessage('setoption name Hash value 128');
+                rawEngine.postMessage(`setoption name Contempt value ${this.contemptValue}`);
                 console.log('✅ NNUE Stockfish engine initialized');
                 return new NNUEWorkerAdapter(rawEngine);
             } catch (error) {
@@ -1433,6 +1436,7 @@ class ChessGame {
             const stockfish = new Worker('stockfish.js');
             stockfish.postMessage('uci');
             stockfish.postMessage('setoption name Hash value 128');
+            stockfish.postMessage(`setoption name Contempt value ${this.contemptValue}`);
             return stockfish;
         } catch (error) {
             console.error('❌ Failed to initialize Stockfish:', error);
@@ -1446,6 +1450,7 @@ class ChessGame {
             const reckless = new RecklessClient();
             await reckless.connect('ws://localhost:9001');
             reckless.postMessage('uci');
+            reckless.postMessage(`setoption name Contempt value ${this.contemptValue}`);
             // Give the engine a moment to send uciok
             await new Promise(r => setTimeout(r, 100));
             console.log('✅ Reckless engine initialized');
@@ -1462,6 +1467,22 @@ class ChessGame {
         if (!this.stockfish && !this.recklessEngine) {
             console.error('❌ All engines failed to initialize!');
         }
+    }
+
+    /** Apply Contempt value to all active engines */
+    _setContempt(value) {
+        this.contemptValue = value;
+        const cmd = `setoption name Contempt value ${value}`;
+        if (this.stockfish && typeof this.stockfish.postMessage === 'function') {
+            try { this.stockfish.postMessage(cmd); } catch (e) {}
+        }
+        if (this.recklessEngine && typeof this.recklessEngine.postMessage === 'function') {
+            try { this.recklessEngine.postMessage(cmd); } catch (e) {}
+        }
+        if (this.analysisEngine && typeof this.analysisEngine.postMessage === 'function') {
+            try { this.analysisEngine.postMessage(cmd); } catch (e) {}
+        }
+        console.log(`⚡ Contempt set to ${value}`);
     }
 
     _getBotEngine() {
@@ -1484,6 +1505,7 @@ class ChessGame {
                 rawEngine.postMessage('isready');
                 rawEngine.postMessage('setoption name Skill Level value 20');
                 rawEngine.postMessage('setoption name Hash value 128');
+                rawEngine.postMessage(`setoption name Contempt value ${this.contemptValue}`);
                 console.log('✅ NNUE analysis engine initialized');
                 return new NNUEWorkerAdapter(rawEngine);
             } catch (error) {
@@ -1497,6 +1519,7 @@ class ChessGame {
             analysisEngine.postMessage('isready');
             analysisEngine.postMessage('setoption name Skill Level value 20');
             analysisEngine.postMessage('setoption name Hash value 128');
+            analysisEngine.postMessage(`setoption name Contempt value ${this.contemptValue}`);
             return analysisEngine;
         } catch (error) {
             console.error('Failed to initialize analysis engine:', error);
@@ -3685,7 +3708,7 @@ class ChessGame {
                 
                 
                 totalCentipawnLoss += centipawnLoss;
-                // === Expected-points loss classification (wintrchess algorithm) ===
+                // === Expected-points loss classification (centipawn-based, chess.com style) ===
                 // Normalize raw Stockfish scores to White's perspective for ChessAnalyzer
                 const moveColor = isWhiteTurn ? 'w' : 'b';
                 const evalBeforeWhite = isWhiteTurn ? evalBefore : -evalBefore;
@@ -3749,7 +3772,7 @@ class ChessGame {
         this.ratingData.moveCount = moveCount;
         this.ratingData.result = playerLost ? 'loss' : (playerWon ? 'win' : 'draw');
         
-        // Compute accuracy using wintrchess formula
+        // Compute accuracy using centipawn-loss formula (chess.com style)
         const avgPointLoss = totalPointLoss / Math.max(1, moveCount);
         this.ratingData.accuracy = Math.round(ChessAnalyzer.getMoveAccuracy(avgPointLoss) * 10) / 10;
         
@@ -3771,7 +3794,7 @@ class ChessGame {
         
         // Factor 2: Move quality (average point loss)
         // Point-loss is context-aware: same centipawn loss = bigger penalty in close games
-        // Uses the same wintrchess thresholds as move classification
+                // Uses centipawn-based thresholds (chess.com style)
         
         // Scale ELO based on average point loss
         // < 0.01 avgPL = Best moves only → GM precision
@@ -4881,6 +4904,73 @@ class ChessGame {
             this.analyzeGame();
         });
         document.getElementById('analyzeBtn').addEventListener('click', () => this.analyzeGame());
+        // Analyze from Practice sidebar
+        document.getElementById('analyzeFromPracticeBtn').addEventListener('click', () => this.analyzeGame());
+        document.getElementById('closeImportModal').addEventListener('click', () => {
+            document.getElementById('importModal').style.display = 'none';
+        });
+        // Close modal on overlay click
+        document.getElementById('importModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('importModal')) {
+                document.getElementById('importModal').style.display = 'none';
+            }
+        });
+
+        // Import tab switching
+        document.querySelectorAll('.import-tab').forEach((tab) => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.import-tab').forEach((t) => t.classList.remove('import-tab-active'));
+                tab.classList.add('import-tab-active');
+                document.querySelectorAll('.import-panel').forEach((p) => p.style.display = 'none');
+                const panel = document.querySelector('.import-panel[data-import-panel="' + tab.dataset.importTab + '"]');
+                if (panel) panel.style.display = 'block';
+            });
+        });
+
+        // PGN Load button
+        document.getElementById('loadPgnBtn').addEventListener('click', () => {
+            const pgn = document.getElementById('pgnInput').value;
+            this.importPGN(pgn);
+        });
+
+        // Chess.com Search button
+        document.getElementById('searchChesscomBtn').addEventListener('click', () => {
+            const username = document.getElementById('chesscomUsername').value.trim();
+            if (username) {
+                this.loadChesscomGamesList(username);
+            } else {
+                alert('Please enter a Chess.com username.');
+            }
+        });
+
+        // Chess.com username enter key support
+        document.getElementById('chesscomUsername').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('searchChesscomBtn').click();
+            }
+        });
+
+        // URL Load button
+        document.getElementById('loadUrlBtn').addEventListener('click', async () => {
+            const url = document.getElementById('chesscomUrlInput').value;
+            if (url) {
+                await this.importChesscomURL(url);
+            } else {
+                alert('Please enter a Chess.com game URL.');
+            }
+        });
+
+        // Analyze imported game button
+        document.getElementById('analyzeImportedBtn').addEventListener('click', async () => {
+            // If a chess.com game was selected, import it first
+            if (this._chesscomGames && this._selectedChesscomGameIdx !== undefined) {
+                await this.importSelectedChesscomGame();
+            }
+            document.getElementById('importModal').style.display = 'none';
+            // Now analyze
+            this.analyzeGame();
+        });
+
         document.getElementById('undoBtn').addEventListener('click', () => this.undoMove());
         document.getElementById('flipBoardBtn').addEventListener('click', () => this.flipBoard());
         document.getElementById('resignBtn').addEventListener('click', () => {
@@ -5649,6 +5739,15 @@ class ChessGame {
             });
         });
         
+        // Contempt slider wiring
+        const contemptSlider = document.getElementById('contemptSlider');
+        if (contemptSlider) {
+            contemptSlider.addEventListener('input', (e) => {
+                const val = parseInt(e.target.value);
+                this._setContempt(val);
+            });
+        }
+        
     }
 
     async analyzeGame() {
@@ -5747,6 +5846,303 @@ class ChessGame {
         }
     }
 
+    // ─── Game Import Methods ────────────────────────────────────────────────
+
+    /** Parse PGN string and populate moveHistory + board */
+    async importPGN(pgnString) {
+        if (!pgnString || !pgnString.trim()) {
+            alert('Please paste PGN data first.');
+            return false;
+        }
+        try {
+            // Reset the board and load PGN
+            this.chess.reset();
+            const result = this.chess.load_pgn(pgnString);
+            if (!result) {
+                alert('Invalid PGN. Please check the data and try again.');
+                return false;
+            }
+
+            // Extract header info
+            const header = this.chess.header();
+            const whiteName = header['White'] || 'White';
+            const blackName = header['Black'] || 'Black';
+            const resultStr = header['Result'] || '*';
+
+            // Clear existing state
+            this.moveHistory = [];
+            this.moveAnalyses = [];
+            this.analysisMode = false;
+            this.currentMoveIndex = -1;
+
+            // Get all moves from PGN
+            const moves = this.chess.history({ verbose: true });
+            if (moves.length === 0) {
+                alert('No moves found in PGN.');
+                return false;
+            }
+
+            // Build moveHistory by replaying moves from start
+            this.chess.reset();
+            for (let i = 0; i < moves.length; i++) {
+                const fenBefore = this.chess.fen();
+                const move = this.chess.move(moves[i].san);
+                if (move) {
+                    this.moveHistory.push({
+                        move: move,
+                        fenBefore: fenBefore,
+                        fenAfter: this.chess.fen()
+                    });
+                }
+            }
+
+            // Render board at final position
+            this.renderBoard();
+            this.updateMoveList();
+            this.updateStatus();
+
+            // Show imported game info
+            const gameDetails = document.getElementById('importedGameDetails');
+            if (gameDetails) {
+                const ratingInfo = header['WhiteElo'] || header['BlackElo']
+                    ? ' | Ratings: ' + (header['WhiteElo'] || '?') + ' vs ' + (header['BlackElo'] || '?')
+                    : '';
+                gameDetails.innerHTML = '<strong>' + whiteName + '</strong> vs <strong>' + blackName + '</strong>'
+                    + ' | ' + moves.length + ' moves'
+                    + ' | ' + resultStr
+                    + ratingInfo;
+                document.getElementById('importedGameInfo').style.display = 'block';
+            }
+
+            // Enable analyze button
+            const analyzeBtn = document.getElementById('analyzeImportedBtn');
+            if (analyzeBtn) analyzeBtn.style.display = 'block';
+
+            // Store PGN header info
+            this._importedGame = { whiteName, blackName, result: resultStr, header };
+            this._isImportedGame = true;
+
+            console.log('PGN loaded: ' + whiteName + ' vs ' + blackName + ', ' + moves.length + ' moves');
+            return true;
+        } catch (error) {
+            console.error('PGN import error:', error);
+            alert('Failed to parse PGN: ' + error.message);
+            return false;
+        }
+    }
+
+    /** Fetch recent games from chess.com public API for a username */
+    async fetchChesscomGames(username) {
+        if (!username || !username.trim()) {
+            throw new Error('Please enter a Chess.com username.');
+        }
+        const cleanUser = username.trim().toLowerCase();
+
+        // Get list of monthly archives
+        const archivesRes = await fetch('https://api.chess.com/pub/player/' + cleanUser + '/games/archives');
+        if (!archivesRes.ok) {
+            throw new Error('User not found or API error (HTTP ' + archivesRes.status + ').');
+        }
+        const archivesData = await archivesRes.json();
+        const archives = archivesData.archives;
+        if (!archives || archives.length === 0) {
+            throw new Error('No games found for this user.');
+        }
+
+        // Fetch the most recent archive (last element)
+        const latestUrl = archives[archives.length - 1];
+        const gamesRes = await fetch(latestUrl);
+        if (!gamesRes.ok) {
+            throw new Error('Failed to fetch games.');
+        }
+        const gamesData = await gamesRes.json();
+        return gamesData.games || [];
+    }
+
+    /** Show chess.com games in the import modal list */
+    async loadChesscomGamesList(username) {
+        const container = document.getElementById('chesscomGamesContainer');
+        const listDiv = document.getElementById('chesscomGamesList');
+        const loadingDiv = document.getElementById('chesscomLoading');
+        const errorDiv = document.getElementById('chesscomError');
+
+        if (!container) return;
+
+        // Show loading
+        container.innerHTML = '';
+        if (loadingDiv) loadingDiv.style.display = 'block';
+        if (listDiv) listDiv.style.display = 'none';
+        if (errorDiv) errorDiv.style.display = 'none';
+
+        try {
+            const games = await this.fetchChesscomGames(username);
+            if (loadingDiv) loadingDiv.style.display = 'none';
+
+            if (!games || games.length === 0) {
+                if (errorDiv) {
+                    errorDiv.textContent = 'No games found in the latest month.';
+                    errorDiv.style.display = 'block';
+                }
+                return;
+            }
+
+            // Show first 50 games max
+            const maxGames = Math.min(games.length, 50);
+            let html = '';
+            for (let i = 0; i < maxGames; i++) {
+                const g = games[i];
+                const white = g.white || {};
+                const black = g.black || {};
+                const whiteName = white.username || '?';
+                const blackName = black.username || '?';
+                const result = g.pgn ? ChessAnalyzer._getResultFromPGN(g.pgn) : '*';
+                const date = g.end_time ? new Date(g.end_time * 1000).toLocaleDateString() : '';
+                const timeClass = g.time_class || '';
+                const isWin = result === '1-0' || result === '0-1';
+                const isDraw = result === '1/2-1/2';
+                let icon = isDraw ? '=' : (isWin ? (result === '1-0' ? '1-0' : '0-1') : '*');
+                let resultClass = 'game-result-draw';
+                if (result === '1-0') resultClass = 'game-result-win';
+                else if (result === '0-1') resultClass = 'game-result-loss';
+
+                html += '<div class="game-select-item" data-game-index="' + i + '">'
+                    + '<span class="game-result-icon">' + icon + '</span>'
+                    + '<div class="game-info">'
+                    + '<div class="game-players">' + whiteName + ' vs ' + blackName + '</div>'
+                    + '<div class="game-meta">' + timeClass + (date ? ' | ' + date : '') + '</div>'
+                    + '</div>'
+                    + '<span class="game-result ' + resultClass + '">' + result + '</span>'
+                    + '</div>';
+            }
+
+            container.innerHTML = html;
+            if (listDiv) listDiv.style.display = 'block';
+
+            // Store game data for selection
+            this._chesscomGames = games;
+
+            // Add click handlers for game selection
+            container.querySelectorAll('.game-select-item').forEach((el) => {
+                el.addEventListener('click', () => {
+                    container.querySelectorAll('.game-select-item').forEach((item) => {
+                        item.classList.remove('selected');
+                    });
+                    el.classList.add('selected');
+                    const idx = parseInt(el.dataset.gameIndex);
+                    this._selectedChesscomGameIdx = idx;
+                    this._loadChesscomGamePreview(idx);
+                });
+            });
+
+        } catch (error) {
+            if (loadingDiv) loadingDiv.style.display = 'none';
+            if (errorDiv) {
+                errorDiv.textContent = error.message;
+                errorDiv.style.display = 'block';
+            }
+        }
+    }
+
+    /** Preview a selected chess.com game (load PGN into preview) */
+    _loadChesscomGamePreview(index) {
+        const games = this._chesscomGames;
+        if (!games || index < 0 || index >= games.length) return;
+        const game = games[index];
+
+        // Show game info
+        const gameDetails = document.getElementById('importedGameDetails');
+        const gameInfo = document.getElementById('importedGameInfo');
+        if (gameDetails && gameInfo) {
+            const white = game.white || {};
+            const black = game.black || {};
+            const whiteName = white.username || '?';
+            const blackName = black.username || '?';
+            const whiteRating = white.rating || '?';
+            const blackRating = black.rating || '?';
+            const result = game.pgn ? ChessAnalyzer._getResultFromPGN(game.pgn) : '*';
+            const date = game.end_time ? new Date(game.end_time * 1000).toLocaleDateString() : '';
+            const rules = game.rules || 'chess';
+
+            let movesCount = 0;
+            try {
+                const tempChess = new Chess();
+                if (game.pgn) tempChess.load_pgn(game.pgn);
+                movesCount = tempChess.history().length;
+            } catch (e) {}
+
+            gameDetails.innerHTML = '<strong>' + whiteName + ' (' + whiteRating + ')</strong> vs <strong>'
+                + blackName + ' (' + blackRating + ')</strong>'
+                + ' | ' + movesCount + ' moves'
+                + ' | ' + result
+                + (date ? ' | ' + date : '');
+            gameInfo.style.display = 'block';
+        }
+
+        // Enable analyze button
+        const analyzeBtn = document.getElementById('analyzeImportedBtn');
+        if (analyzeBtn) analyzeBtn.style.display = 'block';
+    }
+
+    /** Import a chess.com game (from API data) */
+    async importChesscomGame(gameData) {
+        if (!gameData || !gameData.pgn) {
+            alert('No PGN data available for this game.');
+            return false;
+        }
+        return await this.importPGN(gameData.pgn);
+    }
+
+    /** Parse chess.com URL to extract game ID and fetch PGN */
+    async importChesscomURL(url) {
+        if (!url || !url.trim()) {
+            alert('Please enter a Chess.com game URL.');
+            return false;
+        }
+        // Match patterns: chess.com/game/live/123456, chess.com/game/daily/123456
+        const match = url.trim().match(/chess\.com\/game\/(?:live|daily)\/(\d+)/i);
+        if (!match) {
+            alert('Invalid Chess.com game URL. Expected format: https://www.chess.com/game/live/...');
+            return false;
+        }
+        const gameId = match[1];
+
+        // Try the chess.com export API (CORS-friendly)
+        try {
+            const exportUrl = 'https://api.chess.com/pub/chess/game/' + gameId;
+            const res = await fetch(exportUrl);
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.pgn) {
+                    return await this.importPGN(data.pgn);
+                }
+            }
+            // Fallback: try the export download endpoint
+            const pgnUrl = 'https://www.chess.com/game/download/' + gameId;
+            const pgnRes = await fetch(pgnUrl);
+            if (pgnRes.ok) {
+                const pgnText = await pgnRes.text();
+                return await this.importPGN(pgnText);
+            }
+            alert('Could not fetch game from Chess.com. The game may be private or the URL is invalid.');
+            return false;
+        } catch (error) {
+            console.error('Chess.com URL import error:', error);
+            alert('Failed to load game from URL: ' + error.message);
+            return false;
+        }
+    }
+
+    /** Import a chess.com game that was selected from the games list */
+    async importSelectedChesscomGame() {
+        const games = this._chesscomGames;
+        const idx = this._selectedChesscomGameIdx;
+        if (!games || idx === undefined || idx < 0 || idx >= games.length) {
+            alert('Please select a game first.');
+            return false;
+        }
+        return await this.importChesscomGame(games[idx]);
+    }
+
     updateGameReview(index) {
         const chat = document.getElementById('reviewChat');
         const classIcon = document.getElementById('reviewClassificationIcon');
@@ -5810,15 +6206,20 @@ class ChessGame {
             }
         }
         
-        // Update summary — only player's moves, not bot's
+        // Update summary
         if (this.moveAnalyses && this.moveAnalyses.length > 0) {
             document.getElementById('reviewSummary').style.display = 'block';
             const counts = {};
             this.moveAnalyses.forEach((a, i) => {
-                const isWhiteMove = i % 2 === 0;
-                const isPlayerMove = (isWhiteMove && this.playerColor === 'w') || (!isWhiteMove && this.playerColor === 'b');
-                if (!isPlayerMove) return; // skip bot moves
-                counts[a.classification] = (counts[a.classification] || 0) + 1;
+                // For imported games, count all moves. For regular games, only player's moves.
+                if (this._isImportedGame) {
+                    counts[a.classification] = (counts[a.classification] || 0) + 1;
+                } else {
+                    const isWhiteMove = i % 2 === 0;
+                    const isPlayerMove = (isWhiteMove && this.playerColor === 'w') || (!isWhiteMove && this.playerColor === 'b');
+                    if (!isPlayerMove) return; // skip bot moves
+                    counts[a.classification] = (counts[a.classification] || 0) + 1;
+                }
             });
             
             const statConfig = [
@@ -5856,22 +6257,40 @@ class ChessGame {
         
         const playerLabel = document.getElementById('rtPlayerLabel');
         const botLabel = document.getElementById('rtBotLabel');
-        if (playerLabel) playerLabel.textContent = this.selectedBot ? 'You' : 'White';
-        if (botLabel) botLabel.textContent = this.selectedBot ? (this.selectedBot.charAt(0).toUpperCase() + this.selectedBot.slice(1)) : 'Black';
+        if (this._isImportedGame) {
+            const imported = this._importedGame || {};
+            if (playerLabel) playerLabel.textContent = imported.whiteName || 'White';
+            if (botLabel) botLabel.textContent = imported.blackName || 'Black';
+        } else if (this.selectedBot) {
+            if (playerLabel) playerLabel.textContent = 'You';
+            if (botLabel) botLabel.textContent = this.selectedBot.charAt(0).toUpperCase() + this.selectedBot.slice(1);
+        } else {
+            if (playerLabel) playerLabel.textContent = 'White';
+            if (botLabel) botLabel.textContent = 'Black';
+        }
         
-        // Separate moves by side
-        const playerMoves = [];
-        const botMoves = [];
+        // Separate moves by side: even indices = White, odd = Black
+        const whiteMoves = [];
+        const blackMoves = [];
         
         this.moveAnalyses.forEach((analysis, i) => {
-            const isWhiteMove = i % 2 === 0;
-            const isPlayerMove = (isWhiteMove && this.playerColor === 'w') || (!isWhiteMove && this.playerColor === 'b');
-            if (isPlayerMove) {
-                playerMoves.push(analysis);
+            if (i % 2 === 0) {
+                whiteMoves.push(analysis);
             } else {
-                botMoves.push(analysis);
+                blackMoves.push(analysis);
             }
         });
+        
+        // For imported games, label as White/Black. For regular games, map by playerColor
+        let sideAMoves, sideBMoves;
+        if (this._isImportedGame) {
+            sideAMoves = whiteMoves;
+            sideBMoves = blackMoves;
+        } else {
+            const isPlayerWhite = this.playerColor === 'w';
+            sideAMoves = isPlayerWhite ? whiteMoves : blackMoves;
+            sideBMoves = isPlayerWhite ? blackMoves : whiteMoves;
+        }
         
         // Count classifications per side
         const count = (arr, key) => arr.filter(a => a.classification === key).length;
@@ -5890,13 +6309,13 @@ class ChessGame {
         
         let html = '';
         categories.forEach(cat => {
-            const playerCount = count(playerMoves, cat.key);
-            const botCount = count(botMoves, cat.key);
-            if (playerCount > 0 || botCount > 0) {
+            const sideACount = count(sideAMoves, cat.key);
+            const sideBCount = count(sideBMoves, cat.key);
+            if (sideACount > 0 || sideBCount > 0) {
                 html += '<tr>' +
                     '<td><span class="rt-category-icon">' + cat.icon + '</span>' + cat.label + '</td>' +
-                    '<td class="rt-count">' + playerCount + '</td>' +
-                    '<td class="rt-count">' + botCount + '</td>' +
+                    '<td class="rt-count">' + sideACount + '</td>' +
+                    '<td class="rt-count">' + sideBCount + '</td>' +
                     '</tr>';
             }
         });
@@ -6772,6 +7191,12 @@ class ChessGame {
             this.analysisEngine = null;
             this.analyzer = null;
         }
+        
+        // Clear imported game state
+        this._isImportedGame = false;
+        this._importedGame = null;
+        this._chesscomGames = null;
+        this._selectedChesscomGameIdx = undefined;
         
         // Disable analysis mode
         this.analysisMode = false;
