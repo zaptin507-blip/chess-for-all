@@ -2464,10 +2464,6 @@ class ChessGame {
                     if (squareName === this.lastMove.from || squareName === this.lastMove.to) {
                         square.classList.add('last-move');
                     }
-                    // Add subtle landing animation on the destination square's piece
-                    if (squareName === this.lastMove.to && piece) {
-                        pieceElement.classList.add('piece-just-moved');
-                    }
                 }
 
                 // Get piece from the correct position
@@ -2498,6 +2494,11 @@ class ChessGame {
                         pieceElement.addEventListener('dragend', (e) => this.handleDragEnd(e));
                     } else {
                         pieceElement.draggable = false;
+                    }
+                    
+                    // Add subtle landing animation on the destination square's piece
+                    if (this.lastMove && squareName === this.lastMove.to) {
+                        pieceElement.classList.add('piece-just-moved');
                     }
                     
                     square.appendChild(pieceElement);
