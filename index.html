@@ -26,6 +26,12 @@
             
             <div class="board-container">
                 <div class="board-wrapper">
+                    <div class="eval-bar-container" id="evalBarContainer">
+                        <div class="eval-bar" id="evalBar">
+                            <div class="eval-bar-fill" id="evalBarFill"></div>
+                        </div>
+                        <div class="eval-bar-value" id="evalBarValue"></div>
+                    </div>
                     <div class="ranks-left" id="ranksLeft"></div>
                     <div id="chessboard" class="board"></div>
                     <div class="files-bottom" id="filesBottom"></div>
@@ -276,25 +282,29 @@
     
     <!-- Pawn Promotion Modal -->
     <div id="promotionModal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 420px;">
-            <h2 style="color: #fff; margin-bottom: 12px;">👑 Choose Promotion</h2>
-            <p style="color: #ddd; font-size: 14px; margin-bottom: 20px;">Your pawn reached the last rank! Pick a piece:</p>
-            <div style="display: flex; gap: 12px; justify-content: center;">
-                <button class="promotion-option promotion-option-btn" data-piece="q">
-                    <div style="font-size: 42px;">♕</div>
-                    <div>Queen</div>
+        <div class="modal-content promo-modal-content">
+            <h2>👑 Choose Promotion</h2>
+            <p class="promo-subtitle">Your pawn reached the last rank! Pick a piece or press a key:</p>
+            <div class="promo-options">
+                <button class="promotion-option promotion-option-btn" data-piece="q" data-key="1">
+                    <div class="promo-piece">♕</div>
+                    <div class="promo-label">Queen</div>
+                    <span class="promo-key">1</span>
                 </button>
-                <button class="promotion-option promotion-option-btn" data-piece="r">
-                    <div style="font-size: 42px;">♖</div>
-                    <div>Rook</div>
+                <button class="promotion-option promotion-option-btn" data-piece="r" data-key="2">
+                    <div class="promo-piece">♖</div>
+                    <div class="promo-label">Rook</div>
+                    <span class="promo-key">2</span>
                 </button>
-                <button class="promotion-option promotion-option-btn" data-piece="b">
-                    <div style="font-size: 42px;">♗</div>
-                    <div>Bishop</div>
+                <button class="promotion-option promotion-option-btn" data-piece="b" data-key="3">
+                    <div class="promo-piece">♗</div>
+                    <div class="promo-label">Bishop</div>
+                    <span class="promo-key">3</span>
                 </button>
-                <button class="promotion-option promotion-option-btn" data-piece="n">
-                    <div style="font-size: 42px;">♘</div>
-                    <div>Knight</div>
+                <button class="promotion-option promotion-option-btn" data-piece="n" data-key="4">
+                    <div class="promo-piece">♘</div>
+                    <div class="promo-label">Knight</div>
+                    <span class="promo-key">4</span>
                 </button>
             </div>
         </div>

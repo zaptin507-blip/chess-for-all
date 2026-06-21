@@ -1,6 +1,8 @@
 import safeStorage from './js/core/storage.js';
 import './js/ui/admin.js';
 import { initMobileSidebar } from './js/ui/sidebar.js';
+import { pieceSVG, pieceUnicode } from './js/chess/pieces.js';
+import { openings } from './js/chess/openings.js';
 
 /**
  * Wraps an NNUE engine instance to expose Worker-compatible API
@@ -318,27 +320,9 @@ class ChessGame {
             }
         }.bind(this);
         
-        // Unicode chess pieces (simple and reliable)
-        this.pieceUnicode = {
-            'wK': '♔', 'wQ': '♕', 'wR': '♖', 'wB': '♗', 'wN': '♘', 'wP': '♙',
-            'bK': '♚', 'bQ': '♛', 'bR': '♜', 'bB': '♝', 'bN': '♞', 'bP': '♟'
-        };
-        
-        // Inline SVG chess pieces (standard cburnett style)
-        this.pieceSVG = {
-            'wK': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="none" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path stroke-linejoin="miter" d="M22.5 11.63V6M20 8h5"/><path fill="#fff" stroke-linecap="butt" stroke-linejoin="miter" d="M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5"/><path fill="#fff" d="M11.5 37c5.5 3.5 15.5 3.5 21 0v-7s9-4.5 6-10.5c-4-6.5-13.5-3.5-16 4V27v-3.5c-3.5-7.5-13-10.5-16-4-3 6 5 10 5 10z"/><path d="M11.5 30c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0"/></g></svg>',
-            'wQ': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#fff" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="M8 12a2 2 0 1 1-4 0 2 2 0 1 1 4 0m16.5-4.5a2 2 0 1 1-4 0 2 2 0 1 1 4 0M41 12a2 2 0 1 1-4 0 2 2 0 1 1 4 0M16 8.5a2 2 0 1 1-4 0 2 2 0 1 1 4 0M33 9a2 2 0 1 1-4 0 2 2 0 1 1 4 0"/><path stroke-linecap="butt" d="M9 26c8.5-1.5 21-1.5 27 0l2-12-7 11V11l-5.5 13.5-3-15-3 15-5.5-14V25L7 14z"/><path stroke-linecap="butt" d="M9 26c0 2 1.5 2 2.5 4 1 1.5 1 1 .5 3.5-1.5 1-1.5 2.5-1.5 2.5-1.5 1.5.5 2.5.5 2.5 6.5 1 16.5 1 23 0 0 0 1.5-1 0-2.5 0 0 .5-1.5-1-2.5-.5-2.5-.5-2 .5-3.5 1-2 2.5-2 2.5-4-8.5-1.5-18.5-1.5-27 0z"/><path fill="none" d="M11.5 30c3.5-1 18.5-1 22 0M12 33.5c6-1 15-1 21 0"/></g></svg>',
-            'wR': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="#fff" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path stroke-linecap="butt" d="M9 39h27v-3H9zm3-3v-4h21v4zm-1-22V9h4v2h5V9h5v2h5V9h4v5"/><path d="m34 14-3 3H14l-3-3"/><path stroke-linecap="butt" stroke-linejoin="miter" d="M31 17v12.5H14V17"/><path d="m31 29.5 1.5 2.5h-20l1.5-2.5"/><path fill="none" stroke-linejoin="miter" d="M11 14h23"/></g></svg>',
-            'wB': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="none" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><g fill="#fff" stroke-linecap="butt"><path d="M9 36c3.39-.97 10.11.43 13.5-2 3.39 2.43 10.11 1.03 13.5 2 0 0 1.65.54 3 2-.68.97-1.65.99-3 .5-3.39-.97-10.11.46-13.5-1-3.39 1.46-10.11.03-13.5 1-1.35.49-2.32.47-3-.5 1.35-1.94 3-2 3-2z"/><path d="M15 32c2.5 2.5 12.5 2.5 15 0 .5-1.5 0-2 0-2 0-2.5-2.5-4-2.5-4 5.5-1.5 6-11.5-5-15.5-11 4-10.5 14-5 15.5 0 0-2.5 1.5-2.5 4 0 0-.5.5 0 2z"/><path d="M25 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 1 1 5 0z"/></g><path stroke-linejoin="miter" d="M17.5 26h10M15 30h15m-7.5-14.5v5M20 18h5"/></g></svg>',
-            'wN': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="none" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path fill="#fff" d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21"/><path fill="#fff" d="M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.042-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4.003 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-.994-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-1.992 2.5-3c1 0 1 3 1 3"/><path fill="#000" d="M9.5 25.5a.5.5 0 1 1-1 0 .5.5 0 1 1 1 0m5.433-9.75a.5 1.5 30 1 1-.866-.5.5 1.5 30 1 1 .866.5"/></g></svg>',
-            'wP': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><path fill="#fff" stroke="#000" stroke-linecap="round" stroke-width="1.5" d="M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47 1.47-1.19 2.41-3 2.41-5.03 0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z"/></svg>',
-            'bK': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="none" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path stroke-linejoin="miter" d="M22.5 11.6V6"/><path fill="#000" stroke-linecap="butt" stroke-linejoin="miter" d="M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5"/><path fill="#000" d="M11.5 37a22.3 22.3 0 0 0 21 0v-7s9-4.5 6-10.5c-4-6.5-13.5-3.5-16 4V27v-3.5c-3.5-7.5-13-10.5-16-4-3 6 5 10 5 10z"/><path stroke-linejoin="miter" d="M20 8h5"/><path stroke="#ececec" d="M32 29.5s8.5-4 6-9.7C34.1 14 25 18 22.5 24.6v2.1-2.1C20 18 9.9 14 7 19.9c-2.5 5.6 4.8 9 4.8 9"/><path stroke="#ececec" d="M11.5 30c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0"/></g></svg>',
-            'bQ': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><g stroke="none"><circle cx="6" cy="12" r="2.75"/><circle cx="14" cy="9" r="2.75"/><circle cx="22.5" cy="8" r="2.75"/><circle cx="31" cy="9" r="2.75"/><circle cx="39" cy="12" r="2.75"/></g><path stroke-linecap="butt" d="M9 26c8.5-1.5 21-1.5 27 0l2.5-12.5L31 25l-.3-14.1-5.2 13.6-3-14.5-3 14.5-5.2-13.6L14 25 6.5 13.5z"/><path stroke-linecap="butt" d="M9 26c0 2 1.5 2 2.5 4 1 1.5 1 1 .5 3.5-1.5 1-1.5 2.5-1.5 2.5-1.5 1.5.5 2.5.5 2.5 6.5 1 16.5 1 23 0 0 0 1.5-1 0-2.5 0 0 .5-1.5-1-2.5-.5-2.5-.5-2 .5-3.5 1-2 2.5-2 2.5-4-8.5-1.5-18.5-1.5-27 0z"/><path fill="none" stroke-linecap="butt" d="M11 38.5a35 35 1 0 0 23 0"/><path fill="none" stroke="#ececec" d="M11 29a35 35 1 0 1 23 0m-21.5 2.5h20m-21 3a35 35 1 0 0 22 0m-23 3a35 35 1 0 0 24 0"/></g></svg>',
-            'bR': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path stroke-linecap="butt" d="M9 39h27v-3H9zm3.5-7 1.5-2.5h17l1.5 2.5zm-.5 4v-4h21v4z"/><path stroke-linecap="butt" stroke-linejoin="miter" d="M14 29.5v-13h17v13z"/><path stroke-linecap="butt" d="M14 16.5 11 14h23l-3 2.5zM11 14V9h4v2h5V9h5v2h5V9h4v5z"/><path fill="none" stroke="#ececec" stroke-linejoin="miter" stroke-width="1" d="M12 35.5h21m-20-4h19m-18-2h17m-17-13h17M11 14h23"/></g></svg>',
-            'bB': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="none" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><g fill="#000" stroke-linecap="butt"><path d="M9 36c3.4-1 10.1.4 13.5-2 3.4 2.4 10.1 1 13.5 2 0 0 1.6.5 3 2-.7 1-1.6 1-3 .5-3.4-1-10.1.5-13.5-1-3.4 1.5-10.1 0-13.5 1-1.4.5-2.3.5-3-.5 1.4-2 3-2 3-2z"/><path d="M15 32c2.5 2.5 12.5 2.5 15 0 .5-1.5 0-2 0-2 0-2.5-2.5-4-2.5-4 5.5-1.5 6-11.5-5-15.5-11 4-10.5 14-5 15.5 0 0-2.5 1.5-2.5 4 0 0-.5.5 0 2z"/><path d="M25 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 1 1 5 0z"/></g><path stroke="#ececec" stroke-linejoin="miter" d="M17.5 26h10M15 30h15m-7.5-14.5v5M20 18h5"/></g></svg>',
-            'bN': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g fill="none" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path fill="#000" d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21"/><path fill="#000" d="M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.04-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-1-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-2 2.5-3c1 0 1 3 1 3"/><path fill="#ececec" stroke="#ececec" d="M9.5 25.5a.5.5 0 1 1-1 0 .5.5 0 1 1 1 0m5.43-9.75a.5 1.5 30 1 1-.86-.5.5 1.5 30 1 1 .86.5"/><path fill="#ececec" stroke="none" d="m24.55 10.4-.45 1.45.5.15c3.15 1 5.65 2.49 7.9 6.75S35.75 29.06 35.25 39l-.05.5h2.25l.05-.5c.5-10.06-.88-16.85-3.25-21.34s-5.79-6.64-9.19-7.16z"/></g></svg>',
-            'bP': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><path stroke="#000" stroke-linecap="round" stroke-width="1.5" d="M22.5 9a4 4 0 0 0-3.22 6.38 6.48 6.48 0 0 0-.87 10.65c-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47a6.46 6.46 0 0 0-.87-10.65A4.01 4.01 0 0 0 22.5 9z"/></svg>'
-        };
+        // Chess pieces (imported from js/chess/pieces.js)
+        this.pieceSVG = pieceSVG;
+        this.pieceUnicode = pieceUnicode;
         
         this.stockfish = null;
         this._initEngineAsync();
@@ -832,231 +816,7 @@ class ChessGame {
         const moves = this.chess.history();
         const moveKey = moves.join(' ');
         
-        // Common openings database (expanded)
-        const openings = {
-            // e4 e5 Openings - Ruy Lopez
-            'e4 e5 Nf3 Nc6 Bb5': 'Ruy Lopez (Spanish Opening)',
-            'e4 e5 Nf3 Nc6 Bb5 a6': 'Ruy Lopez - Morphy Defense',
-            'e4 e5 Nf3 Nc6 Bb5 a6 Ba4': 'Ruy Lopez - Morphy Defense',
-            'e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6': 'Ruy Lopez - Morphy, Arkhangelsk',
-            'e4 e5 Nf3 Nc6 Bb5 Nf6': 'Ruy Lopez - Berlin Defense',
-            'e4 e5 Nf3 Nc6 Bb5 Nf6 O-O': 'Ruy Lopez - Berlin, Rio Gambit',
-            'e4 e5 Nf3 Nc6 Bb5 d6': 'Ruy Lopez - Steinitz Defense',
-            'e4 e5 Nf3 Nc6 Bb5 f5': 'Ruy Lopez - Schliemann Defense',
-            'e4 e5 Nf3 Nc6 Bb5 Bc5': 'Ruy Lopez - Classical Variation',
-            'e4 e5 Nf3 Nc6 Bb5 Nd4': 'Ruy Lopez - Bird Variation',
-            'e4 e5 Nf3 Nc6 Bb5 Bb4': 'Ruy Lopez - Neo-Arkhangelsk',
-            'e4 e5 Nf3 Nc6 Bb5 g6': 'Ruy Lopez - Fianchetto Defense',
-            
-            // e4 e5 - Italian Game
-            'e4 e5 Nf3 Nc6 Bc4': 'Italian Game',
-            'e4 e5 Nf3 Nc6 Bc4 Bc5': 'Italian Game - Giuoco Piano',
-            'e4 e5 Nf3 Nc6 Bc4 Bc5 c3': 'Italian - Giuoco Piano, c3',
-            'e4 e5 Nf3 Nc6 Bc4 Nf6': 'Italian Game - Two Knights Defense',
-            'e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5': 'Italian - Two Knights, Polerio Attack',
-            'e4 e5 Nf3 Nc6 Bc4 Nf6 d4': 'Italian - Two Knights, Modern Bishop',
-            'e4 e5 Nf3 Nc6 Bc4 Be7': 'Italian Game - Hungarian Defense',
-            'e4 e5 Nf3 Nc6 Bc4 d6': 'Italian Game - Paris Defense',
-            'e4 e5 Nf3 Nc6 Bc4 f5': 'Italian Game - Rousseau Gambit',
-            
-            // e4 e5 - Scotch Game
-            'e4 e5 Nf3 Nc6 d4': 'Scotch Game',
-            'e4 e5 Nf3 Nc6 d4 exd4': 'Scotch Game',
-            'e4 e5 Nf3 Nc6 d4 exd4 Nxd4': 'Scotch Game',
-            'e4 e5 Nf3 Nc6 d4 exd4 Bc4': 'Scotch - Classical Variation',
-            'e4 e5 Nf3 Nc6 d4 exd4 c3': 'Scotch - Goring Gambit',
-            
-            // e4 e5 - Three & Four Knights
-            'e4 e5 Nf3 Nc6 Nc3': 'Three Knights Opening',
-            'e4 e5 Nf3 Nc6 Nc3 Nf6': 'Four Knights Game',
-            'e4 e5 Nf3 Nc6 Nc3 Nf6 Bb5': 'Four Knights - Spanish',
-            'e4 e5 Nf3 Nc6 Nc3 Nf6 Bc4': 'Four Knights - Italian',
-            'e4 e5 Nf3 Nf6 Nc3': 'Petrov - Three Knights',
-            
-            // e4 e5 - Petrov Defense
-            'e4 e5 Nf3 Nf6': 'Petrov Defense (Russian Game)',
-            'e4 e5 Nf3 Nf6 Nxe5': 'Petrov Defense',
-            'e4 e5 Nf3 Nf6 d4': 'Petrov - Modern Attack',
-            'e4 e5 Nf3 Nf6 Bc4': 'Petrov - Classical Attack',
-            
-            // e4 e5 - King's Gambit
-            'e4 e5 f4': 'King\'s Gambit',
-            'e4 e5 f4 exf4': 'King\'s Gambit Accepted',
-            'e4 e5 f4 exf4 Nf3': 'King\'s Gambit - Kieseritzky',
-            'e4 e5 f4 exf4 Bc4': 'King\'s Gambit - Bishop\'s Gambit',
-            'e4 e5 f4 exf4 d4': 'King\'s Gambit - modern',
-            'e4 e5 f4 d5': 'King\'s Gambit Declined',
-            'e4 e5 f4 Bc5': 'King\'s Gambit - Classical Defense',
-            'e4 e5 f4 d6': 'King\'s Gambit - Fischer Defense',
-            
-            // e4 e5 - Vienna Game
-            'e4 e5 Nc3': 'Vienna Game',
-            'e4 e5 Nc3 Nf6': 'Vienna Game',
-            'e4 e5 Nc3 Nf6 f4': 'Vienna Game - Vienna Gambit',
-            'e4 e5 Nc3 Nf6 Bc4': 'Vienna - Classical Variation',
-            'e4 e5 Nc3 Bb4': 'Vienna Game',
-            'e4 e5 Nc3 Nc6 f4': 'Vienna Gambit',
-            
-            // e4 e5 - Other e5 Openings
-            'e4 e5 c3': 'Ponziani Opening',
-            'e4 e5 c3 d5': 'Ponziani Opening',
-            'e4 e5 Qh5': 'Parham Attack',
-            'e4 e5 Nf3 Nc6 Be2': 'Hungarian Opening',
-            'e4 e5 d3': 'King\'s Pawn Opening - Quiet',
-            'e4 e5 Nf3 Nc6 g3': 'King\'s Fianchetto',
-            'e4 e5 Nf3 Nc6 a3': 'King\'s Pawn - Mengarini',
-            'e4 e5 Nf3 Nc6 b4': 'King\'s Pawn - Wing Gambit',
-            'e4 e5 b3': 'Lemming Defense',
-            
-            // Sicilian Defense - Major Variations
-            'e4 c5': 'Sicilian Defense',
-            'e4 c5 Nf3': 'Sicilian Defense',
-            'e4 c5 Nf3 d6': 'Sicilian Defense',
-            'e4 c5 Nf3 d6 d4': 'Sicilian Defense - Open',
-            'e4 c5 Nf3 d6 d4 cxd4': 'Sicilian - Open',
-            'e4 c5 Nf3 Nc6': 'Sicilian - Closed Variation',
-            'e4 c5 Nc3': 'Sicilian - Closed',
-            'e4 c5 Nc3 Nc6': 'Sicilian - Closed',
-            'e4 c5 c3': 'Sicilian - Alapin Variation',
-            'e4 c5 c3 d5': 'Sicilian - Alapin',
-            'e4 c5 c3 Nf6': 'Sicilian - Alapin',
-            'e4 c5 Nf3 e6': 'Sicilian - French Variation',
-            'e4 c5 Nf3 e6 d4': 'Sicilian - French, Open',
-            'e4 c5 Nf3 g6': 'Sicilian - Hyperaccelerated Fianchetto',
-            'e4 c5 Nf3 g6 d4': 'Sicilian - Accelerated Dragon',
-            'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6': 'Sicilian - Najdorf',
-            'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6': 'Sicilian - Najdorf',
-            'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 Nc6': 'Sicilian - Classical',
-            'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 e6': 'Sicilian - Scheveningen',
-            'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 g6': 'Sicilian - Dragon',
-            'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 g6 Be3': 'Sicilian - Dragon, Yugoslav',
-            'e4 c5 Nf3 e6 d4 cxd4 Nxd4 Nc6': 'Sicilian - Four Knights',
-            'e4 c5 Nf3 e6 d4 cxd4 Nxd4 a6': 'Sicilian - Kan (Paulsen)',
-            'e4 c5 Nf3 d6 Bb5+': 'Sicilian - Moscow Variation',
-            
-            // French Defense
-            'e4 e6': 'French Defense',
-            'e4 e6 d4': 'French Defense',
-            'e4 e6 d4 d5': 'French Defense',
-            'e4 e6 d4 d5 Nc3': 'French Defense - Classical',
-            'e4 e6 d4 d5 Nc3 Nf6': 'French - Classical, Normal',
-            'e4 e6 d4 d5 Nd2': 'French Defense - Tarrasch',
-            'e4 e6 d4 d5 Nd2 c5': 'French - Tarrasch',
-            'e4 e6 d4 d5 e5': 'French Defense - Advance',
-            'e4 e6 d4 d5 e5 c5': 'French - Advance',
-            'e4 e6 d4 d5 exd5': 'French - Exchange',
-            'e4 e6 d4 d5 Nc3 Bb4': 'French - Winawer',
-            'e4 e6 d4 d5 Nc3 Bb4 e5': 'French - Winawer, Advance',
-            'e4 e6 Nc3 d5': 'French Defense',
-            'e4 e6 d3': 'French - King\'s Indian Attack',
-            
-            // Caro-Kann Defense
-            'e4 c6': 'Caro-Kann Defense',
-            'e4 c6 d4': 'Caro-Kann Defense',
-            'e4 c6 d4 d5': 'Caro-Kann Defense',
-            'e4 c6 d4 d5 Nc3': 'Caro-Kann Defense',
-            'e4 c6 d4 d5 Nc3 dxe4': 'Caro-Kann',
-            'e4 c6 d4 d5 e5': 'Caro-Kann - Advance Variation',
-            'e4 c6 d4 d5 e5 Bf5': 'Caro-Kann - Advance, Short',
-            'e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5': 'Caro-Kann - Classical',
-            'e4 c6 d4 d5 f3': 'Caro-Kann - Fantasy Variation',
-            'e4 c6 d4 d5 Nc3 g6': 'Caro-Kann - Accelerated Panov',
-            'e4 c6 d4 d5 exd5': 'Caro-Kann - Exchange',
-            
-            // Scandinavian Defense
-            'e4 d5': 'Scandinavian Defense',
-            'e4 d5 exd5': 'Scandinavian Defense',
-            'e4 d5 exd5 Qxd5': 'Scandinavian Defense',
-            'e4 d5 exd5 Qxd5 Nc3': 'Scandinavian - Classical',
-            'e4 d5 exd5 Nf6': 'Scandinavian - Modern Variation',
-            'e4 d5 exd5 Nf6 c4': 'Scandinavian - Gubinsky-Melts',
-            'e4 d5 e5': 'Scandinavian - advance',
-            
-            // Pirc/Modern Defenses
-            'e4 d6': 'Pirc Defense',
-            'e4 d6 d4': 'Pirc Defense',
-            'e4 d6 d4 Nf6': 'Pirc Defense',
-            'e4 d6 d4 Nf6 Nc3': 'Pirc Defense',
-            'e4 d6 d4 Nf6 Nc3 g6': 'Pirc - Classical',
-            'e4 g6': 'Modern Defense',
-            'e4 g6 d4': 'Modern Defense',
-            'e4 g6 d4 Bg7': 'Modern Defense',
-            'e4 g6 d4 Bg7 Nc3': 'Modern Defense',
-            
-            // Alekhine Defense
-            'e4 Nf6': 'Alekhine Defense',
-            'e4 Nf6 e5': 'Alekhine Defense',
-            'e4 Nf6 e5 Nd5': 'Alekhine Defense',
-            'e4 Nf6 e5 Nd5 d4': 'Alekhine - Modern Variation',
-            'e4 Nf6 Nc3': 'Alekhine - Scandinavian Variation',
-            
-            // Other e4 responses
-            'e4 b6': 'Owen Defense',
-            'e4 b6 d4 Bb7': 'Owen Defense',
-            'e4 b5': 'Polish Gambit',
-            'e4 a6': 'St. George Defense',
-            'e4 a6 d4 b5': 'St. George Defense',
-            'e4 h6': 'Carr Defense',
-            'e4 g5': 'Borg Gambit',
-            'e4 Nc6': 'Nimzowitsch Defense',
-            'e4 Nc6 d4 d5': 'Nimzowitsch Defense',
-            'e4 f6': 'Barnes Defense',
-            'e4 f5': 'Freestyle Attack',
-            
-            // d4 Openings - Queen's Gambit
-            'd4 d5 c4': 'Queen\'s Gambit',
-            'd4 d5 c4 e6': 'Queen\'s Gambit Declined',
-            'd4 d5 c4 dxc4': 'Queen\'s Gambit Accepted',
-            'd4 d5 c4 c6': 'Slav Defense',
-            'd4 d5 c4 Nf6': 'Queen\'s Gambit Declined',
-            'd4 d5 c4 e5': 'Albin Counter-Gambit',
-            'd4 d5 c4 c5': 'Symmetrical Defense',
-            'd4 d5 Nf3 Nf6 c4': 'Queen\'s Gambit',
-            'd4 d5 e3': 'Colle System',
-            'd4 d5 Bf4': 'London System',
-            'd4 d5 Nf3 Bf4': 'London System',
-            
-            // Indian Defenses
-            'd4 Nf6 c4 g6': 'King\'s Indian Defense',
-            'd4 Nf6 c4 g6 Nc3 Bg7': 'King\'s Indian Defense',
-            'd4 Nf6 c4 e6': 'Nimzo-Indian Defense',
-            'd4 Nf6 c4 e6 Nc3 Bb4': 'Nimzo-Indian Defense',
-            'd4 Nf6 c4 e6 Nf3 b6': 'Queen\'s Indian Defense',
-            'd4 Nf6 Nf3': 'Indian Game',
-            'd4 Nf6 c4 c5': 'Benoni Defense',
-            'd4 Nf6 c4 e5': 'Budapest Gambit',
-            'd4 Nf6 c4 g6 Nc3 d5': 'Grunfeld Defense',
-            'd4 Nf6 c4 e6 g3': 'Catalan Opening',
-            'd4 Nf6 c4 e6 Nf3 d5 g3': 'Catalan Opening',
-            'd4 Nf6 Bg5': 'Torre Attack',
-            'd4 d5 Bg5': 'Richter-Veresov Attack',
-            
-            // Dutch Defense
-            'd4 f5': 'Dutch Defense',
-            'd4 f5 c4': 'Dutch Defense',
-            'd4 f5 g3': 'Dutch - Leningrad Variation',
-            
-            // English Opening
-            'c4': 'English Opening',
-            'c4 e5': 'English Opening',
-            'c4 Nf6': 'English Opening',
-            'c4 c5': 'English - Symmetrical',
-            'c4 e6': 'English Opening',
-            
-            // Other Openings
-            'Nf3': 'Reti Opening',
-            'Nf3 d5 g3': 'King\'s Indian Attack',
-            'Nf3 c5': 'Reti Opening',
-            'b3': 'Nimzo-Larsen Attack',
-            'b3 e5': 'Nimzo-Larsen Attack',
-            'f4': 'Bird\'s Opening',
-            'f4 d5': 'Bird\'s Opening',
-            'g3': 'King\'s Fianchetto Opening',
-            'e4 e5 Nf3 Nc6 g3': 'King\'s Fianchetto',
-            'd4 Nf6 Bg5': 'Torre Attack',
-            'd4 d5 Bg5': 'Richter-Veresov Attack',
-            'e4 c6 Nc3 d5 Nf3': 'Caro-Kann - Two Knights',
-        };
+        // Openings database imported from js/chess/openings.js
         
         // Check for exact matches first
         if (openings[moveKey]) {
@@ -1353,6 +1113,8 @@ class ChessGame {
                 // Update probabilities
                 this.winProbability = this.calculateWinProbability(evalScore);
                 this.displayWinProbability();
+                // Update chess.com-style evaluation bar
+                this.updateEvalBar(evalScore);
             }
         };
         
@@ -1414,6 +1176,45 @@ class ChessGame {
                 </div>
             </div>
         `;
+    }
+
+    updateEvalBar(evalScore) {
+        const container = document.getElementById('evalBarContainer');
+        const fill = document.getElementById('evalBarFill');
+        const value = document.getElementById('evalBarValue');
+        if (!container || !fill || !value) return;
+        
+        // Show the bar
+        container.classList.add('visible');
+        
+        // Convert centipawn score to a probability for White (0-1)
+        // evalScore positive = white advantage, negative = black advantage
+        const clampedEval = Math.max(-1000, Math.min(1000, evalScore));
+        const whiteProb = 1 / (1 + Math.exp(-0.007 * clampedEval));
+        const fillPercent = whiteProb * 100;
+        
+        // Fill from bottom up: 0% = black crushing, 50% = equal, 100% = white crushing
+        fill.style.height = fillPercent + '%';
+        
+        // Color gradient based on advantage
+        if (evalScore > 50) {
+            fill.style.background = 'linear-gradient(to top, #1a1a1a 0%, #f0f0f0 100%)';
+        } else if (evalScore < -50) {
+            fill.style.background = 'linear-gradient(to top, #1a1a1a 0%, #f0f0f0 100%)';
+        } else {
+            fill.style.background = 'linear-gradient(to top, #555 0%, #bbb 100%)';
+        }
+        
+        // Format the value text
+        if (Math.abs(evalScore) >= 10000) {
+            // Mate score
+            const mateIn = evalScore > 0 ? Math.ceil((20000 - evalScore) / 2) : Math.ceil((20000 + evalScore) / 2);
+            value.textContent = evalScore > 0 ? `M${mateIn}` : `-M${mateIn}`;
+        } else {
+            const absCP = Math.abs(evalScore / 100);
+            const sign = evalScore >= 0 ? '+' : '-';
+            value.textContent = evalScore === 0 ? '0.0' : `${sign}${absCP.toFixed(1)}`;
+        }
     }
 
     async initStockfish() {
@@ -1971,15 +1772,25 @@ class ChessGame {
         // but the retry mechanism in playTrack will keep trying until allowed)
         this.startMenuMusic();
         
-        // Add event delegation for annotation clicks
+        // Add event delegation for move list clicks (navigate + annotations)
         if (this.movesList) {
             this.movesList.addEventListener('click', (e) => {
+                // Handle annotation badge clicks (show explanation popup)
                 const annotation = e.target.closest('.move-annotation');
                 if (annotation && this.analysisMode) {
                     const moveIndex = parseInt(annotation.dataset.moveIndex);
                     const symbol = annotation.textContent;
                     const classification = this.annotations[moveIndex] || 'good';
                     this.showAnnotationPopup(moveIndex, symbol, classification);
+                    return;
+                }
+                // Handle move text clicks (navigate to position in analysis mode)
+                const moveSpan = e.target.closest('.move-white, .move-black');
+                if (moveSpan && this.analysisMode) {
+                    const moveIndex = parseInt(moveSpan.dataset.moveIndex);
+                    if (!isNaN(moveIndex)) {
+                        this.navToMove(moveIndex);
+                    }
                 }
             });
         }
@@ -2252,7 +2063,8 @@ class ChessGame {
                 '<div class="vs-divider">' +
                     '<div class="vs-vs-text">VS</div>' +
                     '<div class="vs-vs-line"></div>' +
-                    '<div class="vs-countdown">Game starting...</div>' +
+                    '<div class="vs-countdown">Game starting</div>' +
+                    '<div class="vs-progress-bar"></div>' +
                 '</div>' +
                 '<div class="vs-player right">' +
                     '<div class="vs-avatar">' + opponentEmoji + '</div>' +
@@ -2296,12 +2108,8 @@ class ChessGame {
         this.loadPreferences();
         
         
-        // Start background music synchronously (AudioContext is already resumed during user gesture)
-        if (this.timerMode === 'bullet' || this.timerMode === 'blitz') {
-            this.startGameMusic();
-        } else if (this.timerMode === 'rapid' || this.timerMode === 'infinite') {
-            this.startGameMusic();
-        }
+        // Start background music (AudioContext is already resumed during user gesture)
+        this.startGameMusic();
         
         // Initialize timers based on selected mode
         if (this.timerMode === 'infinite' || !['bullet', 'blitz', 'rapid', 'classical'].includes(this.timerMode)) {
@@ -2396,6 +2204,9 @@ class ChessGame {
             }
         }
         
+        // Ensure playerColor is set (defaults to white if unset)
+        if (!this.playerColor) this.playerColor = 'w';
+        
         // If player is black, make bot (white) move first (or wait for opponent in online)
         if (this.playerColor === 'b') {
             if (this.isOnlineGame) {
@@ -2423,15 +2234,8 @@ class ChessGame {
                 }, 500);
             }
         } else {
-            this.currentTurn = this.isOnlineGame ? 'player' : 'player';
-            // Show correct message based on game mode
-            if (this.isOnlineGame) {
-                this.statusDisplay.textContent = 'Your turn (White) - Click a piece to move';
-            } else if (this.gameMode === 'practice') {
-                this.statusDisplay.textContent = 'Your turn (White) - Click a piece to move';
-            } else {
-                this.statusDisplay.textContent = 'Your turn (White) - Click a piece to move';
-            }
+            this.currentTurn = 'player';
+            this.statusDisplay.textContent = 'Your turn (White) - Click a piece to move';
             // Only start timer if not in infinite mode
             if (this.timerMode !== 'infinite') {
                 this.startTimer();
@@ -2660,6 +2464,10 @@ class ChessGame {
                     if (squareName === this.lastMove.from || squareName === this.lastMove.to) {
                         square.classList.add('last-move');
                     }
+                    // Add subtle landing animation on the destination square's piece
+                    if (squareName === this.lastMove.to && piece) {
+                        pieceElement.classList.add('piece-just-moved');
+                    }
                 }
 
                 // Get piece from the correct position
@@ -2833,7 +2641,6 @@ class ChessGame {
                     setTimeout(() => {
                         this.analyzePlayerMove(playerMoveSAN, fenBefore);
                     }, 100);
-                } else {
                 }
                 
                 // Switch timer to bot
@@ -3069,14 +2876,45 @@ class ChessGame {
         
         // Set up one-time click handlers for promotion options
         const options = modal.querySelectorAll('.promotion-option');
-        const handler = (e) => {
-            const piece = e.currentTarget.dataset.piece;
-            modal.style.display = 'none';
-            this.executePromotion(piece);
-            // Remove event listeners
-            options.forEach(opt => opt.removeEventListener('click', handler));
+        
+        const selectPiece = (pieceEl) => {
+            const piece = pieceEl.dataset.piece;
+            // Brief visual feedback before closing
+            pieceEl.classList.add('promo-selected');
+            setTimeout(() => {
+                modal.style.display = 'none';
+                pieceEl.classList.remove('promo-selected');
+                this.executePromotion(piece);
+                // Cleanup
+                options.forEach(opt => opt.removeEventListener('click', clickHandler));
+                document.removeEventListener('keydown', keyHandler);
+            }, 150);
         };
-        options.forEach(opt => opt.addEventListener('click', handler));
+        
+        const clickHandler = (e) => {
+            selectPiece(e.currentTarget);
+        };
+        options.forEach(opt => opt.addEventListener('click', clickHandler));
+        
+        // Keyboard support: 1=Queen, 2=Rook, 3=Bishop, 4=Knight
+        const keyHandler = (e) => {
+            const keyMap = { '1': 'q', '2': 'r', '3': 'b', '4': 'n' };
+            const pieceType = keyMap[e.key];
+            if (pieceType) {
+                const targetOption = modal.querySelector(`[data-piece="${pieceType}"]`);
+                if (targetOption) selectPiece(targetOption);
+            } else if (e.key === 'Escape') {
+                // Close on Escape, auto-promote to queen
+                modal.style.display = 'none';
+                this.executePromotion('q');
+                options.forEach(opt => opt.removeEventListener('click', clickHandler));
+                document.removeEventListener('keydown', keyHandler);
+            }
+        };
+        document.addEventListener('keydown', keyHandler);
+        
+        // Auto-focus the modal for keyboard input
+        modal.focus();
     }
     
     executePromotion(promotionPiece) {
@@ -3194,34 +3032,64 @@ class ChessGame {
         const modal = document.getElementById('gameOverModal');
         if (!modal) return;
         
-        let title, message;
+        let badgeClass, badgeIcon, badgeText, message;
         const botDisplayName = this.gameMode === 'practice' ? 'The engine' : this.getBotDisplayName();
         
         if (result === 'win') {
-            title = '🎉 Victory!';
+            badgeClass = 'win';
+            badgeIcon = '\u{1F3C6}';
+            badgeText = 'Victory!';
             message = customMessage || `You defeated ${botDisplayName}!`;
-            // Immediate confetti burst — always visible regardless of modal
             if (typeof confetti !== 'undefined') {
-                confetti({
-                    particleCount: 120,
-                    spread: 80,
-                    origin: { y: 0.6 }
-                });
+                confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
             }
             this.triggerConfetti();
         } else if (result === 'loss') {
-            title = 'Defeat';
+            badgeClass = 'loss';
+            badgeIcon = '\u{1F480}';
+            badgeText = 'Defeat';
             message = customMessage || `${botDisplayName} defeated you.`;
         } else if (result === 'resign') {
-            title = 'Resigned';
+            badgeClass = 'loss';
+            badgeIcon = '\u{1F3F3}';
+            badgeText = 'Resigned';
             message = `You resigned. ${botDisplayName} wins.`;
+        } else if (result === 'draw') {
+            badgeClass = 'draw';
+            badgeIcon = '\u{1F91D}';
+            badgeText = 'Draw';
+            message = customMessage || 'The game ended in a draw.';
         } else {
-            title = 'Game Over';
+            badgeClass = '';
+            badgeIcon = '';
+            badgeText = 'Game Over';
             message = customMessage || 'The game has ended.';
         }
         
-        document.getElementById('gameOverTitle').textContent = title;
+        // Build chess.com-style result badge
+        document.getElementById('gameOverTitle').innerHTML = 
+            `<span class="result-badge ${badgeClass}">${badgeIcon} ${badgeText}</span>`;
         document.getElementById('gameOverMessage').textContent = message;
+        
+        // Style action buttons
+        const reviewBtn = document.getElementById('reviewGame');
+        const playAgainBtn = document.getElementById('playAgain');
+        if (reviewBtn) { reviewBtn.className = 'btn btn-outline'; }
+        if (playAgainBtn) { playAgainBtn.className = 'btn btn-primary'; }
+        
+        // Wrap buttons in action container
+        const actionsContainer = modal.querySelector('.game-over-actions');
+        if (!actionsContainer) {
+            const container = document.createElement('div');
+            container.className = 'game-over-actions';
+            [playAgainBtn, reviewBtn].forEach(btn => {
+                if (btn && btn.parentNode === modal.querySelector('.modal-content')) {
+                    container.appendChild(btn);
+                }
+            });
+            modal.querySelector('.modal-content').appendChild(container);
+        }
+        
         modal.style.display = 'flex';
         
         // Save to game history
@@ -3229,7 +3097,6 @@ class ChessGame {
         
         // Auto-analyze
         if (this.moveHistory.length > 0) {
-            // Fire and forget — the analyzeGame guard prevents concurrent runs
             this.analyzeGame();
         }
     }
@@ -4136,8 +4003,8 @@ class ChessGame {
                     if (playerMoveUCI === bestMoveUCI) {
                         centipawnLoss = 0; // Played the best move!
                     } else {
-                        // Get evaluation after player's move
-                        tempChess.move(playerMoveSAN.replace(/[+#]/g, ''));
+                        // tempChess already advanced after player's move on line 4125 above;
+                        // fenAfter is the position we need to evaluate from.
                         const fenAfter = tempChess.fen();
                         
                         engine.postMessage(`position fen ${fenAfter}`);
@@ -4409,8 +4276,8 @@ class ChessGame {
 
             moveRow.innerHTML = `
                 <span class="move-number">${moveNumber}.</span>
-                <span class="move-white">${whiteMoveHtml}</span>
-                <span class="move-black">${blackMoveHtml}</span>
+                <span class="move-white" data-move-index="${i}">${whiteMoveHtml}</span>
+                <span class="move-black" data-move-index="${i + 1}">${blackMoveHtml}</span>
             `;
 
             this.movesList.appendChild(moveRow);
@@ -4687,7 +4554,6 @@ class ChessGame {
                 // Show error message
                 alert('Error calculating ELO: ' + error.message);
             }
-        } else {
         }
 
         // Auto-analyze when game ends
@@ -4837,10 +4703,7 @@ class ChessGame {
     }
 
     setupEventListeners() {
-        // Save reference to 'this' for use in window functions
-        const gameInstance = this;
-        
-        // Make gameInstance available globally for other functions
+        // Make chessGame available globally for other functions
         window.chessGame = this;
         
         document.getElementById('newGame').addEventListener('click', () => {
@@ -6867,6 +6730,8 @@ class ChessGame {
         this.updateMoveList();
         this.updateNavButtons();
         this.updateGameReview(index);
+        // Update eval bar for current position
+        if (this.stockfish) this.updateWinProbability();
     }
     
     updateNavButtons() {
