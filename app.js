@@ -5871,14 +5871,20 @@ class ChessGame {
             throw new Error('No games found for this user.');
         }
 
-        // Fetch the most recent archive (last element)
-        const latestUrl = archives[archives.length - 1];
-        const gamesRes = await fetch(latestUrl);
-        if (!gamesRes.ok) {
-            throw new Error('Failed to fetch games.');
+        // Fetch the most recent 2 archives for more game coverage
+        const archiveUrls = [archives[archives.length - 1]];
+        if (archives.length >= 2) {
+            archiveUrls.push(archives[archives.length - 2]);
         }
-        const gamesData = await gamesRes.json();
-        return gamesData.games || [];
+        const allGames = [];
+        for (const url of archiveUrls) {
+            const gamesRes = await fetch(url);
+            if (gamesRes.ok) {
+                const gamesData = await gamesRes.json();
+                if (gamesData.games) allGames.push(...gamesData.games);
+            }
+        }
+        return allGames;
     }
 
     /** Show chess.com games in the import modal list */
@@ -5908,11 +5914,12 @@ class ChessGame {
                 return;
             }
 
-            // Show first 50 games max
-            const maxGames = Math.min(games.length, 50);
+            // Show most recent 50 games (chess.com API returns oldest first)
+            const totalGames = games.length;
+            const maxGames = Math.min(totalGames, 50);
             let html = '';
             for (let i = 0; i < maxGames; i++) {
-                const g = games[i];
+                const g = games[totalGames - 1 - i];
                 const white = g.white || {};
                 const black = g.black || {};
                 const whiteName = white.username || '?';
