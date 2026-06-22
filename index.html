@@ -62,10 +62,10 @@
                 <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid rgba(255, 255, 255, 0.1); position: relative;">
                     <!-- Close button — visible on mobile only -->
                     <button id="closeChessSidebar" onclick="closePlaySection(); if(window.innerWidth<=768)document.getElementById('sidebarToggle').style.display='block';" style="position: absolute; left: 0; top: 50%; transform: translateY(-50%); background: none; border: none; color: rgba(255,255,255,0.5); font-size: 20px; cursor: pointer; padding: 4px 8px; display: none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">←</button>
-                    <div style="font-size: 20px; font-weight: 700; color: #fff; text-align: center;">♟️ Play Bots</div>
+                    <div id="sidebarTitle" style="font-size: 20px; font-weight: 700; color: #fff; text-align: center;">♟️ Play Bots</div>
                 </div>
                 
-                <!-- Selected Bot Display -->
+                <div id="sidebarBotSection">
                 <div id="selectedBotDisplay" style="background: rgba(0, 0, 0, 0.3); border-radius: 10px; padding: 15px; margin-bottom: 20px; text-align: center; border: 2px solid rgba(118, 150, 86, 0.3);">
                     <div style="font-size: 48px; margin-bottom: 8px;">🤖</div>
                     <div style="color: #fff; font-weight: 700; font-size: 18px; margin-bottom: 4px;">THE ONE ABOVE ALL</div>
@@ -136,6 +136,7 @@
                 <button id="sidebarStartGameBtn" style="width: 100%; padding: 16px; background: #769656; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-top: 10px; opacity: 0.5;" disabled onmouseover="if(!this.disabled) this.style.background='#8ba865'" onmouseout="if(!this.disabled) this.style.background='#769656'">
                     Play
                 </button>
+                </div><!-- end #sidebarBotSection -->
                 
                 <!-- Online Play Section (under Play button) -->
                 <div style="margin-bottom: 10px; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.08);">

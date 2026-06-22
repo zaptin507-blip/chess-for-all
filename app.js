@@ -5293,6 +5293,11 @@ class ChessGame {
             if (submenu) submenu.style.display = 'none';
             if (arrow) arrow.style.transform = 'rotate(0deg)';
             if (playMenu) playMenu.style.background = 'rgba(255, 255, 255, 0.08)';
+            // Hide bot sections in sidebar, show only online play
+            const botSection = document.getElementById('sidebarBotSection');
+            if (botSection) botSection.style.display = 'none';
+            const sidebarTitle = document.getElementById('sidebarTitle');
+            if (sidebarTitle) sidebarTitle.textContent = '🌐 Quick Match';
         };
 
         window.showPlaySection = () => {
@@ -5313,6 +5318,11 @@ class ChessGame {
             // Show Chess.com-style right sidebar for Boss Battle
             const chessSidebar = document.getElementById('chessSidebar');
             if (chessSidebar) chessSidebar.style.display = 'block';
+            // Restore bot sections in sidebar
+            const botSection = document.getElementById('sidebarBotSection');
+            if (botSection) botSection.style.display = '';
+            const sidebarTitle = document.getElementById('sidebarTitle');
+            if (sidebarTitle) sidebarTitle.textContent = '♟️ Play Bots';
         };
         
         window.closePlaySection = () => {
@@ -5325,6 +5335,11 @@ class ChessGame {
             document.getElementById('playSubmenu').style.display = 'none';
             document.getElementById('playArrow').style.transform = 'rotate(0deg)';
             document.getElementById('menuPlay').style.background = 'rgba(255, 255, 255, 0.08)';
+            // Restore bot sections for next Boss Battle open
+            const botSection = document.getElementById('sidebarBotSection');
+            if (botSection) botSection.style.display = '';
+            const sidebarTitle = document.getElementById('sidebarTitle');
+            if (sidebarTitle) sidebarTitle.textContent = '♟️ Play Bots';
         };
         
         window.showPracticeSection = () => {
