@@ -1707,8 +1707,6 @@ class ChessGame {
     setOnlineStatus(msg) {
         const statusEl = document.getElementById('onlineStatus');
         if (statusEl) statusEl.textContent = msg;
-        const statusElLeft = document.getElementById('onlineStatusLeft');
-        if (statusElLeft) statusElLeft.textContent = msg;
 
         // Update Quick Match button text based on state
         const btn = document.getElementById('quickMatchBtn');
@@ -5268,6 +5266,35 @@ class ChessGame {
             }
         };
         
+        window.showQuickMatch = () => {
+            if (window.chessGame) window.chessGame.startMenuMusic();
+            // Hide home section
+            const homeSection = document.getElementById('homeSection');
+            if (homeSection) homeSection.style.display = 'none';
+            // Hide learn section
+            const learnSection = document.getElementById('learnSection');
+            if (learnSection) learnSection.style.display = 'none';
+            // Hide profile page
+            const profilePage = document.getElementById('profileStatsModal');
+            if (profilePage) profilePage.style.display = 'none';
+            // Show game container
+            const container = document.querySelector('.container');
+            if (container) container.style.display = '';
+            // Show right sidebar only (no Boss Battle left panel)
+            const chessSidebar = document.getElementById('chessSidebar');
+            if (chessSidebar) chessSidebar.style.display = 'block';
+            // Hide Boss Battle left panel
+            const playSection = document.getElementById('playSection');
+            if (playSection) playSection.style.display = 'none';
+            // Close play submenu
+            const submenu = document.getElementById('playSubmenu');
+            const arrow = document.getElementById('playArrow');
+            const playMenu = document.getElementById('menuPlay');
+            if (submenu) submenu.style.display = 'none';
+            if (arrow) arrow.style.transform = 'rotate(0deg)';
+            if (playMenu) playMenu.style.background = 'rgba(255, 255, 255, 0.08)';
+        };
+
         window.showPlaySection = () => {
             if (window.chessGame) window.chessGame.startMenuMusic();
             const isMobile = window.innerWidth <= 768;
