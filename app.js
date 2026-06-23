@@ -346,6 +346,9 @@ class ChessGame {
     }
     
     addBotMessage(message) {
+        // Deduplicate: don't send the same message twice in a row
+        if (this._lastBotMessage === message) return;
+        this._lastBotMessage = message;
         this.addChatMessage(message, 'bot');
     }
 
@@ -1225,7 +1228,6 @@ class ChessGame {
                 rawEngine.postMessage('uci');
                 // Don't set Skill Level here - it will be set dynamically based on ELO
                 rawEngine.postMessage('setoption name Hash value 128');
-                rawEngine.postMessage(`setoption name Contempt value ${this.contemptValue}`);
                 console.log('✅ NNUE Stockfish engine initialized');
                 return new NNUEWorkerAdapter(rawEngine);
             } catch (error) {
@@ -1237,7 +1239,6 @@ class ChessGame {
             const stockfish = new Worker('stockfish.js');
             stockfish.postMessage('uci');
             stockfish.postMessage('setoption name Hash value 128');
-            stockfish.postMessage(`setoption name Contempt value ${this.contemptValue}`);
             return stockfish;
         } catch (error) {
             console.error('❌ Failed to initialize Stockfish:', error);
@@ -1270,20 +1271,14 @@ class ChessGame {
         }
     }
 
-    /** Apply Contempt value to all active engines */
+    /** Apply Contempt value to Reckless engine (Stockfish 10.0.2 does not support Contempt) */
     _setContempt(value) {
         this.contemptValue = value;
         const cmd = `setoption name Contempt value ${value}`;
-        if (this.stockfish && typeof this.stockfish.postMessage === 'function') {
-            try { this.stockfish.postMessage(cmd); } catch (e) {}
-        }
         if (this.recklessEngine && typeof this.recklessEngine.postMessage === 'function') {
             try { this.recklessEngine.postMessage(cmd); } catch (e) {}
         }
-        if (this.analysisEngine && typeof this.analysisEngine.postMessage === 'function') {
-            try { this.analysisEngine.postMessage(cmd); } catch (e) {}
-        }
-        console.log(`⚡ Contempt set to ${value}`);
+        console.log(`⚡ Contempt set to ${value} (Reckless only)`);
     }
 
     _getBotEngine() {
@@ -1306,7 +1301,6 @@ class ChessGame {
                 rawEngine.postMessage('isready');
                 rawEngine.postMessage('setoption name Skill Level value 20');
                 rawEngine.postMessage('setoption name Hash value 128');
-                rawEngine.postMessage(`setoption name Contempt value ${this.contemptValue}`);
                 console.log('✅ NNUE analysis engine initialized');
                 return new NNUEWorkerAdapter(rawEngine);
             } catch (error) {
@@ -1320,7 +1314,6 @@ class ChessGame {
             analysisEngine.postMessage('isready');
             analysisEngine.postMessage('setoption name Skill Level value 20');
             analysisEngine.postMessage('setoption name Hash value 128');
-            analysisEngine.postMessage(`setoption name Contempt value ${this.contemptValue}`);
             return analysisEngine;
         } catch (error) {
             console.error('Failed to initialize analysis engine:', error);
@@ -2101,8 +2094,13 @@ class ChessGame {
         this.showVsScreen();
         
         this.gameStarted = true;
+        this._lastBotMessage = null; // Reset chat dedup for new game
         
-        // Load saved preferences
+        // Hide any open sections that could overlay the game board
+        const homeSection = document.getElementById('homeSection');
+        if (homeSection) homeSection.style.display = 'none';
+        const learnSection = document.getElementById('learnSection');
+        if (learnSection) learnSection.style.display = 'none';
         this.loadPreferences();
         
         
@@ -5499,9 +5497,12 @@ class ChessGame {
                     // Ensure AudioContext is ready during user gesture (browser audio policy)
                     window.chessGame.ensureAudioContext();
                     
-                    // Hide both UIs
+                    // Hide both UIs and any open modals
                     if (chessSidebar) chessSidebar.style.display = 'none';
                     if (playSection) playSection.style.display = 'none';
+                    // Close import modal if open (prevents accidental overlay during gameplay)
+                    const importModal = document.getElementById('importModal');
+                    if (importModal) importModal.style.display = 'none';
                     
                     window.chessGame.updateBotDisplay();
                     window.chessGame.startGame();
@@ -5859,29 +5860,43 @@ class ChessGame {
             throw new Error('Please enter a Chess.com username.');
         }
         const cleanUser = username.trim().toLowerCase();
-
-        // Get list of monthly archives
-        const archivesRes = await fetch('https://api.chess.com/pub/player/' + cleanUser + '/games/archives');
-        if (!archivesRes.ok) {
-            throw new Error('User not found or API error (HTTP ' + archivesRes.status + ').');
-        }
-        const archivesData = await archivesRes.json();
-        const archives = archivesData.archives;
-        if (!archives || archives.length === 0) {
-            throw new Error('No games found for this user.');
-        }
-
-        // Walk backwards through archives until we have enough recent games
         const allGames = [];
-        const MAX_ARCHIVES = 6; // go back up to 6 months
-        const MIN_GAMES = 100;  // target games to collect
-        for (let i = archives.length - 1; i >= 0 && allGames.length < MIN_GAMES && (archives.length - 1 - i) < MAX_ARCHIVES; i--) {
-            const gamesRes = await fetch(archives[i]);
-            if (gamesRes.ok) {
-                const gamesData = await gamesRes.json();
-                if (gamesData.games) allGames.push(...gamesData.games);
+
+        // --- Step 1: Build current-month URL directly (bypass cache) ---
+        const now = new Date();
+        const currentMonthUrl = 'https://api.chess.com/pub/player/' + cleanUser
+            + '/games/' + now.getFullYear() + '/' + String(now.getMonth() + 1).padStart(2, '0')
+            + '?_t=' + Date.now();
+        try {
+            const res = await fetch(currentMonthUrl);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.games && data.games.length > 0) {
+                    allGames.push(...data.games);
+                }
             }
-        }
+        } catch (e) { /* ignore current-month fetch errors */ }
+
+        // --- Step 2: Walk backwards through known archives for older months ---
+        try {
+            const archivesRes = await fetch('https://api.chess.com/pub/player/' + cleanUser + '/games/archives');
+            if (archivesRes.ok) {
+                const archivesData = await archivesRes.json();
+                const archives = archivesData.archives || [];
+                const MAX_ARCHIVES = 6;
+                const MIN_GAMES = 100;
+                const currentMonthPattern = '/' + now.getFullYear() + '/' + String(now.getMonth() + 1).padStart(2, '0');
+                for (let i = archives.length - 1; i >= 0 && allGames.length < MIN_GAMES && (archives.length - 1 - i) < MAX_ARCHIVES; i--) {
+                    if (archives[i].endsWith(currentMonthPattern)) continue;
+                    const gamesRes = await fetch(archives[i] + '?_t=' + Date.now());
+                    if (gamesRes.ok) {
+                        const gamesData = await gamesRes.json();
+                        if (gamesData.games) allGames.push(...gamesData.games);
+                    }
+                }
+            }
+        } catch (e) { /* ignore archives fetch errors */ }
+
         return allGames;
     }
 
@@ -5906,7 +5921,7 @@ class ChessGame {
 
             if (!games || games.length === 0) {
                 if (errorDiv) {
-                    errorDiv.textContent = 'No games found in the latest month.';
+                    errorDiv.textContent = 'No recent games found. Try again in a few minutes — Chess.com may still be processing today\'s games.';
                     errorDiv.style.display = 'block';
                 }
                 return;
@@ -8392,6 +8407,22 @@ window.addEventListener('load', () => {
     try {
         chessGame = new ChessGame();
         
+        // Load saved board and piece preferences immediately
+        chessGame.loadPreferences();
+        
+        // Check for Tester reminder (every 6 months)
+        chessGame.checkTesterReminder();
+        
+
+    } catch (error) {
+        console.error('⚠️ Chess game initialization warning:', error);
+        // Only show alert for critical errors that prevent the game from working
+        if (error.message && error.message.includes('Critical')) {
+            alert('Error loading chess game: ' + error.message);
+        }
+        // For non-critical errors (like sound files), the game will still work
+    }
+});
         // Load saved board and piece preferences immediately
         chessGame.loadPreferences();
         
