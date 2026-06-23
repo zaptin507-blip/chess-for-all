@@ -125,6 +125,11 @@ class RecklessClient {
 
 class ChessGame {
     constructor() {
+        if (typeof Chess === 'undefined') {
+            console.error('❌ Chess.js library not loaded! Check CDN script in index.html');
+            alert('Chess.js library failed to load. Please check your internet connection and reload.');
+            return;
+        }
         this.chess = new Chess();
         this.board = document.getElementById('chessboard');
         this.statusDisplay = document.getElementById('status');
@@ -8407,22 +8412,6 @@ window.addEventListener('load', () => {
     try {
         chessGame = new ChessGame();
         
-        // Load saved board and piece preferences immediately
-        chessGame.loadPreferences();
-        
-        // Check for Tester reminder (every 6 months)
-        chessGame.checkTesterReminder();
-        
-
-    } catch (error) {
-        console.error('⚠️ Chess game initialization warning:', error);
-        // Only show alert for critical errors that prevent the game from working
-        if (error.message && error.message.includes('Critical')) {
-            alert('Error loading chess game: ' + error.message);
-        }
-        // For non-critical errors (like sound files), the game will still work
-    }
-});
         // Load saved board and piece preferences immediately
         chessGame.loadPreferences();
         
