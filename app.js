@@ -5871,14 +5871,12 @@ class ChessGame {
             throw new Error('No games found for this user.');
         }
 
-        // Fetch the most recent 2 archives for more game coverage
-        const archiveUrls = [archives[archives.length - 1]];
-        if (archives.length >= 2) {
-            archiveUrls.push(archives[archives.length - 2]);
-        }
+        // Walk backwards through archives until we have enough recent games
         const allGames = [];
-        for (const url of archiveUrls) {
-            const gamesRes = await fetch(url);
+        const MAX_ARCHIVES = 6; // go back up to 6 months
+        const MIN_GAMES = 100;  // target games to collect
+        for (let i = archives.length - 1; i >= 0 && allGames.length < MIN_GAMES && (archives.length - 1 - i) < MAX_ARCHIVES; i--) {
+            const gamesRes = await fetch(archives[i]);
             if (gamesRes.ok) {
                 const gamesData = await gamesRes.json();
                 if (gamesData.games) allGames.push(...gamesData.games);
