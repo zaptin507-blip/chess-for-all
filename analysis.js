@@ -108,34 +108,52 @@ class ChessAnalyzer {
         return 'blunder';
     }
 
-    async evaluatePosition(fen, depth = 18) {
+    async evaluatePosition(fen, depth = 12) {
         let resolved = false;
         return new Promise((resolve) => {
             let timeout;
             const sideToMove = fen.split(' ').length > 1 ? fen.split(' ')[1] : 'w';
+            let lastCpScore = null, lastMateScore = null;
             const listener = (event) => {
                 if (resolved) return;
                 const msg = event.data;
                 const m = msg.match(/score cp (-?\d+)/);
                 const mm = msg.match(/score mate (-?\d+)/);
                 if (mm) {
-                    resolved = true; clearTimeout(timeout);
-                    this.stockfish.removeEventListener('message', listener);
                     const v = parseInt(mm[1]);
-                    resolve({ type: 'mate', value: v, sideToMove, score: v > 0 ? 10000 : -10000 });
+                    lastMateScore = { type: 'mate', value: v, sideToMove, score: v > 0 ? 10000 : -10000 };
                 } else if (m) {
                     const raw = parseInt(m[1]);
-                    resolved = true; clearTimeout(timeout);
-                    this.stockfish.removeEventListener('message', listener);
                     const score = sideToMove === 'b' ? -raw : raw;
-                    resolve({ type: 'cp', value: score, score });
+                    lastCpScore = { type: 'cp', value: score, score };
+                }
+                // Wait for bestmove to get final evaluation (avoids stale depth-1 evals)
+                if (msg.startsWith('bestmove')) {
+                    resolved = true;
+                    clearTimeout(timeout);
+                    this.stockfish.removeEventListener('message', listener);
+                    // Use mate eval if found, otherwise cp eval, fallback to 0
+                    if (lastMateScore) {
+                        resolve(lastMateScore);
+                    } else if (lastCpScore) {
+                        resolve(lastCpScore);
+                    } else {
+                        resolve({ type: 'cp', value: 0, score: 0 });
+                    }
                 }
             };
             this.stockfish.addEventListener('message', listener);
             timeout = setTimeout(() => {
                 if (resolved) return;
                 resolved = true; this.stockfish.removeEventListener('message', listener);
-                resolve({ type: 'cp', value: 0, score: 0 });
+                // On timeout, use whatever we received, or 0
+                if (lastMateScore) {
+                    resolve(lastMateScore);
+                } else if (lastCpScore) {
+                    resolve(lastCpScore);
+                } else {
+                    resolve({ type: 'cp', value: 0, score: 0 });
+                }
             }, 10000);
             this.stockfish.postMessage(`position fen ${fen}`);
             this.stockfish.postMessage(`go depth ${depth}`);
