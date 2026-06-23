@@ -5945,8 +5945,8 @@ class ChessGame {
             container.innerHTML = html;
             if (listDiv) listDiv.style.display = 'block';
 
-            // Store game data for selection
-            this._chesscomGames = games;
+            // Store game data for selection (reversed: newest first, matching display)
+            this._chesscomGames = [...games].reverse();
 
             // Add click handlers for game selection
             container.querySelectorAll('.game-select-item').forEach((el) => {
