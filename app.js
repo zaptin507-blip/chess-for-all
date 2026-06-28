@@ -8443,6 +8443,24 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('load', () => {
     initMobileSidebar();
     
+    // Apply saved display name to all UI elements immediately (before auth)
+    const savedName = safeStorage.get('displayName', '');
+    if (savedName) {
+        const playerNameEl = document.getElementById('playerName');
+        const homeGreetingEl = document.getElementById('homeGreeting');
+        const sidebarDisplayEl = document.getElementById('sidebarUserDisplayName');
+        const profileStatsNameEl = document.getElementById('profileStatsName');
+        if (playerNameEl) playerNameEl.textContent = savedName;
+        if (homeGreetingEl) homeGreetingEl.textContent = 'Welcome back, ' + savedName;
+        if (sidebarDisplayEl) {
+            sidebarDisplayEl.textContent = savedName;
+            // Show sidebar profile even without Firebase auth
+            const sidebarProfile = document.getElementById('sidebarUserProfile');
+            if (sidebarProfile) sidebarProfile.style.display = 'flex';
+        }
+        if (profileStatsNameEl) profileStatsNameEl.textContent = savedName;
+    }
+    
     try {
         chessGame = new ChessGame();
         
