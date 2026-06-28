@@ -1772,7 +1772,7 @@ class ChessGame {
         if (this.movesList) {
             this.movesList.addEventListener('click', (e) => {
                 // Handle annotation badge clicks (show explanation popup)
-                const annotation = e.target.closest('.move-annotation');
+                const annotation = e.target.closest('.move-tile-badge');
                 if (annotation && this.analysisMode) {
                     const moveIndex = parseInt(annotation.dataset.moveIndex);
                     const symbol = annotation.textContent;
@@ -1781,7 +1781,7 @@ class ChessGame {
                     return;
                 }
                 // Handle move text clicks (navigate to position in analysis mode)
-                const moveSpan = e.target.closest('.move-white, .move-black');
+                const moveSpan = e.target.closest('.move-cell, .move-tile');
                 if (moveSpan && this.analysisMode) {
                     const moveIndex = parseInt(moveSpan.dataset.moveIndex);
                     if (!isNaN(moveIndex)) {
@@ -4239,21 +4239,49 @@ class ChessGame {
         }
     }
 
-    // Build annotated move HTML with optional clickable badge
+    // Build chess.com-style move tile with piece icon + classification badge
     buildAnnotatedMoveHtml(moveSan, moveIndex) {
-        if (!moveSan || !this.annotations || !this.annotations[moveIndex]) {
-            return moveSan || '';
+        if (!moveSan) return '';
+        
+        // Determine piece (e.g. 'wP', 'bN') from moveHistory
+        let pieceKey = 'wP';
+        if (this.moveHistory && this.moveHistory[moveIndex]) {
+            const md = this.moveHistory[moveIndex].move;
+            if (md && md.color && md.piece) {
+                pieceKey = md.color + md.piece.toUpperCase();
+            }
         }
         
-        const classification = this.annotations[moveIndex];
-        const annot = this.getAnnotationSymbol(classification);
-        if (!annot) return moveSan;
+        // Piece unicode (inline, no SVG complexity)
+        let pieceHtml = '';
+        if (this.pieceUnicode && this.pieceUnicode[pieceKey]) {
+            pieceHtml = this.pieceUnicode[pieceKey];
+        }
         
-        const badgeClass = annot.class;
-        const symbol = annot.symbol;
+        // Classification badge
+        let badgeHtml = '';
+        if (this.annotations && this.annotations[moveIndex]) {
+            const classification = this.annotations[moveIndex];
+            const annot = this.getAnnotationSymbol(classification);
+            if (annot) {
+                badgeHtml = `<span class="move-tile-badge ${annot.class}" data-move-index="${moveIndex}">${annot.symbol}</span>`;
+            }
+        }
         
-        // All move annotations get data-move-index for click handling
-        return `<span class="move-with-annotation">${moveSan}<span class="move-annotation ${badgeClass}" data-move-index="${moveIndex}">${symbol}</span></span>`;
+        // Active move highlight
+        const isActive = this.analysisMode && this.currentMoveIndex === moveIndex;
+        const activeClass = isActive ? 'move-tile-active' : '';
+        
+        // Classification class for background highlight
+        const classClass = (this.annotations && this.annotations[moveIndex])
+            ? `class-bg-${this.annotations[moveIndex]}`
+            : '';
+        
+        return `<span class="move-tile ${activeClass} ${classClass}" data-move-index="${moveIndex}">
+            <span class="move-tile-piece">${pieceHtml}</span>
+            <span class="move-tile-san">${moveSan}</span>
+            ${badgeHtml}
+        </span>`;
     }
 
     updateMoveList() {
@@ -4267,7 +4295,7 @@ class ChessGame {
             
             // Highlight current move in analysis mode
             if (this.analysisMode && (i === this.currentMoveIndex || i + 1 === this.currentMoveIndex)) {
-                moveRow.classList.add('active-move');
+                moveRow.classList.add('active-move-row');
             }
 
             // White move with annotation
@@ -4278,8 +4306,8 @@ class ChessGame {
 
             moveRow.innerHTML = `
                 <span class="move-number">${moveNumber}.</span>
-                <span class="move-white" data-move-index="${i}">${whiteMoveHtml}</span>
-                <span class="move-black" data-move-index="${i + 1}">${blackMoveHtml}</span>
+                <span class="move-cell move-cell-white" data-move-index="${i}">${whiteMoveHtml}</span>
+                <span class="move-cell move-cell-black" data-move-index="${i + 1}">${blackMoveHtml}</span>
             `;
 
             this.movesList.appendChild(moveRow);
@@ -5902,6 +5930,11 @@ class ChessGame {
             }
         } catch (e) { /* ignore archives fetch errors */ }
 
+        // Sort newest-first (chess.com returns oldest-first per month, and
+        // we push months in reverse-chronological order, so the combined
+        // array needs sorting to guarantee newest games appear first)
+        allGames.sort((a, b) => (b.end_time || 0) - (a.end_time || 0));
+
         return allGames;
     }
 
@@ -5932,12 +5965,12 @@ class ChessGame {
                 return;
             }
 
-            // Show most recent 50 games (chess.com API returns oldest first)
+            // Show most recent 50 games (already sorted newest-first by fetchChesscomGames)
             const totalGames = games.length;
             const maxGames = Math.min(totalGames, 50);
             let html = '';
             for (let i = 0; i < maxGames; i++) {
-                const g = games[totalGames - 1 - i];
+                const g = games[i];
                 const white = g.white || {};
                 const black = g.black || {};
                 const whiteName = white.username || '?';
@@ -5965,8 +5998,8 @@ class ChessGame {
             container.innerHTML = html;
             if (listDiv) listDiv.style.display = 'block';
 
-            // Store game data for selection (reversed: newest first, matching display)
-            this._chesscomGames = [...games].reverse();
+            // Store game data for selection (already sorted newest-first)
+            this._chesscomGames = [...games];
 
             // Add click handlers for game selection
             container.querySelectorAll('.game-select-item').forEach((el) => {
@@ -6965,7 +6998,8 @@ class ChessGame {
             'book': { symbol: '📖', class: 'annotation-book' },
             'forced': { symbol: '□', class: 'annotation-forced' },
             'great': { symbol: '!', class: 'annotation-great' },
-            'good': { symbol: '□', class: 'annotation-good' }
+            'good': { symbol: '□', class: 'annotation-good' },
+            'missedWin': { symbol: '🎯', class: 'annotation-missedWin' }
         };
         return symbols[annotation] || null;
     }
