@@ -806,16 +806,16 @@ body::after {
     font-weight: 600;
 }
 
-.move-white, .move-black {
-    min-width: 70px;
+.move-cell {
     cursor: pointer;
-    padding: 2px 6px;
-    border-radius: 4px;
-    transition: background 0.15s ease;
 }
 
-.move-white:hover, .move-black:hover {
-    background: rgba(255, 255, 255, 0.08);
+.move-cell-white {
+    margin-right: 4px;
+}
+
+.move-cell-black {
+    margin-left: 4px;
 }
 
 .controls {
@@ -1194,73 +1194,187 @@ html {
     transform: none;
 }
 
-/* Move Annotations */
-.move-annotation {
-    display: inline-block;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    text-align: center;
-    line-height: 18px;
-    font-size: 11px;
-    font-weight: bold;
-    margin-left: 4px;
+/* ===== Chess.com-style Move Tiles ===== */
+
+/* Move tile base */
+.move-tile {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    min-width: 80px;
     cursor: pointer;
-    transition: transform 0.2s ease;
+    transition: all 0.15s ease;
+    position: relative;
+    border: 2px solid transparent;
 }
 
-.move-annotation:hover {
-    transform: scale(1.2);
+.move-tile:hover {
+    background: rgba(255, 255, 255, 0.06);
 }
+
+/* Active move (selected for review) */
+.move-tile-active {
+    border-color: #769656;
+    background: rgba(118, 150, 86, 0.15);
+}
+
+/* Move cell wrappers inside a row */
+.move-cell {
+    min-width: 90px;
+}
+
+/* Active move row highlight */
+.active-move-row {
+    background: rgba(118, 150, 86, 0.08);
+    border-radius: 8px;
+}
+
+/* Piece icon */
+.move-tile-piece {
+    font-size: 18px;
+    line-height: 1;
+    flex-shrink: 0;
+    width: 22px;
+    text-align: center;
+}
+
+/* Move SAN text */
+.move-tile-san {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Classification badge (circular, positioned after SAN) */
+.move-tile-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 700;
+    margin-left: auto;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+    cursor: pointer;
+}
+
+.move-tile-badge:hover {
+    transform: scale(1.25);
+}
+
+/* ===== Background colors by classification ===== */
+
+.class-bg-best {
+    background: rgba(127, 200, 62, 0.18);
+    border-color: rgba(127, 200, 62, 0.3);
+}
+.class-bg-excellent {
+    background: rgba(91, 141, 239, 0.18);
+    border-color: rgba(91, 141, 239, 0.3);
+}
+.class-bg-good {
+    background: rgba(127, 200, 62, 0.12);
+    border-color: rgba(127, 200, 62, 0.2);
+}
+.class-bg-okay {
+    background: rgba(33, 150, 243, 0.12);
+    border-color: rgba(33, 150, 243, 0.2);
+}
+.class-bg-great {
+    background: rgba(91, 141, 239, 0.18);
+    border-color: rgba(91, 141, 239, 0.3);
+}
+.class-bg-critical {
+    background: rgba(91, 139, 175, 0.18);
+    border-color: rgba(91, 139, 175, 0.3);
+}
+.class-bg-inaccuracy {
+    background: rgba(247, 198, 49, 0.15);
+    border-color: rgba(247, 198, 49, 0.3);
+}
+.class-bg-mistake {
+    background: rgba(229, 143, 46, 0.18);
+    border-color: rgba(229, 143, 46, 0.3);
+}
+.class-bg-blunder {
+    background: rgba(250, 65, 45, 0.18);
+    border-color: rgba(250, 65, 45, 0.3);
+}
+.class-bg-book {
+    background: rgba(146, 146, 146, 0.12);
+    border-color: rgba(146, 146, 146, 0.2);
+}
+.class-bg-forced {
+    background: rgba(122, 122, 122, 0.12);
+    border-color: rgba(122, 122, 122, 0.2);
+}
+.class-bg-brilliant {
+    background: rgba(26, 156, 91, 0.18);
+    border-color: rgba(26, 156, 91, 0.3);
+}
+.class-bg-missedWin {
+    background: rgba(255, 215, 0, 0.18);
+    border-color: rgba(255, 215, 0, 0.3);
+}
+
+/* ===== Badge colors (the small circular buttons) ===== */
 
 .annotation-brilliant {
     background: #1a9c5b;
     color: #fff;
 }
-
 .annotation-great {
     background: #5b8def;
     color: #fff;
 }
-
 .annotation-best {
     background: #7fc83e;
     color: #fff;
 }
-
 .annotation-excellent {
     background: #5b8def;
     color: #fff;
 }
-
 .annotation-good {
     background: #92b827;
     color: #fff;
 }
-
+.annotation-critical {
+    background: #5b8baf;
+    color: #fff;
+}
+.annotation-okay {
+    background: #2196F3;
+    color: #fff;
+}
 .annotation-inaccuracy {
     background: #f7c631;
     color: #000;
 }
-
 .annotation-mistake {
     background: #e58f2e;
     color: #fff;
 }
-
 .annotation-blunder {
     background: #fa412d;
     color: #fff;
 }
-
 .annotation-book {
     background: #929292;
     color: #fff;
 }
-
 .annotation-forced {
     background: #7a7a7a;
     color: #fff;
+}
+.annotation-missedWin {
+    background: #FFD700;
+    color: #000;
 }
 
 /* ===== RESPONSIVE DESIGN ===== */
@@ -1309,20 +1423,6 @@ html {
         width: 40px;
         height: 40px;
     }
-}
-
-.move-with-annotation {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-}
-
-/* Highlight current move in analysis mode */
-.move-row.active-move {
-    background: rgba(76, 175, 80, 0.2);
-    border-radius: 4px;
-    padding: 2px 5px;
-    margin: -2px -5px;
 }
 
 /* ===== Game Review Panel (Chess.com style) ===== */
