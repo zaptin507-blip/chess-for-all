@@ -1,0 +1,32 @@
+{
+  "rules": {
+    "online-games": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$gameId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "moves": {
+          ".read": "auth != null",
+          ".write": "auth != null"
+        },
+        "chat": {
+          ".read": "auth != null",
+          ".write": "auth != null"
+        },
+        "drawOffer": {
+          ".read": "auth != null",
+          ".write": "auth != null"
+        }
+      }
+    },
+    "game-chats": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "tester-reminders": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}

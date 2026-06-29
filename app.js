@@ -1334,9 +1334,24 @@ class ChessGame {
     }
 
     async findOrCreateOnlineGame(timeControl) {
-        if (!auth || !currentUser) {
-            alert('You must be logged in to play online!');
+        if (!auth) {
+            alert('Firebase auth not available. Please reload the page.');
             return;
+        }
+        
+        // Silently sign in anonymously if not already authenticated
+        if (!currentUser) {
+            try {
+                this.setOnlineStatus('Signing in...');
+                const result = await auth.signInAnonymously();
+                currentUser = result.user;
+                console.log('[Online] Signed in anonymously as:', currentUser.uid);
+            } catch (err) {
+                console.error('[Online] Anonymous sign-in failed:', err);
+                alert('Unable to sign in. Please check your internet connection and try again.');
+                this.setOnlineStatus('Sign-in failed');
+                return;
+            }
         }
 
         // Validate time control selection
