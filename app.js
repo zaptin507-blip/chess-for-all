@@ -295,7 +295,7 @@ class ChessGame {
             this.playTrack('menu.mp4', 0.25);
         }.bind(this);
         
-        // Game music (Solaris)
+        // Game music (Solaris) — low volume background ambience
         this.startGameMusic = function() {
             console.log('🎵 startGameMusic called, musicSource:', this.musicSource, 'musicPlaying:', this.musicPlaying);
             if (this.musicSource === 'game' && this.musicPlaying) {
@@ -303,7 +303,7 @@ class ChessGame {
                 return;
             }
             this.musicSource = 'game';
-            this.playTrack('ambient.mp4', 0.3);
+            this.playTrack('ambient.mp4', 0.12);
         }.bind(this);
         
         this.stopMusic = function() {
@@ -334,6 +334,8 @@ class ChessGame {
         this.pieceUnicode = pieceUnicode;
         
         this.stockfish = null;
+        this.lczero = null;         // LCZero MCTS neural engine
+        this.lczeroReady = false;
         this._initEngineAsync();
         this.analysisEngine = null; // Will initialize only when needed
         this.analyzer = null;
@@ -1127,10 +1129,8 @@ class ChessGame {
             if (message.startsWith('bestmove')) {
                 this.stockfish.removeEventListener('message', listener);
                 
-                // Update probabilities
+                // Update eval bar
                 this.winProbability = this.calculateWinProbability(evalScore);
-                this.displayWinProbability();
-                // Update chess.com-style evaluation bar
                 this.updateEvalBar(evalScore);
             }
         };
@@ -1138,61 +1138,6 @@ class ChessGame {
         this.stockfish.addEventListener('message', listener);
         this.stockfish.postMessage(`position fen ${fen}`);
         this.stockfish.postMessage('go movetime 1200');
-    }
-
-    displayWinProbability() {
-        // Guard: winProbability might not be initialized yet during init()
-        if (!this.winProbability) {
-            return;
-        }
-        
-        let probDisplay = document.getElementById('winProbability');
-        
-        if (!probDisplay) {
-            // Create the display element if it doesn't exist
-            probDisplay = document.createElement('div');
-            probDisplay.id = 'winProbability';
-            probDisplay.className = 'win-probability';
-            probDisplay.style.cssText = `
-                margin-top: 15px;
-                padding: 10px;
-                background: rgba(255, 255, 255, 0.05);
-                border-radius: 5px;
-            `;
-            
-            // Insert after status display
-            const gameStatus = document.querySelector('.game-status');
-            gameStatus.appendChild(probDisplay);
-        }
-        
-        const { win, draw, loss } = this.winProbability;
-        
-        probDisplay.innerHTML = `
-            <h4 style="color: #fff; margin: 0 0 8px 0; font-size: 13px;">Win Probability</h4>
-            <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="color: #4CAF50; font-weight: bold; min-width: 35px;">Win</span>
-                    <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
-                        <div style="width: ${win}%; height: 100%; background: #4CAF50; transition: width 0.5s;"></div>
-                    </div>
-                    <span style="color: #4CAF50; font-weight: bold; min-width: 35px; text-align: right;">${win}%</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="color: #ffc107; font-weight: bold; min-width: 35px;">Draw</span>
-                    <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
-                        <div style="width: ${draw}%; height: 100%; background: #ffc107; transition: width 0.5s;"></div>
-                    </div>
-                    <span style="color: #ffc107; font-weight: bold; min-width: 35px; text-align: right;">${draw}%</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="color: #f44336; font-weight: bold; min-width: 35px;">Loss</span>
-                    <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
-                        <div style="width: ${loss}%; height: 100%; background: #f44336; transition: width 0.5s;"></div>
-                    </div>
-                    <span style="color: #f44336; font-weight: bold; min-width: 35px; text-align: right;">${loss}%</span>
-                </div>
-            </div>
-        `;
     }
 
     updateEvalBar(evalScore) {
@@ -1296,6 +1241,71 @@ class ChessGame {
         }
     }
 
+    /** Initialize LCZero — MCTS + neural network engine (architecturally diverse from Stockfish) */
+    async initLCZero() {
+        // LCZero needs: lc0/lc0.js (WASM engine), lc0/lc0_loader.js, tensorflow.js
+        if (typeof window.CreateLC0Worker !== 'function') {
+            console.warn('⚠️ LCZero loader not available (lc0_loader.js missing)');
+            return null;
+        }
+
+        try {
+            const worker = await window.CreateLC0Worker();
+
+            // Wrap with Worker-compatible adapter (same pattern as NNUEWorkerAdapter)
+            const adapter = {
+                _worker: worker,
+                _listeners: new Map(),
+                postMessage(msg) { this._worker.postMessage(msg); },
+                addEventListener(type, handler) {
+                    if (type === 'message') {
+                        const wrapped = (e) => handler({ data: e.data });
+                        this._listeners.set(handler, wrapped);
+                        this._worker.onmessage = (e) => {
+                            for (const h of this._listeners.values()) h(e);
+                        };
+                    }
+                },
+                removeEventListener(type, handler) {
+                    if (type === 'message') this._listeners.delete(handler);
+                },
+                terminate() {
+                    this._listeners.clear();
+                    if (this._worker.terminate) this._worker.terminate();
+                }
+            };
+
+            // Determine which weights file to use
+            // Priority: LC0_WEIGHTS_URL env, then strongest available local file
+            const weightsUrl = window.LC0_WEIGHTS_URL || 'lc0/weights_run1_9155.txt.gz';
+
+            // LCZero uses 'load <url>' to load neural network weights BEFORE uci
+            adapter.postMessage('load ' + weightsUrl);
+
+            // Wait for network load confirmation (LCZero sends 'loadok' when done)
+            await this._waitForUciMessage(adapter, msg => msg === 'loadok', 30000);
+            console.log('🧠 LCZero network weights loaded');
+
+            // Standard UCI handshake
+            adapter.postMessage('uci');
+            await this._waitForUciMessage(adapter, msg => msg === 'uciok', 10000);
+
+            // Configure LCZero for maximum strength
+            adapter.postMessage('setoption name WeightsFile value ' + weightsUrl);
+            adapter.postMessage('setoption name MinibatchSize value 256');
+            adapter.postMessage('setoption name MaxPrefetch value 32');
+            adapter.postMessage('setoption name CPuct value 2.5');
+            adapter.postMessage('isready');
+            await this._waitForUciMessage(adapter, msg => msg === 'readyok', 15000);
+
+            console.log('✅ LCZero engine initialized (MCTS + neural network)');
+            return adapter;
+        } catch (error) {
+            console.warn('⚠️ LCZero init failed (engine or weights unavailable):', error.message);
+            return null;
+        }
+    }
+
     async _initEngineAsync() {
         // Initialize Reckless engine (stronger, ~3833 ELO) via WebSocket bridge
         try {
@@ -1313,6 +1323,10 @@ class ChessGame {
             this.recklessEngine = null;
         }
         
+        // Initialize LCZero — MCTS + neural net engine (runs in parallel with Stockfish)
+        this.lczero = await this.initLCZero();
+        this.lczeroReady = !!this.lczero;
+
         // Initialize Stockfish (always available, used for eval & when bot is losing)
         this.stockfish = await this.initStockfish();
         this.stockfishReady = !!this.stockfish;
@@ -1352,7 +1366,7 @@ class ChessGame {
     async consultationBestMove(fen, callback) {
         const engines = [
             { engine: this.stockfish,       name: 'Stockfish NNUE',  weight: 3, icon: '🧠' },
-            { engine: this.analysisEngine,  name: 'Stockfish Classic', weight: 2, icon: '♟️' },
+            { engine: this.lczero,          name: 'LCZero',          weight: 3, icon: '🌐' },
             { engine: this.recklessEngine,  name: 'Reckless',        weight: 1, icon: '⚡' }
         ];
 
@@ -1934,7 +1948,6 @@ class ChessGame {
         this.renderBoard();
         this.setupEventListeners();
         this.updateStatus();
-        this.displayWinProbability(); // Show initial probability
         
         // Start menu background music (browser blocks on first attempt,
         // but the retry mechanism in playTrack will keep trying until allowed)
@@ -2273,6 +2286,14 @@ class ChessGame {
         this.gameStarted = true;
         this._lastBotMessage = null; // Reset chat dedup for new game
         
+        // Update player name and ELO in the game board UI
+        const displayName = safeStorage.get('displayName') || 'You';
+        const playerELO = safeStorage.getInt('userELO', 1200);
+        const playerNameEl = document.getElementById('playerName');
+        const ratingEl = document.querySelector('.player-info.bottom .rating');
+        if (playerNameEl) playerNameEl.textContent = displayName;
+        if (ratingEl) ratingEl.textContent = 'ELO: ' + playerELO;
+        
         // Reset council mode state for new game
         const councilPanel = document.getElementById('councilPanel');
         if (councilPanel) councilPanel.style.display = 'none';
@@ -2546,6 +2567,10 @@ class ChessGame {
         // Player loses on time
         this.statusDisplay.textContent = `You ran out of time! ${botDisplayName} wins!`;
         
+        // Hide bot chat on timeout
+        const botChatSection1 = document.getElementById('botChatSection');
+        if (botChatSection1) botChatSection1.style.display = 'none';
+        
         if (this.selectedBot === 'mrstong') {
             this.addBotMessage("Good game! Time management is important in chess. Well played!");
         } else if (this.selectedBot === 'mrleung') {
@@ -2591,6 +2616,10 @@ class ChessGame {
         
         // Bot loses on time
         this.statusDisplay.textContent = `${botDisplayName} ran out of time! You win!`;
+        
+        // Hide bot chat on timeout
+        const botChatSection2 = document.getElementById('botChatSection');
+        if (botChatSection2) botChatSection2.style.display = 'none';
         
         if (this.selectedBot === 'mrstong') {
             this.addBotMessage("Oh no! I ran out of time. Congratulations on your victory!");
@@ -2711,6 +2740,39 @@ class ChessGame {
         this.applyPieceStyle(this.currentPieceStyle);
     }
 
+    // Animate piece sliding from source to destination before board re-render
+    _animateMoveSlide(from, to) {
+        const board = this.board;
+        if (!board) return;
+        
+        const boardRect = board.getBoundingClientRect();
+        const squareSize = boardRect.width / 8;
+        
+        // Find source and destination square elements
+        const fromSquare = board.querySelector(`[data-square="${from}"]`);
+        const toSquare = board.querySelector(`[data-square="${to}"]`);
+        
+        if (!fromSquare || !toSquare) return;
+        
+        // Get the piece element at the source square
+        const pieceEl = fromSquare.querySelector('.piece');
+        if (!pieceEl) return;
+        
+        // Add aura animation to destination piece that just arrived
+        const destPiece = toSquare.querySelector('.piece');
+        if (destPiece) {
+            destPiece.classList.add('piece-slide-aura');
+        }
+        
+        // Add slide-out animation to the source piece
+        pieceEl.classList.add('piece-sliding');
+        
+        // After animation ends, the board will be re-rendered anyway
+        setTimeout(() => {
+            pieceEl.classList.remove('piece-sliding');
+        }, 200);
+    }
+
     showLegalMoves() {
         this.clearIndicators();
 
@@ -2811,6 +2873,7 @@ class ChessGame {
                 
                 this.lastMove = move;
                 this.selectedSquare = null;
+                this._animateMoveSlide(move.from, move.to);
                 this.renderBoard();
                 this.updateMoveList();
                 this.updateStatus();
@@ -2959,6 +3022,7 @@ class ChessGame {
                 
                 this.lastMove = move;
                 this.selectedSquare = null;
+                this._animateMoveSlide(move.from, move.to);
                 
                 // Track move for The Tester
                 if (this.selectedBot === 'tester') {
@@ -3144,6 +3208,7 @@ class ChessGame {
             
             this.lastMove = move;
             this.selectedSquare = null;
+            this._animateMoveSlide(move.from, move.to);
             this.renderBoard();
             this.updateMoveList();
             this.updateStatus();
@@ -3331,12 +3396,47 @@ class ChessGame {
         
         // Find pieces that can be captured
         const hangingPieces = [];
+        const pieceValues = { q: 9, r: 5, b: 3, n: 3, p: 1, k: 0 };
         
         for (const capture of captures) {
             const capturedPiece = this.chess.get(capture.to);
             // After player moves, it's opponent's turn
             // We want to find if opponent can capture player's pieces
             if (capturedPiece && capturedPiece.color !== this.chess.turn()) {
+                // Filter out trades/sacrifices: check if the capturing piece
+                // can itself be recaptured for equal or greater value.
+                const capturerPiece = this.chess.get(capture.from);
+                if (capturerPiece) {
+                    const capturerValue = pieceValues[capturerPiece.type] || 0;
+                    const capturedValue = pieceValues[capturedPiece.type] || 0;
+                    
+                    // Check if opponent's capturer would be undefended after capturing
+                    const fenBeforeCapture = this.chess.fen();
+                    const tempChess = new Chess(fenBeforeCapture);
+                    tempChess.move({ from: capture.from, to: capture.to, promotion: 'q' });
+                    const opponentMoves = tempChess.moves({ verbose: true });
+                    const canRecapture = opponentMoves.some(m => m.to === capture.to);
+                    
+                    // If the captured piece is worth less than the capturer, and the capturer
+                    // can be recaptured, this is a winning trade for the player — warn.
+                    // But if capturer (lesser) captures a bigger piece and gets recaptured,
+                    // that's a net gain for the opponent — don't warn.
+                    if (canRecapture && capturerValue >= capturedValue) {
+                        continue; // This is NOT a hanging piece — it's an equal or bad trade for opponent
+                    }
+                    if (canRecapture && capturerValue < capturedValue) {
+                        // Opponent trades up (e.g. knight takes queen, then knight recaptured)
+                        // Player loses the more valuable piece — this IS a hanging piece
+                    }
+                    if (!canRecapture) {
+                        // Capturer is hanging after capture — effectively a trade
+                        // Only warn if the captured piece is significantly more valuable
+                        if (capturedValue <= capturerValue + 1) {
+                            continue; // Roughly equal trade, don't warn
+                        }
+                    }
+                }
+                
                 hangingPieces.push({
                     piece: capturedPiece,
                     square: capture.to,
@@ -3355,7 +3455,6 @@ class ChessGame {
         // Return the most valuable hanging piece (only if it's a single piece)
         if (hangingPieces.length === 1) {
             // Sort by piece value (queen > rook > bishop/knight > pawn)
-            const pieceValues = { q: 9, r: 5, b: 3, n: 3, p: 1, k: 0 };
             hangingPieces.sort((a, b) => pieceValues[b.piece.type] - pieceValues[a.piece.type]);
             return hangingPieces[0]; // Return the most valuable hanging piece
         }
@@ -3535,6 +3634,7 @@ class ChessGame {
                         fenAfter: this.chess.fen()
                     });
                     this.lastMove = move;
+                    this._animateMoveSlide(move.from, move.to);
                     this.renderBoard();
                     this.updateMoveList();
                     this.updateStatus();
@@ -3677,6 +3777,7 @@ class ChessGame {
                 fenAfter: this.chess.fen()
             });
             this.lastMove = move;
+            this._animateMoveSlide(move.from, move.to);
             this.renderBoard();
             this.updateMoveList();
             this.updateStatus();
@@ -3716,7 +3817,7 @@ class ChessGame {
                     </div>
                     <div class="council-engine thinking">
                         <span class="council-engine-icon">⏳</span>
-                        <span class="council-engine-name">Stockfish Classic</span>
+                        <span class="council-engine-name">LCZero</span>
                         <span class="council-engine-think">Analyzing...</span>
                     </div>
                     <div class="council-engine thinking">
@@ -4839,6 +4940,10 @@ class ChessGame {
         document.getElementById('gameOverTitle').textContent = title;
         document.getElementById('gameOverMessage').textContent = message;
         modal.style.display = 'flex';
+        
+        // Hide bot chat on game end
+        const botChatSection = document.getElementById('botChatSection');
+        if (botChatSection) botChatSection.style.display = 'none';
 
         // Save game to history for profile page
         const gameResult = title === '🎉 Victory!' ? 'win' : title === 'Defeat' ? 'loss' : 'draw';
@@ -5225,6 +5330,30 @@ class ChessGame {
                 arrow.style.transform = 'rotate(0deg)';
                 playMenu.style.background = 'rgba(255, 255, 255, 0.08)';
             }
+        };
+        
+        // Hover open/close for Play submenu (desktop)
+        let _playSubmenuCloseTimer = null;
+        window.openPlaySubmenu = () => {
+            if (_playSubmenuCloseTimer) { clearTimeout(_playSubmenuCloseTimer); _playSubmenuCloseTimer = null; }
+            const submenu = document.getElementById('playSubmenu');
+            const arrow = document.getElementById('playArrow');
+            const playMenu = document.getElementById('menuPlay');
+            if (submenu.style.display === 'none' || submenu.style.display === '') {
+                submenu.style.display = 'block';
+                arrow.style.transform = 'rotate(90deg)';
+                playMenu.style.background = 'rgba(255, 255, 255, 0.12)';
+            }
+        };
+        window.schedulePlaySubmenuClose = () => {
+            _playSubmenuCloseTimer = setTimeout(() => {
+                const submenu = document.getElementById('playSubmenu');
+                const arrow = document.getElementById('playArrow');
+                const playMenu = document.getElementById('menuPlay');
+                submenu.style.display = 'none';
+                arrow.style.transform = 'rotate(0deg)';
+                playMenu.style.background = 'rgba(255, 255, 255, 0.08)';
+            }, 300);
         };
         
         // Tutorial functions
@@ -5657,6 +5786,10 @@ class ChessGame {
             document.getElementById('playSubmenu').style.display = 'none';
             document.getElementById('playArrow').style.transform = 'rotate(0deg)';
             document.getElementById('menuPlay').style.background = 'rgba(255, 255, 255, 0.08)';
+            // Reset board state so next game starts fresh (no highlights, no stale state)
+            if (window.chessGame) {
+                window.chessGame.resetGame();
+            }
             // Restore bot sections for next Boss Battle open
             const botSection = document.getElementById('sidebarBotSection');
             if (botSection) botSection.style.display = '';
@@ -5940,6 +6073,16 @@ class ChessGame {
         document.getElementById('navLast').addEventListener('click', () => this.navToMove(this.moveHistory.length - 1));
         document.getElementById('navPlay').addEventListener('click', () => this.toggleAutoPlay());
         
+        // Review panel nav buttons (duplicate for analysis mode)
+        const navFirstR = document.getElementById('navFirstReview');
+        const navPrevR = document.getElementById('navPrevReview');
+        const navNextR = document.getElementById('navNextReview');
+        const navLastR = document.getElementById('navLastReview');
+        if (navFirstR) navFirstR.addEventListener('click', () => this.navToMove(0));
+        if (navPrevR) navPrevR.addEventListener('click', () => this.navToMove(this.currentMoveIndex - 1));
+        if (navNextR) navNextR.addEventListener('click', () => this.navToMove(this.currentMoveIndex + 1));
+        if (navLastR) navLastR.addEventListener('click', () => this.navToMove(this.moveHistory.length - 1));
+        
         // Annotation popup buttons
         document.getElementById('retryMoveBtn').addEventListener('click', () => {
             if (this.pendingRetryIndex !== undefined) {
@@ -5969,15 +6112,6 @@ class ChessGame {
                 document.getElementById('navControls').style.display = isReport ? 'none' : '';
             });
         });
-        
-        // Contempt slider wiring
-        const contemptSlider = document.getElementById('contemptSlider');
-        if (contemptSlider) {
-            contemptSlider.addEventListener('input', (e) => {
-                const val = parseInt(e.target.value);
-                this._setContempt(val);
-            });
-        }
         
     }
 
@@ -7103,32 +7237,56 @@ class ChessGame {
     }
     
     navToMove(index) {
-        if (!this.analysisMode || index < -1 || index >= this.moveHistory.length) return;
+        // Allow navigation in any mode, not just analysis
+        if (this.moveHistory.length === 0) return;
+        if (index < -1 || index >= this.moveHistory.length) return;
         
-        // Reset to starting position
-        this.chess.reset();
+        // Save current position if entering navigation (first time navigating away)
+        if (this.currentMoveIndex === -1 || this.currentMoveIndex === this.moveHistory.length - 1) {
+            this._navSavedFen = this.chess.fen();
+            this._navOriginalTurn = this.currentTurn;
+        }
         
-        // Replay moves up to index using the full move object
-        for (let i = 0; i <= index; i++) {
-            const moveData = this.moveHistory[i];
-            // Use the complete move object with from, to, and promotion
-            this.chess.move({
-                from: moveData.move.from,
-                to: moveData.move.to,
-                promotion: moveData.move.promotion || 'q'
-            });
+        if (index === -1) {
+            // Go to starting position
+            this.chess.reset();
+        } else {
+            // Reset to starting position
+            this.chess.reset();
+            // Replay moves up to index using the full move object
+            for (let i = 0; i <= index; i++) {
+                const moveData = this.moveHistory[i];
+                // Use the complete move object with from, to, and promotion
+                this.chess.move({
+                    from: moveData.move.from,
+                    to: moveData.move.to,
+                    promotion: moveData.move.promotion || 'q'
+                });
+            }
         }
         
         this.currentMoveIndex = index;
+        this.selectedSquare = null;
         this.renderBoard();
         this.updateMoveList();
         this.updateNavButtons();
-        this.updateGameReview(index);
+        
+        // Update game review if we have analysis data
+        if (this.analysisMode) {
+            this.updateGameReview(index);
+        }
+        
         // Update eval bar for current position
         if (this.stockfish) this.updateWinProbability();
+        
+        // If navigated away from current position, pause the game state
+        if (!this.analysisMode && index < this.moveHistory.length - 1) {
+            this.statusDisplay.textContent = 'Reviewing move ' + (index + 1) + '/' + this.moveHistory.length + ' — Click ▶ to return';
+        }
     }
     
     updateNavButtons() {
+        // Update toolbar nav buttons
         const navFirst = document.getElementById('navFirst');
         const navPrev = document.getElementById('navPrev');
         const navNext = document.getElementById('navNext');
@@ -7138,6 +7296,17 @@ class ChessGame {
         if (navPrev) navPrev.disabled = this.currentMoveIndex <= 0;
         if (navNext) navNext.disabled = this.currentMoveIndex >= this.moveHistory.length - 1;
         if (navLast) navLast.disabled = this.currentMoveIndex >= this.moveHistory.length - 1;
+        
+        // Also update review panel nav buttons
+        const navFirstR = document.getElementById('navFirstReview');
+        const navPrevR = document.getElementById('navPrevReview');
+        const navNextR = document.getElementById('navNextReview');
+        const navLastR = document.getElementById('navLastReview');
+        
+        if (navFirstR) navFirstR.disabled = this.currentMoveIndex <= 0;
+        if (navPrevR) navPrevR.disabled = this.currentMoveIndex <= 0;
+        if (navNextR) navNextR.disabled = this.currentMoveIndex >= this.moveHistory.length - 1;
+        if (navLastR) navLastR.disabled = this.currentMoveIndex >= this.moveHistory.length - 1;
     }
     
     toggleAutoPlay() {
@@ -7208,47 +7377,81 @@ class ChessGame {
             
             for (let i = 0; i < this.evaluations.length; i++) {
                 const x = i * step;
-                const evalValue = Math.max(-10, Math.min(10, this.evaluations[i] / 100));
-                const y = height / 2 - (evalValue / 10) * (height / 2);
-                points.push({ x, y });
+                // Logarithmic scaling: small eval changes are more visible
+                // ±1 pawn (100 CP) = ~50% of graph height, ±10 pawns = ~85%
+                const absCp = Math.abs(this.evaluations[i]);
+                const sign = this.evaluations[i] >= 0 ? 1 : -1;
+                const logScale = Math.log(1 + absCp / 80) / Math.log(1 + 1000 / 80);
+                const y = height / 2 - sign * logScale * (height / 2);
+                points.push({ x, y, evalCp: this.evaluations[i] });
             }
             
-            // Draw smooth curve using quadratic bezier
+            // Draw filled area that properly bisects at zero line
+            // Build two paths: one above zero (green area) and one below (red area)
+            const zeroY = height / 2;
+            
+            // --- Green area (above zero / white advantage) ---
             ctx.beginPath();
-            ctx.moveTo(points[0].x, points[0].y);
-            
-            for (let i = 0; i < points.length - 1; i++) {
-                const p0 = points[i];
-                const p1 = points[i + 1];
-                
-                // Calculate control point for smooth curve
-                const tension = 0.3;
-                const cp1x = p0.x + (p1.x - p0.x) * tension;
-                const cp1y = p0.y;
-                const cp2x = p1.x - (p1.x - p0.x) * tension;
-                const cp2y = p1.y;
-                
-                ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p1.x, p1.y);
+            ctx.moveTo(points[0].x, zeroY);
+            for (let i = 0; i < points.length; i++) {
+                const py = Math.max(zeroY, points[i].y);
+                if (i === 0) ctx.lineTo(points[i].x, py);
+                else {
+                    const cx1 = points[i-1].x + (points[i].x - points[i-1].x) * 0.3;
+                    const cx2 = points[i].x - (points[i].x - points[i-1].x) * 0.3;
+                    ctx.bezierCurveTo(cx1, Math.max(zeroY, points[i-1].y), cx2, py, points[i].x, py);
+                }
             }
-            ctx.stroke();
-            
-            // Draw filled area under curve
-            ctx.lineTo(points[points.length - 1].x, height / 2);
-            ctx.lineTo(points[0].x, height / 2);
+            for (let i = points.length - 1; i >= 0; i--) {
+                if (i === points.length - 1) ctx.lineTo(points[i].x, zeroY);
+            }
             ctx.closePath();
-            
-            const fillGradient = ctx.createLinearGradient(0, 0, 0, height);
-            fillGradient.addColorStop(0, 'rgba(127, 200, 62, 0.3)');
-            fillGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.05)');
-            fillGradient.addColorStop(1, 'rgba(250, 65, 45, 0.3)');
-            ctx.fillStyle = fillGradient;
+            ctx.fillStyle = 'rgba(127, 200, 62, 0.25)';
             ctx.fill();
             
+            // --- Red area (below zero / black advantage) ---
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, zeroY);
+            for (let i = 0; i < points.length; i++) {
+                const py = Math.min(zeroY, points[i].y);
+                if (i === 0) ctx.lineTo(points[i].x, py);
+                else {
+                    const cx1 = points[i-1].x + (points[i].x - points[i-1].x) * 0.3;
+                    const cx2 = points[i].x - (points[i].x - points[i-1].x) * 0.3;
+                    ctx.bezierCurveTo(cx1, Math.min(zeroY, points[i-1].y), cx2, py, points[i].x, py);
+                }
+            }
+            for (let i = points.length - 1; i >= 0; i--) {
+                if (i === points.length - 1) ctx.lineTo(points[i].x, zeroY);
+            }
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(250, 65, 45, 0.25)';
+            ctx.fill();
+            
+            // Draw the smooth line on top of the fill
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i++) {
+                const px = points[i-1].x + (points[i].x - points[i-1].x) * 0.3;
+                const py = points[i-1].y;
+                const cx = points[i].x - (points[i].x - points[i-1].x) * 0.3;
+                const cy = points[i].y;
+                ctx.bezierCurveTo(px, py, cx, cy, points[i].x, points[i].y);
+            }
+            const lineGradient = ctx.createLinearGradient(0, 0, 0, height);
+            lineGradient.addColorStop(0, '#7fc83e');
+            lineGradient.addColorStop(0.5, '#fff');
+            lineGradient.addColorStop(1, '#fa412d');
+            ctx.strokeStyle = lineGradient;
+            ctx.lineWidth = 3;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.stroke();
+            
             // Draw dots at each evaluation point
-            for (let i = 0; i < this.evaluations.length; i++) {
-                const x = i * step;
-                const evalValue = Math.max(-10, Math.min(10, this.evaluations[i] / 100));
-                const y = height / 2 - (evalValue / 10) * (height / 2);
+            for (let i = 0; i < points.length; i++) {
+                const x = points[i].x;
+                const y = points[i].y;
                 
                 // Color based on annotation
                 let color = '#fff';
@@ -7396,17 +7599,91 @@ class ChessGame {
         const moves = this.chess.moves({ verbose: true });
         if (moves.length <= 1) return bestMoveUCI; // forced move
         
-        const nonBestMoves = moves.filter(m => {
+        const pieceValues = { q: 9, r: 5, b: 3, n: 3, p: 1, k: 0 };
+        const effectiveElo = this.gameMode === 'practice' ? this.engineElo : 
+            (this.selectedBot === 'mrstong' ? 1400 : (this.selectedBot === 'mrleung' ? 200 : 2000));
+        
+        let candidateMoves = moves.filter(m => {
             const uci = m.from + m.to + (m.promotion || '');
             return uci !== bestMoveUCI;
         });
         
-        if (nonBestMoves.length === 0) return bestMoveUCI;
+        // For mid+ ELO (>=1000), filter out obvious material-losing blunders:
+        // trades where we lose more, or sacrifices with no compensation
+        if (effectiveElo >= 1000 && candidateMoves.length > 1) {
+            const safeMoves = candidateMoves.filter(m => {
+                // Check if this is a capture that results in net material loss
+                if (m.captured) {
+                    const capturerPiece = this.chess.get(m.from);
+                    const capturedPiece = this.chess.get(m.to);
+                    if (capturerPiece && capturedPiece) {
+                        const capturerValue = pieceValues[capturerPiece.type] || 0;
+                        const capturedValue = pieceValues[capturedPiece.type] || 0;
+                        
+                        // Simulate the move and check if opponent can recapture the capturer
+                        const fenBefore = this.chess.fen();
+                        try {
+                            const tempChess = new Chess(fenBefore);
+                            tempChess.move({ from: m.from, to: m.to, promotion: 'q' });
+                            const opponentCaptures = tempChess.moves({ verbose: true })
+                                .filter(om => om.to === m.to && om.captured);
+                            
+                            // If opponent can recapture and we lose more material than we gain
+                            if (opponentCaptures.length > 0) {
+                                // We capture something but get recaptured
+                                // Net: gain capturedValue, lose capturerValue
+                                if (capturedValue <= capturerValue) {
+                                    return false; // Losing trade — filter out
+                                }
+                            }
+                            // If capturer is undefended and can be captured after the move,
+                            // this is a hanging-piece blunder
+                            if (capturerValue > capturedValue && opponentCaptures.length > 0) {
+                                return false; // Trading down — filter out
+                            }
+                        } catch (e) {
+                            // If we can't simulate, allow the move
+                        }
+                    }
+                }
+                
+                // Check for moves that hang the moving piece (move to an attacked square)
+                const fenBefore = this.chess.fen();
+                try {
+                    const tempChess = new Chess(fenBefore);
+                    const moverPiece = tempChess.get(m.from);
+                    tempChess.move({ from: m.from, to: m.to, promotion: 'q' });
+                    const opponentCapturesAtTo = tempChess.moves({ verbose: true })
+                        .filter(om => om.to === m.to && om.captured);
+                    if (opponentCapturesAtTo.length > 0 && moverPiece) {
+                        const moverValue = pieceValues[moverPiece.type] || 0;
+                        for (const oc of opponentCapturesAtTo) {
+                            const oppPiece = tempChess.get(oc.from);
+                            if (oppPiece) {
+                                const oppValue = pieceValues[oppPiece.type] || 0;
+                                if (oppValue <= moverValue) {
+                                    return false; // Moving to a square where it can be captured for free or equal
+                                }
+                            }
+                        }
+                    }
+                } catch (e) { /* allow if can't simulate */ }
+                
+                return true; // Safe move
+            });
+            
+            if (safeMoves.length > 0) {
+                candidateMoves = safeMoves;
+            }
+            // If all non-best moves are filtered out, fall back to all non-best moves
+        }
+        
+        if (candidateMoves.length === 0) return bestMoveUCI;
         
         // Pick a random non-best move.
         // This creates realistic mistakes: from hanging pieces to subtle inaccuracies
         // depending on how strong the best move actually was.
-        const pick = nonBestMoves[Math.floor(Math.random() * nonBestMoves.length)];
+        const pick = candidateMoves[Math.floor(Math.random() * candidateMoves.length)];
         return pick.from + pick.to + (pick.promotion || '');
     }
     
@@ -8191,9 +8468,20 @@ ChessGame.prototype.saveGameToHistory = function(result, message, botDisplayName
     const views = safeStorage.getInt('viewsCount', 0);
     safeStorage.setInt('viewsCount', views + 1);
     
-    // Update streak
-    const streak = safeStorage.getInt('dailyStreak', 0);
-    safeStorage.setInt('dailyStreak', streak + 1);
+    // Update streak — only increment if it's a new calendar day (local timezone)
+    const today = new Date().toLocaleDateString('en-CA'); // ISO date: YYYY-MM-DD
+    const lastPlayedDate = safeStorage.get('lastPlayedDate', '');
+    if (lastPlayedDate !== today) {
+        safeStorage.set('lastPlayedDate', today);
+        const streak = safeStorage.getInt('dailyStreak', 0);
+        // If last played was yesterday, increment streak; otherwise start at 1
+        const yesterday = new Date(Date.now() - 86400000).toLocaleDateString('en-CA');
+        if (lastPlayedDate === yesterday) {
+            safeStorage.setInt('dailyStreak', streak + 1);
+        } else {
+            safeStorage.setInt('dailyStreak', 1);
+        }
+    }
 };
 
 // Helper to close profile dropdown
@@ -8547,6 +8835,15 @@ document.addEventListener('DOMContentLoaded', () => {
             e.stopPropagation();
             closeProfileDropdown();
             toggleSidebar();
+        });
+    }
+    
+    // Contempt slider wiring (in Settings dropdown)
+    const contemptSlider = document.getElementById('contemptSlider');
+    if (contemptSlider) {
+        contemptSlider.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            window.chessGame._setContempt(val);
         });
     }
     

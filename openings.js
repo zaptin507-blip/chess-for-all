@@ -1090,6 +1090,212 @@ const chessOpenings = {
         famousGames: [{ name: "Smith vs Morra, 1950", result: "Mixed", description: "Named after two players who popularized it" }],
         rating: { beginners: "35%", intermediate: "60%", advanced: "75%" }
     },
+
+    // ===== WEIRD & OBSCURE OPENINGS =====
+    grob: {
+        id: "grob",
+        name: "Grob Opening (Grob's Attack)",
+        eco: "A00",
+        difficulty: "beginner",
+        category: "Flank Openings",
+        moves: ["g4"],
+        description: "The Grob — White pushes the g-pawn two squares on move 1. Considered one of the worst openings, but can be tricky at club level.",
+        mainIdea: 'Push g4 to control f5 and prepare Bg2 fianchetto. If Black plays ...d5, respond with Bg2 and c4, treating it like a reversed Modern. Often leads to wild, tactical positions.',
+        finalPosition: "rnbqkbnr/pppppppp/8/8/6P1/8/PPPPPP1P/RNBQKBNR b KQkq g3 0 1",
+        strengths: ["Surprising and unusual", "Can confuse unprepared opponents", "Leads to wild positions", "Fun for casual play"],
+        weaknesses: ["Objectively bad", "Weakens kingside", "Loses center control", "Easily refuted by strong players"],
+        plans: ["Play Bg2 fianchetto", "Consider h4 push", "Control f5 square", "Develop knights to c3 and e2"],
+        famousGames: [{ name: "Basman vs Various", result: "Mixed", description: "English IM Michael Basman popularized the Grob" }],
+        rating: { beginners: "40%", intermediate: "25%", advanced: "10%" }
+    },
+
+    bongcloud: {
+        id: "bongcloud",
+        name: "Bongcloud Attack",
+        eco: "C20",
+        difficulty: "beginner",
+        category: "Open Games",
+        moves: ["e4", "e5", "Ke2"],
+        description: "The legendary Bongcloud — White moves the king on move 2. A meme opening played as a joke, famously used by GM Hikaru Nakamura.",
+        mainIdea: 'Move the king to e2 as a flex. There is no strategic justification — it blocks in your own bishop and queen, violates opening principles, and is objectively terrible. Play for the memes.',
+        finalPosition: "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPPKPPP/RNBQ1BNR b kq - 1 2",
+        strengths: ["Maximum disrespect", "Psychological warfare", "Hilarious", "Memorable"],
+        weaknesses: ["Objectively losing", "Blocks all development", "Exposes king", "Only for memes"],
+        plans: ["Flex on opponent", "Try not to lose in 10 moves", "Hope opponent is confused", "Consider Ke1 retreat"],
+        famousGames: [{ name: "Nakamura vs Various (online)", result: "Wins", description: "Hikaru Nakamura plays it for content" }],
+        rating: { beginners: "50%", intermediate: "10%", advanced: "5%" }
+    },
+
+    orangutan: {
+        id: "orangutan",
+        name: "Orangutan Opening (Sokolsky)",
+        eco: "A00",
+        difficulty: "beginner",
+        category: "Flank Openings",
+        moves: ["b4"],
+        description: "Also called the Polish or Sokolsky Opening. Named after a story where Tartakower consulted an orangutan at the zoo.",
+        mainIdea: 'Advance b4 to seize queenside space and fianchetto Bb2, creating long diagonal pressure. Can transpose into Sicilian-like structures with colors reversed.',
+        finalPosition: "rnbqkbnr/pppppppp/8/8/1P6/8/P1PPPPPP/RNBQKBNR b KQkq b3 0 1",
+        strengths: ["Unusual and surprising", "Quick queenside space", "Bishop pair on long diagonals", "Fun and creative"],
+        weaknesses: ["Gives up center", "Slow development", "Black can equalize easily", "Niche opening"],
+        plans: ["Play Bb2 fianchetto", "Support b4 with a3", "Push c4 for center control", "Develop knights naturally"],
+        famousGames: [{ name: "Tartakower vs Maroczy, 1924", result: "1-0", description: "Inspired by an orangutan at the zoo" }],
+        rating: { beginners: "45%", intermediate: "30%", advanced: "25%" }
+    },
+
+    friedLiver: {
+        id: "friedLiver",
+        name: "Fried Liver Attack",
+        eco: "C57",
+        difficulty: "intermediate",
+        category: "Open Games",
+        moves: ["e4", "e5", "Nf3", "Nc6", "Bc4", "Nf6", "Ng5", "d5", "exd5", "Nxd5", "Nxf7"],
+        description: "A hyper-aggressive knight sacrifice in the Two Knights Defense. White sacrifices a knight on f7 to expose the black king.",
+        mainIdea: "Sacrifice the knight on f7 to drag the black king into the open. Follow up with Qf3+ to force ...Ke6, then Nc3-d5 ideas. Black's king ends up stranded in the center.",
+        finalPosition: "r1bq1b1r/ppp1kNpp/2n5/3np3/2B5/8/PPPP1PPP/RNBQK2R b KQ - 0 5",
+        strengths: ["Devastating attack", "Hard to defend OTB", "Psychological pressure", "Leads to quick wins"],
+        weaknesses: ["Sacrifices material", "Risky if attack fails", "Well-known refutations", "Less effective at high level"],
+        plans: ["Sacrifice Nxf7", "Play Qf3+", "Bring Nc3-d5", "Open lines with d4"],
+        famousGames: [{ name: "Ponziani vs Unknown, 1700s", result: "1-0", description: "Classic Fried Liver destruction" }],
+        rating: { beginners: "60%", intermediate: "70%", advanced: "40%" }
+    },
+
+    halloweenGambit: {
+        id: "halloweenGambit",
+        name: "Halloween Gambit",
+        eco: "C47",
+        difficulty: "intermediate",
+        category: "Open Games",
+        moves: ["e4", "e5", "Nf3", "Nc6", "Nc3", "Nf6", "Nxe5"],
+        description: "A spooky gambit in the Four Knights — White sacrifices a knight on e5 for two pawns and a fierce attack. Perfect for Halloween!",
+        mainIdea: "Sacrifice Nxe5 to lure Black's knight, then push d4 to kick it and open the center. The gambit is unsound at GM level but terrifying over the board — Black must defend precisely.",
+        finalPosition: "r1bqkb1r/pppp1ppp/2n2n2/4N3/4P3/2N5/PPPP1PPP/R1BQKB1R b KQkq - 0 3",
+        strengths: ["Wild and tactical", "Great surprise weapon", "Immediate attacking chances", "Psychological shock value"],
+        weaknesses: ["Objectively dubious", "Loses a piece for pawns", "Black has refutations", "Risky in serious games"],
+        plans: ["Play Nxe5 sacrifice", "Push d4 immediately", "Develop with tempo", "Attack before Black consolidates"],
+        famousGames: [{ name: "Club-level chaos", result: "Mixed", description: "Popular in scholastic and club chess" }],
+        rating: { beginners: "55%", intermediate: "50%", advanced: "20%" }
+    },
+
+    englundGambit: {
+        id: "englundGambit",
+        name: "Englund Gambit",
+        eco: "A40",
+        difficulty: "beginner",
+        category: "Closed Games",
+        moves: ["d4", "e5"],
+        description: "A tricky gambit where Black sacrifices the e-pawn immediately against 1.d4. Can catch unprepared White players off guard.",
+        mainIdea: "Sacrifice the e-pawn against d4 to lure White's queen out early. After dxe5, play ...Nc6 and ...Qe7, targeting the loose e5 pawn. White often falls into the famous Englund trap: 1.d4 e5 2.dxe5 Nc6 3.Nf3 Qe7 4.Bf4 Qb4+ winning.",
+        finalPosition: "rnbqkbnr/pppp1ppp/8/4p3/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 2",
+        strengths: ["Tricky and surprising", "Famous trap potential", "Quick initiative", "Fun for beginners"],
+        weaknesses: ["Objectively dubious", "Loses a pawn", "Strong players refute easily", "Seen as cheap trick"],
+        plans: ["Play ...Nc6 attacking e5", "Bring queen to e7", "Set the Qb4+ trap", "Develop with tempo"],
+        famousGames: [{ name: "Englund Trap victims", result: "0-1", description: "Countless club players have fallen for the trap" }],
+        rating: { beginners: "50%", intermediate: "30%", advanced: "15%" }
+    },
+
+    budapest: {
+        id: "budapest",
+        name: "Budapest Gambit",
+        eco: "A51-A52",
+        difficulty: "intermediate",
+        category: "Indian Defenses",
+        moves: ["d4", "Nf6", "c4", "e5"],
+        description: "An aggressive gambit where Black strikes with ...e5 on move 2, seeking immediate activity. Popular at club level.",
+        mainIdea: 'Strike immediately with ...e5 after d4 Nf6 c4, sacrificing a pawn for rapid development and piece play. After dxe5 Ng4, target the loose e5 pawn with ...Nc6, ...Bc5, and ...Qe7.',
+        finalPosition: "rnbqkb1r/pppp1ppp/5n2/4p3/2PP4/8/PP2PPPP/RNBQKBNR w KQkq - 0 3",
+        strengths: ["Active piece play", "Good surprise weapon", "Rich tactical ideas", "Popular at club level"],
+        weaknesses: ["Material deficit", "Strong theory exists", "White can consolidate", "Less common at top level"],
+        plans: ["Play ...Ng4 after dxe5", "Develop ...Bc5", "Rapid kingside development", "Pressure e5 pawn"],
+        famousGames: [{ name: "Adler vs Maroczy, 1896", result: "0-1", description: "Early Budapest Gambit success" }],
+        rating: { beginners: "50%", intermediate: "65%", advanced: "55%" }
+    },
+
+    benkoGambit: {
+        id: "benkoGambit",
+        name: "Benko Gambit",
+        eco: "A57-A59",
+        difficulty: "advanced",
+        category: "Indian Defenses",
+        moves: ["d4", "Nf6", "c4", "c5", "d5", "b5"],
+        description: "A positional gambit where Black sacrifices a pawn for long-term queenside pressure. Favored by aggressive players.",
+        mainIdea: "Sacrifice a queenside pawn with ...b5 for lasting pressure on the a- and b-files. After cxb5 a6 bxa6, Black gets open files and targets White's queenside pawns. A deeply strategic opening, not tactical.",
+        finalPosition: "rnbqkb1r/pp1ppppp/5n2/2pP4/2P5/8/PP2PPPP/RNBQKBNR w KQkq - 0 4",
+        strengths: ["Long-term pressure", "Open a- and b-files", "Strategic compensation", "Hard for White to defend"],
+        weaknesses: ["Down material", "Requires deep understanding", "White has central space", "Complex theory"],
+        plans: ["Play ...b5 sacrifice", "Recapture on a6 with bishop", "Pressure down a- and b-files", "Target White's queenside"],
+        famousGames: [{ name: "Benko vs Various", result: "Mixed", description: "Named after GM Pal Benko" }],
+        rating: { beginners: "20%", intermediate: "55%", advanced: "85%" }
+    },
+
+    // ===== ADDITIONAL VARIATIONS =====
+    scandiModern: {
+        id: "scandiModern",
+        name: "Scandinavian Defense",
+        eco: "B01",
+        difficulty: "beginner",
+        category: "Semi-Open Games",
+        moves: ["e4", "d5"],
+        description: "The Scandinavian — Black immediately challenges White's center with ...d5. Simple, direct, and easy to learn.",
+        mainIdea: "Immediately challenge White's center with ...d5. After exd5, recapture with Qxd5 (classical) or play ...Nf6 (modern). Develop naturally and castle queenside for an unbalanced game.",
+        finalPosition: "rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2",
+        strengths: ["Simple and direct", "Easy to learn", "Avoids heavy theory", "Unbalances game"],
+        weaknesses: ["Queen can be harassed", "Gives White extra tempo", "Less popular at top level", "Limited winning chances"],
+        plans: ["Recapture with Qxd5", "Develop ...Nc6, ...Bg4", "Castle queenside", "Control open files"],
+        famousGames: [{ name: "Carlsen vs Caruana, 2018", result: "1/2-1/2", description: "Even World Champions use it" }],
+        rating: { beginners: "75%", intermediate: "55%", advanced: "40%" }
+    },
+
+    philidor: {
+        id: "philidor",
+        name: "Philidor Defense",
+        eco: "C41",
+        difficulty: "beginner",
+        category: "Open Games",
+        moves: ["e4", "e5", "Nf3", "d6"],
+        description: "A solid but slightly passive defense. Named after the 18th century master François-André Danican Philidor.",
+        mainIdea: 'Defend the e5 pawn solidly with ...d6 instead of ...Nc6. Allows development with ...Nf6, ...Be7, and ...O-O. Less ambitious than Ruy Lopez lines but avoids deep theory.',
+        finalPosition: "rnbqkbnr/ppp2ppp/3p4/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3",
+        strengths: ["Solid and reliable", "Avoids heavy theory", "Good for beginners", "Difficult to crack"],
+        weaknesses: ["Passive", "Gives White central space", "Limited counterplay", "Seen as slightly inferior"],
+        plans: ["Play ...Nf6 and ...Be7", "Castle kingside", "Prepare ...d5 break", "Develop bishop to e6 or g4"],
+        famousGames: [{ name: "Philidor vs Various, 1700s", result: "Mixed", description: "Named after the great French master" }],
+        rating: { beginners: "60%", intermediate: "45%", advanced: "30%" }
+    },
+
+    catalan: {
+        id: "catalan",
+        name: "Catalan Opening",
+        eco: "E00-E09",
+        difficulty: "advanced",
+        category: "Closed Games",
+        moves: ["d4", "Nf6", "c4", "e6", "g3"],
+        description: "A sophisticated opening combining Queen's Gambit ideas with a kingside fianchetto. A favorite of modern GMs.",
+        mainIdea: 'Combine d4/c4 with a kingside fianchetto (g3/Bg2), creating long-term pressure. The bishop on g2 eyes the long diagonal, supporting center play while keeping the king safe. A super-GM favorite.',
+        finalPosition: "rnbqkb1r/pppp1ppp/4pn2/8/2PP4/6P1/PP2PP1P/RNBQKBNR w KQkq - 0 4",
+        strengths: ["Long-term pressure", "Safe king position", "Flexible plans", "GM-level weapon"],
+        weaknesses: ["Requires understanding", "Slow buildup", "Black has solid defenses", "Complex theory"],
+        plans: ["Play g3 and Bg2", "Castle kingside", "Pressure on long diagonal", "Consider e4 break"],
+        famousGames: [{ name: "Kramnik vs Kasparov, 2000", result: "Won match", description: "Kramnik used Catalan to win World Championship" }],
+        rating: { beginners: "30%", intermediate: "60%", advanced: "95%" }
+    },
+
+    kingsGambit: {
+        id: "kingsGambit",
+        name: "King's Gambit",
+        eco: "C30-C39",
+        difficulty: "intermediate",
+        category: "Open Games",
+        moves: ["e4", "e5", "f4"],
+        description: "A romantic, aggressive opening where White offers a pawn for rapid development and kingside attacking chances.",
+        mainIdea: 'Sacrifice the f-pawn for rapid development and control of the center. After exf4, play Nf3 and Bc4, preparing O-O and a kingside pawn storm. The most romantic opening in chess.',
+        finalPosition: "rnbqkbnr/pppp1ppp/8/4p3/4PP2/8/PPPP2PP/RNBQKBNR b KQkq f3 0 2",
+        strengths: ["Aggressive and romantic", "Leads to sharp positions", "Rapid development", "Kingside attacking chances"],
+        weaknesses: ["Weakens king position", "Material deficit", "Black has solid defenses", "Less common at top level"],
+        plans: ["Develop Nf3 and Bc4", "Castle quickly", "Push g3 to open lines", "Attack down the f-file"],
+        famousGames: [{ name: "Morphy vs Anderssen, 1858", result: "1-0", description: "Romantic era classic" }],
+        rating: { beginners: "45%", intermediate: "60%", advanced: "45%" }
+    },
 };
 
 // Generate opening board image as SVG
@@ -1568,6 +1774,11 @@ window.renderLearnSection = () => {
             </div>
 
             <div style="margin-bottom: 20px;">
+                <div style="color: rgba(255, 255, 255, 0.5); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">Search Openings</div>
+                <input type="text" id="openingSearch" placeholder="🔍 Search by name (e.g. Sicilian, Gambit, Ruy Lopez)..." style="width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; color: #fff; font-size: 14px; outline: none; box-sizing: border-box;" oninput="searchOpenings(this.value)">
+            </div>
+
+            <div style="margin-bottom: 20px;">
                 <div style="color: rgba(255, 255, 255, 0.5); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">Filter by Difficulty</div>
                 <div style="display: flex; gap: 10px;">
                     <button onclick="filterOpenings('all')" style="padding: 8px 16px; background: #769656; border: none; border-radius: 6px; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;">All</button>
@@ -1592,6 +1803,20 @@ window.filterOpenings = (difficulty) => {
     const filtered = difficulty === 'all' ? openings : openings.filter(o => o.difficulty === difficulty);
     
     document.getElementById('openingsList').innerHTML = filtered.map(renderOpeningCard).join('');
+};
+
+// Search openings by name
+window.searchOpenings = (query) => {
+    const openings = Object.values(chessOpenings);
+    const q = query.toLowerCase().trim();
+    if (!q) {
+        document.getElementById('openingsList').innerHTML = openings.map(renderOpeningCard).join('');
+        return;
+    }
+    const filtered = openings.filter(o => o.name.toLowerCase().includes(q));
+    document.getElementById('openingsList').innerHTML = filtered.length > 0
+        ? filtered.map(renderOpeningCard).join('')
+        : '<div style="text-align:center; color: rgba(255,255,255,0.4); padding: 30px;">No openings found matching "' + query + '"</div>';
 };
 
 // Close learn section

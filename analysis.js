@@ -68,7 +68,7 @@ class ChessAnalyzer {
             if (chess.in_draw()) legalCount = Math.min(legalCount, 5);
         } catch (e) { legalCount = 35; }
         const complexity = Math.min(2500, legalCount * 50) + Math.min(2000, pieceCount * 70) + Math.min(3000, tacticalCount * 60);
-        return Math.min(12000, Math.max(3000, complexity));
+        return Math.min(15000, Math.max(4000, complexity));
     }
 
     /** Move classification with game-phase-aware thresholds */
@@ -108,7 +108,7 @@ class ChessAnalyzer {
         return 'blunder';
     }
 
-    async evaluatePosition(fen, depth = 12) {
+    async evaluatePosition(fen, depth = 16) {
         let resolved = false;
         return new Promise((resolve) => {
             let timeout;
@@ -161,7 +161,7 @@ class ChessAnalyzer {
     }
 
     /** Find top N moves using Stockfish MultiPV (fixed depth) */
-    async findTopMoves(fen, numMoves = 3, depth = 15) {
+    async findTopMoves(fen, numMoves = 3, depth = 18) {
         let resolved = false;
         return new Promise((resolve) => {
             const topMoves = {};
@@ -403,7 +403,7 @@ class ChessAnalyzer {
         return (pp < -500) || (legalMoveCount <= 3 && pp <= -150);
     }
 
-    async findBestMove(fen, depth = 10) {
+    async findBestMove(fen, depth = 15) {
         let resolved = false;
         return new Promise((resolve) => {
             let timeout;
@@ -443,7 +443,7 @@ class ChessAnalyzer {
         return prom ? to + '=' + prom.toUpperCase() : to;
     }
 
-    async detectMissedCheckmate(fen, depth = 15) {
+    async detectMissedCheckmate(fen, depth = 18) {
         let resolved = false;
         return new Promise((resolve) => {
             let timeout;
@@ -534,7 +534,7 @@ class ChessAnalyzer {
         try {
             chess.move({ from: ba.from, to: ba.to });
             const ev = new ChessAnalyzer(null, stockfish);
-            const er = await ev.evaluatePosition(chess.fen(), 14);
+            const er = await ev.evaluatePosition(chess.fen(), 18);
             const score = er.type === 'mate' ? (er.value > 0 ? 10000 : -10000) : er.score;
             const stm = chess.fen().split(' ')[1];
             return move.color === 'w' ? (stm === 'b' ? -score : score) > -100 : (stm === 'b' ? -score : score) < 100;
