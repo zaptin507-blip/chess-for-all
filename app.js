@@ -1204,8 +1204,11 @@ class ChessGame {
 
         // Try NNUE engine first (requires SharedArrayBuffer support)
         if (window.NNUE_SUPPORTED && typeof window.Stockfish === 'function') {
+            let rawEngine;
             try {
-                const rawEngine = await window.Stockfish();
+                rawEngine = window.Stockfish();
+                // Wait for WASM engine to fully initialize before sending commands
+                await rawEngine.ready;
                 const engine = new NNUEWorkerAdapter(rawEngine);
 
                 // Proper UCI handshake: wait for uciok before sending options
@@ -1223,6 +1226,8 @@ class ChessGame {
                 return engine;
             } catch (error) {
                 console.warn('⚠️ NNUE init failed, falling back to classic Worker:', error);
+                // Clean up failed NNUE engine to prevent interference
+                try { rawEngine && rawEngine.terminate && rawEngine.terminate(); } catch (e) {}
             }
         }
         // Fallback: classic Worker-based Stockfish (single-threaded, no Contempt support)
@@ -1461,8 +1466,11 @@ class ChessGame {
 
         // Try NNUE engine first
         if (window.NNUE_SUPPORTED && typeof window.Stockfish === 'function') {
+            let rawEngine;
             try {
-                const rawEngine = await window.Stockfish();
+                rawEngine = window.Stockfish();
+                // Wait for WASM engine to fully initialize before sending commands
+                await rawEngine.ready;
                 const engine = new NNUEWorkerAdapter(rawEngine);
 
                 // Proper UCI handshake
@@ -1479,6 +1487,7 @@ class ChessGame {
                 return engine;
             } catch (error) {
                 console.warn('⚠️ NNUE analysis engine init failed, falling back:', error);
+                try { rawEngine && rawEngine.terminate && rawEngine.terminate(); } catch (e) {}
             }
         }
         // Fallback: classic Worker-based Stockfish
@@ -4258,14 +4267,21 @@ class ChessGame {
      */
     async _evalWithEngine(fen, depth = 16, timeoutMs) {
         let engine;
+        let raw;
         // Attempt NNUE first
         if (window.NNUE_SUPPORTED && typeof window.Stockfish === 'function') {
             try {
-                const raw = await window.Stockfish();
-                raw.postMessage('uci');
+                raw = window.Stockfish();
+                await raw.ready;
                 engine = new NNUEWorkerAdapter(raw);
+                engine.postMessage('uci');
+                await this._waitForUciMessage(engine, msg => msg === 'uciok', 5000);
+                engine.postMessage('isready');
+                await this._waitForUciMessage(engine, msg => msg === 'readyok', 5000);
             } catch (e) {
                 console.warn('⚠️ _evalWithEngine NNUE failed:', e);
+                try { raw && raw.terminate && raw.terminate(); } catch (_) {}
+                engine = null;
             }
         }
         // Fallback to classic Worker
@@ -4273,8 +4289,12 @@ class ChessGame {
             try {
                 engine = new Worker('stockfish.js');
                 engine.postMessage('uci');
+                await this._waitForUciMessage(engine, msg => msg === 'uciok', 5000);
+                engine.postMessage('isready');
+                await this._waitForUciMessage(engine, msg => msg === 'readyok', 5000);
             } catch (e) {
                 console.error('❌ _evalWithEngine classic Worker failed:', e);
+                try { engine && engine.terminate && engine.terminate(); } catch (_) {}
                 return 0;
             }
         }
