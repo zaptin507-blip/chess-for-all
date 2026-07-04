@@ -1307,6 +1307,12 @@ function generateOpeningBoard(fen, size = 200) {
     };
     const pieceSVG = window.chessGame && window.chessGame.pieceSVG ? window.chessGame.pieceSVG : null;
     
+    // Parse FEN components
+    const fenParts = fen.split(' ');
+    const boardFen = fenParts[0];
+    const activeColor = fenParts[1] || 'w';
+    const isBlackOpening = activeColor === 'b'; // Black to move = Black opening
+    
     // Read user's board theme preference
     const ss = window.safeStorage;
     const savedTheme = ss ? ss.get('boardTheme', 'green') : 'green';
@@ -1329,15 +1335,18 @@ function generateOpeningBoard(fen, size = 200) {
         if (ss) ss.set('pieceStyle', 'shadow');
     }
 
-    const rows = fen.split(' ')[0].split('/');
+    const rows = boardFen.split('/');
     let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">`;
     
     const squareSize = size / 8;
     
     for (let row = 0; row < 8; row++) {
         for (let col = 0; col < 8; col++) {
-            const x = col * squareSize;
-            const y = row * squareSize;
+            // Flip coordinates for Black openings
+            const drawRow = isBlackOpening ? 7 - row : row;
+            const drawCol = isBlackOpening ? 7 - col : col;
+            const x = drawCol * squareSize;
+            const y = drawRow * squareSize;
             const isLight = (row + col) % 2 === 0;
             
             svg += `<rect x="${x}" y="${y}" width="${squareSize}" height="${squareSize}" fill="${isLight ? theme.light : theme.dark}"/>`;
@@ -1350,8 +1359,10 @@ function generateOpeningBoard(fen, size = 200) {
             if (char >= '1' && char <= '8') {
                 col += parseInt(char);
             } else {
-                const x = col * squareSize;
-                const y = row * squareSize;
+                const drawRow = isBlackOpening ? 7 - row : row;
+                const drawCol = isBlackOpening ? 7 - col : col;
+                const x = drawCol * squareSize;
+                const y = drawRow * squareSize;
                 const pieceKey = pieceMap[char];
                 
                 if (pieceSVG && pieceSVG[pieceKey]) {
@@ -1766,11 +1777,12 @@ window.renderLearnSection = () => {
     
     let html = `
         <div style="padding: 20px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px;">
                 <div>
                     <h2 style="color: #fff; margin: 0 0 5px 0; font-size: 24px;">♟️ Chess Openings</h2>
                     <p style="color: rgba(255, 255, 255, 0.6); margin: 0; font-size: 14px;">Learn the most important openings in chess</p>
                 </div>
+                <button onclick="closeLearnSection()" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #fff; font-size: 14px; cursor: pointer; padding: 8px 16px; border-radius: 8px; font-weight: 600; transition: all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.15)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">← Back</button>
             </div>
 
             <div style="margin-bottom: 20px;">
@@ -1823,9 +1835,14 @@ window.searchOpenings = (query) => {
 window.closeLearnSection = () => {
     document.getElementById('learnSection').style.display = 'none';
     // Return to home screen
-    const homeSection = document.getElementById('homeSection');
-    if (homeSection) homeSection.style.display = 'block';
-    const container = document.querySelector('.container');
-    if (container) container.style.display = 'none';
+    if (window.chessGame) window.chessGame.startMenuMusic();
+    if (typeof showHomeSection === 'function') {
+        showHomeSection();
+    } else {
+        const homeSection = document.getElementById('homeSection');
+        if (homeSection) homeSection.style.display = 'block';
+        const container = document.querySelector('.container');
+        if (container) container.style.display = 'none';
+    }
 };
 

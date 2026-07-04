@@ -5836,11 +5836,18 @@ class ChessGame {
             // Hide profile page
             const profilePage = document.getElementById('profileStatsModal');
             if (profilePage) profilePage.style.display = 'none';
-            document.getElementById('learnSection').style.display = 'block';
+            const learnSection = document.getElementById('learnSection');
+            learnSection.style.display = 'block';
             // Render the openings
             if (window.renderLearnSection) {
                 window.renderLearnSection();
             }
+            // Add click-outside handler to close learn section
+            learnSection.onclick = function(e) {
+                if (e.target === learnSection) {
+                    window.closeLearnSection();
+                }
+            };
         };
         
         window.updateEngineElo = (value) => {
