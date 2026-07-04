@@ -142,6 +142,10 @@ class ChessGame {
         this.moveHistory = []; // Store all moves for analysis
         this.stockfishReady = false;
         
+        // Player color — MUST be 'w' or 'b'; defaults to White
+        this.playerColor = 'w';
+        this.currentTurn = null; // 'player' or 'bot' — set when game starts
+        
         // Timer variables
         this.timerMode = null; // 'bullet', 'blitz', or 'rapid'
         
@@ -334,6 +338,11 @@ class ChessGame {
         this.analysisEngine = null; // Will initialize only when needed
         this.analyzer = null;
         this._isImportedGame = false;
+        
+        // Council Mode (Grandmaster Council)
+        this.councilMode = false;
+        this._councilResults = null;
+        this._councilMove = null;
         
         this.init();
     }
@@ -1128,7 +1137,7 @@ class ChessGame {
         
         this.stockfish.addEventListener('message', listener);
         this.stockfish.postMessage(`position fen ${fen}`);
-        this.stockfish.postMessage('go depth 10');
+        this.stockfish.postMessage('go movetime 1200');
     }
 
     displayWinProbability() {
@@ -1225,25 +1234,61 @@ class ChessGame {
         }
     }
 
+    /** Wait for a specific UCI message from an engine (e.g. 'uciok', 'readyok') */
+    _waitForUciMessage(engine, predicate, timeoutMs = 10000) {
+        return new Promise((resolve, reject) => {
+            const timer = setTimeout(() => {
+                engine.removeEventListener('message', listener);
+                reject(new Error(`Timeout waiting for UCI response (${timeoutMs}ms)`));
+            }, timeoutMs);
+            const listener = (event) => {
+                const msg = event.data;
+                if (predicate(msg)) {
+                    clearTimeout(timer);
+                    engine.removeEventListener('message', listener);
+                    resolve(msg);
+                }
+            };
+            engine.addEventListener('message', listener);
+        });
+    }
+
     async initStockfish() {
+        const numThreads = Math.max(2, Math.min(8, (navigator.hardwareConcurrency || 4)));
+        const hashMB = 256;
+
         // Try NNUE engine first (requires SharedArrayBuffer support)
         if (window.NNUE_SUPPORTED && typeof window.Stockfish === 'function') {
             try {
                 const rawEngine = await window.Stockfish();
-                rawEngine.postMessage('uci');
-                // Don't set Skill Level here - it will be set dynamically based on ELO
-                rawEngine.postMessage('setoption name Hash value 128');
-                console.log('✅ NNUE Stockfish engine initialized');
-                return new NNUEWorkerAdapter(rawEngine);
+                const engine = new NNUEWorkerAdapter(rawEngine);
+
+                // Proper UCI handshake: wait for uciok before sending options
+                engine.postMessage('uci');
+                await this._waitForUciMessage(engine, msg => msg === 'uciok', 8000);
+
+                // Max-strength configuration for NNUE Stockfish
+                engine.postMessage(`setoption name Threads value ${numThreads}`);
+                engine.postMessage(`setoption name Hash value ${hashMB}`);
+                engine.postMessage(`setoption name Contempt value ${this.contemptValue}`);
+                engine.postMessage('isready');
+                await this._waitForUciMessage(engine, msg => msg === 'readyok', 8000);
+
+                console.log(`✅ NNUE Stockfish initialized (Threads=${numThreads}, Hash=${hashMB}MB, Contempt=${this.contemptValue})`);
+                return engine;
             } catch (error) {
                 console.warn('⚠️ NNUE init failed, falling back to classic Worker:', error);
             }
         }
-        // Fallback: classic Worker-based Stockfish
+        // Fallback: classic Worker-based Stockfish (single-threaded, no Contempt support)
         try {
             const stockfish = new Worker('stockfish.js');
             stockfish.postMessage('uci');
-            stockfish.postMessage('setoption name Hash value 128');
+            await this._waitForUciMessage(stockfish, msg => msg === 'uciok', 8000);
+            stockfish.postMessage(`setoption name Hash value ${hashMB}`);
+            stockfish.postMessage('isready');
+            await this._waitForUciMessage(stockfish, msg => msg === 'readyok', 8000);
+            console.log(`✅ Classic Stockfish initialized (Hash=${hashMB}MB)`);
             return stockfish;
         } catch (error) {
             console.error('❌ Failed to initialize Stockfish:', error);
@@ -1257,9 +1302,10 @@ class ChessGame {
             const reckless = new RecklessClient();
             await reckless.connect('ws://localhost:9001');
             reckless.postMessage('uci');
+            await this._waitForUciMessage(reckless, msg => msg === 'uciok', 8000);
             reckless.postMessage(`setoption name Contempt value ${this.contemptValue}`);
-            // Give the engine a moment to send uciok
-            await new Promise(r => setTimeout(r, 100));
+            reckless.postMessage('isready');
+            await this._waitForUciMessage(reckless, msg => msg === 'readyok', 8000);
             console.log('✅ Reckless engine initialized');
             this.recklessEngine = reckless;
         } catch (e) {
@@ -1276,14 +1322,19 @@ class ChessGame {
         }
     }
 
-    /** Apply Contempt value to Reckless engine (Stockfish 10.0.2 does not support Contempt) */
+    /** Apply Contempt value to all engines that support it (NNUE Stockfish + Reckless) */
     _setContempt(value) {
         this.contemptValue = value;
         const cmd = `setoption name Contempt value ${value}`;
+        // NNUE Stockfish (WASM build) supports Contempt
+        if (this.stockfish && this.stockfish.postMessage) {
+            try { this.stockfish.postMessage(cmd); } catch (e) {}
+        }
+        // Reckless engine also supports Contempt
         if (this.recklessEngine && typeof this.recklessEngine.postMessage === 'function') {
             try { this.recklessEngine.postMessage(cmd); } catch (e) {}
         }
-        console.log(`⚡ Contempt set to ${value} (Reckless only)`);
+        console.log(`⚡ Contempt set to ${value} (NNUE + Reckless)`);
     }
 
     _getBotEngine() {
@@ -1297,17 +1348,121 @@ class ChessGame {
         return this.stockfish;
     }
 
+    /** Grandmaster Council: query all engines and vote on the best move */
+    async consultationBestMove(fen, callback) {
+        const engines = [
+            { engine: this.stockfish,       name: 'Stockfish NNUE',  weight: 3, icon: '🧠' },
+            { engine: this.analysisEngine,  name: 'Stockfish Classic', weight: 2, icon: '♟️' },
+            { engine: this.recklessEngine,  name: 'Reckless',        weight: 1, icon: '⚡' }
+        ];
+
+        // Filter out unavailable engines
+        const available = engines.filter(e => e.engine);
+        if (available.length === 0) {
+            callback(null);
+            return;
+        }
+
+        // Send FEN to all engines in parallel
+        const queries = available.map(e => this._queryEngine(e.engine, fen));
+        const results = await Promise.all(queries);
+
+        // Build council results
+        this._councilResults = available.map((e, i) => ({
+            name: e.name,
+            icon: e.icon,
+            move: results[i].move,
+            score: results[i].score,
+            scoreDisplay: results[i].scoreDisplay,
+            weight: e.weight
+        }));
+
+        // Weighted vote: tally votes by move with weights
+        const voteTally = {};
+        let topMove = null, topWeight = 0;
+        for (const r of this._councilResults) {
+            if (!r.move) continue;
+            voteTally[r.move] = (voteTally[r.move] || 0) + r.weight;
+            if (voteTally[r.move] > topWeight) {
+                topWeight = voteTally[r.move];
+                topMove = r.move;
+            }
+        }
+
+        // Mark the chosen move in results
+        for (const r of this._councilResults) {
+            r.chosen = (r.move === topMove);
+        }
+
+        this._councilMove = topMove;
+        this.showCouncilPanel();
+
+        // Convert UCI to coordinate format
+        const from = topMove.substring(0, 2);
+        const to = topMove.substring(2, 4);
+        const promotion = topMove.length > 4 ? topMove[4] : 'q';
+        callback({ from, to, promotion });
+    }
+
+    /** Query a single engine for bestmove + score (used by Grandmaster Council) */
+    _queryEngine(engine, fen) {
+        return new Promise((resolve) => {
+            let bestScore = 0, bestMove = null, scoreDisplay = '0.0';
+            const timeout = setTimeout(() => {
+                engine.removeEventListener('message', listener);
+                resolve({ move: bestMove, score: bestScore, scoreDisplay });
+            }, 10000);
+
+            const listener = (event) => {
+                const msg = event.data;
+                const cpMatch = msg.match(/score cp (-?\d+)/);
+                const mateMatch = msg.match(/score mate (-?\d+)/);
+                if (cpMatch) {
+                    bestScore = parseInt(cpMatch[1]);
+                    scoreDisplay = (bestScore / 100).toFixed(1);
+                }
+                if (mateMatch) {
+                    const mateIn = parseInt(mateMatch[1]);
+                    bestScore = mateIn > 0 ? 10000 : -10000;
+                    scoreDisplay = 'M' + mateIn;
+                }
+                const bestMoveMatch = msg.match(/^bestmove\s+(\S+)/);
+                if (bestMoveMatch && bestMoveMatch[1] !== '(none)') {
+                    clearTimeout(timeout);
+                    engine.removeEventListener('message', listener);
+                    bestMove = bestMoveMatch[1];
+                    resolve({ move: bestMove, score: bestScore, scoreDisplay });
+                }
+            };
+            engine.addEventListener('message', listener);
+            engine.postMessage('stop');
+            engine.postMessage(`position fen ${fen}`);
+            engine.postMessage('go movetime 2500');
+        });
+    }
+
     async initAnalysisEngine() {
+        const numThreads = Math.max(2, Math.min(8, (navigator.hardwareConcurrency || 4)));
+        const hashMB = 256;
+
         // Try NNUE engine first
         if (window.NNUE_SUPPORTED && typeof window.Stockfish === 'function') {
             try {
                 const rawEngine = await window.Stockfish();
-                rawEngine.postMessage('uci');
-                rawEngine.postMessage('isready');
-                rawEngine.postMessage('setoption name Skill Level value 20');
-                rawEngine.postMessage('setoption name Hash value 128');
-                console.log('✅ NNUE analysis engine initialized');
-                return new NNUEWorkerAdapter(rawEngine);
+                const engine = new NNUEWorkerAdapter(rawEngine);
+
+                // Proper UCI handshake
+                engine.postMessage('uci');
+                await this._waitForUciMessage(engine, msg => msg === 'uciok', 8000);
+
+                // Full-strength analysis config (no Skill Level limiting)
+                engine.postMessage(`setoption name Threads value ${numThreads}`);
+                engine.postMessage(`setoption name Hash value ${hashMB}`);
+                engine.postMessage('isready');
+                await this._waitForUciMessage(engine, msg => msg === 'readyok', 8000);
+
+                console.log(`✅ NNUE analysis engine initialized (Threads=${numThreads}, Hash=${hashMB}MB)`);
+                return engine;
             } catch (error) {
                 console.warn('⚠️ NNUE analysis engine init failed, falling back:', error);
             }
@@ -1316,9 +1471,11 @@ class ChessGame {
         try {
             const analysisEngine = new Worker('stockfish.js');
             analysisEngine.postMessage('uci');
+            await this._waitForUciMessage(analysisEngine, msg => msg === 'uciok', 8000);
+            analysisEngine.postMessage(`setoption name Hash value ${hashMB}`);
             analysisEngine.postMessage('isready');
-            analysisEngine.postMessage('setoption name Skill Level value 20');
-            analysisEngine.postMessage('setoption name Hash value 128');
+            await this._waitForUciMessage(analysisEngine, msg => msg === 'readyok', 8000);
+            console.log(`✅ Classic analysis engine initialized (Hash=${hashMB}MB)`);
             return analysisEngine;
         } catch (error) {
             console.error('Failed to initialize analysis engine:', error);
@@ -2115,6 +2272,12 @@ class ChessGame {
         
         this.gameStarted = true;
         this._lastBotMessage = null; // Reset chat dedup for new game
+        
+        // Reset council mode state for new game
+        const councilPanel = document.getElementById('councilPanel');
+        if (councilPanel) councilPanel.style.display = 'none';
+        this._councilResults = null;
+        this._councilMove = null;
         
         // Hide any open sections that could overlay the game board
         const homeSection = document.getElementById('homeSection');
@@ -3385,6 +3548,28 @@ class ChessGame {
         
         const fen = this.chess.fen();
         
+        // Grandmaster Council Mode: query all engines and vote
+        if (this.councilMode && (this.selectedBot === 'god' || this.selectedBot === 'mrstong')) {
+            this.statusDisplay.textContent = 'Grandmaster Council deliberating...';
+            this.showCouncilPanel('thinking');
+            await this.consultationBestMove(fen, (result) => {
+                if (!result) {
+                    this.councilMode = false;
+                    this.makeBotMove();
+                    return;
+                }
+                let finalFrom = result.from, finalTo = result.to, finalPromotion = result.promotion;
+                if (this.gameMode === 'practice' && this._blunderSchedule && this._blunderSchedule.has(this._botMoveCount)) {
+                    const blunderUCI = this._makeBlunderMove(result.from + result.to + (result.promotion !== 'q' ? result.promotion : ''));
+                    finalFrom = blunderUCI.substring(0, 2);
+                    finalTo = blunderUCI.substring(2, 4);
+                    finalPromotion = blunderUCI.length > 4 ? blunderUCI[4] : 'q';
+                }
+                this._executeBotMove(finalFrom, finalTo, finalPromotion);
+            });
+            return;
+        }
+        
         const listener = (event) => {
             const match = event.data.match(/^bestmove\s+(\S+)/);
             if (match) {
@@ -3411,40 +3596,7 @@ class ChessGame {
                 const to = finalMoveUCI.substring(2, 4);
                 const promotion = finalMoveUCI.length > 4 ? finalMoveUCI[4] : 'q';
 
-                const fenBefore = this.chess.fen();
-                const move = this.chess.move({ from, to, promotion });
-                if (move) {
-                    // Play sound effect for bot's move
-                    this.playSound(move);
-                    
-                    this.moveHistory.push({
-                        move: move,
-                        fenBefore: fenBefore,
-                        fenAfter: this.chess.fen()
-                    });
-                    
-                    this.lastMove = move;
-                    this.renderBoard();
-                    this.updateMoveList();
-                    this.updateStatus();
-                    
-                    // Switch timer to player
-                    this.switchTurn();
-                    
-                    // Bot gloats occasionally (only for THE ONE ABOVE ALL)
-                    if (this.selectedBot === 'god' && Math.random() < 0.25) {
-                        setTimeout(() => {
-                            const gloats = [
-                                "Did you see that? Of course you didn't. You're still thinking three moves behind.",
-                                "Another perfect move. I do this for a living, you know.",
-                                "I've been training for millennia. You've been playing for minutes. Do the math.",
-                                "Checkmate is inevitable. But please, continue entertaining me.",
-                                "Your position weakens with each move. Mine strengthens. Guess how this ends."
-                            ];
-                            this.addBotMessage(gloats[Math.floor(Math.random() * gloats.length)]);
-                        }, 800);
-                    }
-                }
+                this._executeBotMove(from, to, promotion);
             }
         };
 
@@ -3455,8 +3607,8 @@ class ChessGame {
         const isReckless = engine === this.recklessEngine;
         
         if (isReckless) {
-            // Reckless is stronger (~3833 ELO), use full depth when bot is winning
-            engine.postMessage('go depth 18');
+            // Reckless is stronger (~3833 ELO), use time-based search for deeper analysis
+            engine.postMessage('go movetime 3000');
         } else if (this.gameMode === 'practice' || this.selectedBot === 'mrstong') {
             // Stockfish: Chess.com-style difficulty system: depth control + interval blunder schedule.
             // Used by: Practice mode (variable ELO), Mrs. Tong (fixed intermediate ~1400).
@@ -3484,13 +3636,13 @@ class ChessGame {
             } else if (effectiveElo <= 1600) {
                 depth = 8;
             } else if (effectiveElo <= 1800) {
-                depth = 10;
+                depth = 12;
             } else if (effectiveElo <= 2000) {
-                depth = 14;
-            } else if (effectiveElo <= 2400) {
                 depth = 16;
+            } else if (effectiveElo <= 2400) {
+                depth = 20;
             } else {
-                depth = 18;
+                depth = 24;
             }
             
             // Ensure Skill Level is set for this move (safety net)
@@ -3498,11 +3650,11 @@ class ChessGame {
             engine.postMessage(`setoption name Skill Level value ${skillLevel}`);
             engine.postMessage(`go depth ${depth}`);
         } else {
-            // Boss battle mode: Use fixed depth per bot
-            // THE ONE ABOVE ALL: depth 16 (expert level)
-            // The Tester: depth 8 (neutral level for rating)
-            const depth = this.selectedBot === 'tester' ? 8 : 16;
-            engine.postMessage(`go depth ${depth}`);
+            // Boss battle mode: Use movetime-based search for maximum strength
+            // THE ONE ABOVE ALL: 3s think time (expert level)
+            // The Tester: 1.5s think time (neutral level for rating)
+            const movetime = this.selectedBot === 'tester' ? 1500 : 3000;
+            engine.postMessage(`go movetime ${movetime}`);
         }
         
         // Add timeout check - if no response in 30 seconds, log error
@@ -3511,6 +3663,108 @@ class ChessGame {
                 console.warn('⚠️ Engine has not responded in 30 seconds!');
             }
         }, 30000);
+    }
+
+    /** Execute a bot move on the board (shared by normal and council paths) */
+    _executeBotMove(from, to, promotion) {
+        const fenBefore = this.chess.fen();
+        const move = this.chess.move({ from, to, promotion });
+        if (move) {
+            this.playSound(move);
+            this.moveHistory.push({
+                move: move,
+                fenBefore: fenBefore,
+                fenAfter: this.chess.fen()
+            });
+            this.lastMove = move;
+            this.renderBoard();
+            this.updateMoveList();
+            this.updateStatus();
+            this.switchTurn();
+
+            if (this.selectedBot === 'god' && Math.random() < 0.25) {
+                setTimeout(() => {
+                    const gloats = [
+                        "Did you see that? Of course you didn't.",
+                        "Another perfect move.",
+                        "I've been training for millennia.",
+                        "Checkmate is inevitable.",
+                        "Your position weakens with each move."
+                    ];
+                    this.addBotMessage(gloats[Math.floor(Math.random() * gloats.length)]);
+                }, 800);
+            }
+        }
+    }
+
+    /** Show or update the Grandmaster Council panel below the board */
+    showCouncilPanel(state) {
+        const panel = document.getElementById('councilPanel');
+        if (!panel) return;
+
+        if (state === 'thinking') {
+            panel.innerHTML = `
+                <div class="council-header">
+                    <span class="council-title">Grandmaster Council</span>
+                    <span class="council-status thinking">Deliberating...</span>
+                </div>
+                <div class="council-engines">
+                    <div class="council-engine thinking">
+                        <span class="council-engine-icon">⏳</span>
+                        <span class="council-engine-name">Stockfish NNUE</span>
+                        <span class="council-engine-think">Analyzing...</span>
+                    </div>
+                    <div class="council-engine thinking">
+                        <span class="council-engine-icon">⏳</span>
+                        <span class="council-engine-name">Stockfish Classic</span>
+                        <span class="council-engine-think">Analyzing...</span>
+                    </div>
+                    <div class="council-engine thinking">
+                        <span class="council-engine-icon">⏳</span>
+                        <span class="council-engine-name">Reckless</span>
+                        <span class="council-engine-think">Analyzing...</span>
+                    </div>
+                </div>
+            `;
+            panel.style.display = 'block';
+            return;
+        }
+
+        if (!this._councilResults || this._councilResults.length === 0) {
+            panel.style.display = 'none';
+            return;
+        }
+
+        panel.innerHTML = `
+            <div class="council-header">
+                <span class="council-title">Grandmaster Council</span>
+                <span class="council-status decided">Verdict reached</span>
+            </div>
+            <div class="council-engines">
+                ${this._councilResults.map(r => `
+                    <div class="council-engine${r.chosen ? ' chosen' : ''}">
+                        <span class="council-engine-icon">${r.icon}</span>
+                        <span class="council-engine-name">${r.name}</span>
+                        <span class="council-engine-move">${this._uciToSan(r.move)}</span>
+                        <span class="council-engine-score">${r.scoreDisplay}</span>
+                        ${r.chosen ? '<span class="council-chosen-badge">✓ Chosen</span>' : ''}
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        panel.style.display = 'block';
+    }
+
+    /** Convert UCI move to algebraic notation for display */
+    _uciToSan(uci) {
+        if (!uci || uci.length < 4) return uci;
+        try {
+            const tempChess = new Chess(this.chess.fen());
+            const m = tempChess.move({ from: uci.substring(0, 2), to: uci.substring(2, 4), promotion: uci.length > 4 ? uci[4] : undefined });
+            return m ? m.san : uci.substring(2, 4);
+        } catch (e) {
+            return uci.substring(2, 4);
+        }
     }
 
     analyzePlayerMove(playerMoveSAN, fenBefore) {
@@ -3901,7 +4155,7 @@ class ChessGame {
      * @param {number} [timeoutMs]  Timeout in ms (omit for no timeout — use with care)
      * @returns {Promise<number>}  Centipawn score (positive = White advantage)
      */
-    async _evalWithEngine(fen, depth = 12, timeoutMs) {
+    async _evalWithEngine(fen, depth = 16, timeoutMs) {
         let engine;
         // Attempt NNUE first
         if (window.NNUE_SUPPORTED && typeof window.Stockfish === 'function') {
@@ -3974,12 +4228,12 @@ class ChessGame {
 
     // Quick evaluation for forced move detection (lower depth for speed)
     async getQuickEvaluation(fen) {
-        return this._evalWithEngine(fen, 12, 2000);
+        return this._evalWithEngine(fen, 16, 2000);
     }
 
     // Helper function to get position evaluation
     async getPositionEvaluation(fen) {
-        return this._evalWithEngine(fen, 15, 5000);
+        return this._evalWithEngine(fen, 18, 5000);
     }
     
     evaluatePosition(engine, fen, playerMoveSAN) {
@@ -3988,7 +4242,7 @@ class ChessGame {
             
             // Get best move and evaluation
             engine.postMessage(`position fen ${fen}`);
-            engine.postMessage('go depth 18');
+            engine.postMessage('go depth 20');
             
             let bestScore = 0;
             let bestMoveUCI = '';
@@ -4025,7 +4279,7 @@ class ChessGame {
                         const fenAfter = tempChess.fen();
                         
                         engine.postMessage(`position fen ${fenAfter}`);
-                        engine.postMessage('go depth 18');
+                        engine.postMessage('go depth 20');
                         
                         const afterListener = (event2) => {
                             const afterCpMatch = event2.data.match(/cp\s+(-?\d+)/);
@@ -4486,6 +4740,23 @@ class ChessGame {
     }
 
     async handleGameOver() {
+        // ── Guard: ensure playerColor is valid before determining result ──
+        if (!this.playerColor || (this.playerColor !== 'w' && this.playerColor !== 'b')) {
+            console.warn('[GameOver] ⚠️ Invalid playerColor:', this.playerColor, '— defaulting to w');
+            this.playerColor = 'w';
+        }
+        
+        console.log('[GameOver] State:', {
+            playerColor: this.playerColor,
+            turn: this.chess.turn(),
+            inCheckmate: this.chess.in_checkmate(),
+            inDraw: this.chess.in_draw(),
+            inStalemate: this.chess.in_stalemate(),
+            selectedBot: this.selectedBot,
+            gameMode: this.gameMode,
+            moveCount: this.moveHistory.length
+        });
+        
         // If online game, write result to Firebase
         if (this.isOnlineGame && this.onlineGameRef) {
             let winner, method;
@@ -4555,12 +4826,13 @@ class ChessGame {
                     message += ' Better luck next time!';
                 }
             }
-        } else if (this.chess.in_draw()) {
-            title = 'Draw';
-            message = 'The game ended in a draw.';
         } else if (this.chess.in_stalemate()) {
             title = 'Stalemate';
             message = 'The game ended in a stalemate.';
+        } else if (this.chess.in_draw()) {
+            // Other draws: insufficient material, threefold repetition, 50-move rule
+            title = 'Draw';
+            message = 'The game ended in a draw.';
         }
 
         const modal = document.getElementById('gameOverModal');

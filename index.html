@@ -38,6 +38,9 @@
                 </div>
             </div>
             
+            <!-- Grandmaster Council Panel -->
+            <div id="councilPanel" class="council-panel" style="display: none;"></div>
+            
             <div class="player-info bottom">
                 <div class="avatar player-avatar">👤</div>
                 <div class="player-details">
@@ -107,6 +110,18 @@
                             <div class="bot-option-desc">🔢 Wrong math, right moves</div>
                         </div>
                     </div>
+                </div>
+                
+                <!-- Council Mode Toggle -->
+                <div style="margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; background: rgba(118, 150, 86, 0.08); border: 1px solid rgba(118, 150, 86, 0.2); border-radius: 10px; padding: 12px 14px;">
+                    <div>
+                        <div style="color: #fff; font-size: 13px; font-weight: 600;">🧠 Grandmaster Council</div>
+                        <div style="color: rgba(255,255,255,0.45); font-size: 11px; margin-top: 2px;">All engines vote on moves</div>
+                    </div>
+                    <label class="council-toggle-switch">
+                        <input type="checkbox" id="councilModeToggle" onchange="if(window.chessGame) window.chessGame.councilMode = this.checked">
+                        <span class="council-toggle-slider"></span>
+                    </label>
                 </div>
                 
                 <!-- Time Control -->

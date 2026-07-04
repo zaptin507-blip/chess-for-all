@@ -270,6 +270,159 @@ body::after {
     text-shadow: 0 1px 2px rgba(0,0,0,0.5);
 }
 
+/* ===== Grandmaster Council Panel ===== */
+.council-panel {
+    width: 100%;
+    max-width: 520px;
+    margin: 12px auto 0;
+    background: linear-gradient(135deg, rgba(30, 30, 30, 0.95), rgba(20, 20, 20, 0.95));
+    border: 1px solid rgba(118, 150, 86, 0.25);
+    border-radius: 12px;
+    padding: 14px 18px;
+    animation: councilSlideIn 0.35s ease-out;
+}
+@keyframes councilSlideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.council-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+.council-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+}
+.council-status {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+}
+.council-status.thinking {
+    background: rgba(255, 200, 50, 0.15);
+    color: #f0c040;
+}
+.council-status.decided {
+    background: rgba(118, 150, 86, 0.2);
+    color: #8ab45e;
+}
+.council-engines {
+    display: flex;
+    gap: 8px;
+}
+.council-engine {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 10px 8px;
+    text-align: center;
+    transition: all 0.25s ease;
+    position: relative;
+}
+.council-engine.chosen {
+    border-color: rgba(118, 150, 86, 0.5);
+    background: rgba(118, 150, 86, 0.12);
+    box-shadow: 0 0 14px rgba(118, 150, 86, 0.15);
+}
+.council-engine.thinking {
+    animation: councilPulse 1.2s ease-in-out infinite;
+}
+@keyframes councilPulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+}
+.council-engine-icon {
+    display: block;
+    font-size: 22px;
+    margin-bottom: 4px;
+}
+.council-engine-name {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.55);
+    margin-bottom: 4px;
+}
+.council-engine.chosen .council-engine-name {
+    color: rgba(255, 255, 255, 0.85);
+}
+.council-engine-move {
+    display: block;
+    font-size: 16px;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 2px;
+}
+.council-engine-score {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.55);
+}
+.council-engine.chosen .council-engine-score {
+    color: #8ab45e;
+}
+.council-engine-think {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.3);
+}
+.council-chosen-badge {
+    position: absolute;
+    top: -6px;
+    right: -4px;
+    background: #769656;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    white-space: nowrap;
+}
+
+/* ===== Council Mode Toggle Switch ===== */
+.council-toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+}
+.council-toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.council-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 24px;
+    transition: 0.3s;
+}
+.council-toggle-slider::before {
+    content: '';
+    position: absolute;
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: 0.3s;
+}
+.council-toggle-switch input:checked + .council-toggle-slider {
+    background: #769656;
+}
+.council-toggle-switch input:checked + .council-toggle-slider::before {
+    transform: translateX(20px);
+}
+
 .ranks-left {
     grid-column: 1;
     grid-row: 1;
