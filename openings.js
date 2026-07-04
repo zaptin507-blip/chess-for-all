@@ -1299,7 +1299,7 @@ const chessOpenings = {
 };
 
 // Generate opening board image as SVG
-function generateOpeningBoard(fen, size = 200) {
+function generateOpeningBoard(fen, size = 200, category = '') {
     // Map FEN piece chars to chess.com-style SVG piece keys
     const pieceMap = {
         'K': 'wK', 'Q': 'wQ', 'R': 'wR', 'B': 'wB', 'N': 'wN', 'P': 'wP',
@@ -1310,8 +1310,11 @@ function generateOpeningBoard(fen, size = 200) {
     // Parse FEN components
     const fenParts = fen.split(' ');
     const boardFen = fenParts[0];
-    const activeColor = fenParts[1] || 'w';
-    const isBlackOpening = activeColor === 'b'; // Black to move = Black opening
+    
+    // Flip board ONLY for Black defense openings (Semi-Open, Indian, etc.)
+    // NOT for White openings (Open Games, Closed Games) even if Black is to move
+    const blackDefenseCategories = ['Semi-Open Games', 'Indian Defenses', 'Semi-Closed Games'];
+    const isBlackDefense = blackDefenseCategories.includes(category);
     
     // Read user's board theme preference
     const ss = window.safeStorage;
@@ -1342,9 +1345,9 @@ function generateOpeningBoard(fen, size = 200) {
     
     for (let row = 0; row < 8; row++) {
         for (let col = 0; col < 8; col++) {
-            // Flip coordinates for Black openings
-            const drawRow = isBlackOpening ? 7 - row : row;
-            const drawCol = isBlackOpening ? 7 - col : col;
+            // Flip coordinates for Black defense openings
+            const drawRow = isBlackDefense ? 7 - row : row;
+            const drawCol = isBlackDefense ? 7 - col : col;
             const x = drawCol * squareSize;
             const y = drawRow * squareSize;
             const isLight = (row + col) % 2 === 0;
@@ -1359,8 +1362,8 @@ function generateOpeningBoard(fen, size = 200) {
             if (char >= '1' && char <= '8') {
                 col += parseInt(char);
             } else {
-                const drawRow = isBlackOpening ? 7 - row : row;
-                const drawCol = isBlackOpening ? 7 - col : col;
+                const drawRow = isBlackDefense ? 7 - row : row;
+                const drawCol = isBlackDefense ? 7 - col : col;
                 const x = drawCol * squareSize;
                 const y = drawRow * squareSize;
                 const pieceKey = pieceMap[char];
@@ -1427,7 +1430,7 @@ function generateOpeningBoard(fen, size = 200) {
 
 // Render opening card
 function renderOpeningCard(opening) {
-    const boardSvg = generateOpeningBoard(opening.finalPosition, 150);
+    const boardSvg = generateOpeningBoard(opening.finalPosition, 150, opening.category);
     const difficultyColor = opening.difficulty === "beginner" ? '#4CAF50' : 
                            opening.difficulty === "intermediate" ? '#FF9800' : '#f44336';
     
@@ -1484,7 +1487,7 @@ window.showOpeningDetail = (openingId) => {
     modal.id = 'openingDetailModal';
     modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.9); z-index: 10000; display: flex; justify-content: center; align-items: center; padding: 20px;';
     
-    const boardSvg = generateOpeningBoard(opening.finalPosition, 300);
+    const boardSvg = generateOpeningBoard(opening.finalPosition, 300, opening.category);
     const difficultyColor = opening.difficulty === "beginner" ? '#4CAF50' : 
                            opening.difficulty === "intermediate" ? '#FF9800' : '#f44336';
 

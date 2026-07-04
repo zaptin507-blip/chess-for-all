@@ -1108,6 +1108,12 @@ class ChessGame {
     }
 
     updateWinProbability() {
+        // Completely hide eval bar for online games (real opponents)
+        if (this.isOnlineGame) {
+            const container = document.getElementById('evalBarContainer');
+            if (container) container.classList.remove('visible');
+            return;
+        }
         // Quick evaluation to update probabilities
         if (!this.stockfish) return;
         
@@ -1129,8 +1135,10 @@ class ChessGame {
             if (message.startsWith('bestmove')) {
                 this.stockfish.removeEventListener('message', listener);
                 
-                // Update eval bar
+                // Update win probability
                 this.winProbability = this.calculateWinProbability(evalScore);
+                
+                // Bot games: show only eval value text (not the bar fill)
                 this.updateEvalBar(evalScore);
             }
         };
@@ -1146,36 +1154,21 @@ class ChessGame {
         const value = document.getElementById('evalBarValue');
         if (!container || !fill || !value) return;
         
-        // Show the bar
+        // Show container but hide the bar fill (keep only value text for bot games)
         container.classList.add('visible');
-        
-        // Convert centipawn score to a probability for White (0-1)
-        // evalScore positive = white advantage, negative = black advantage
-        const clampedEval = Math.max(-1000, Math.min(1000, evalScore));
-        const whiteProb = 1 / (1 + Math.exp(-0.007 * clampedEval));
-        const fillPercent = whiteProb * 100;
-        
-        // Fill from bottom up: 0% = black crushing, 50% = equal, 100% = white crushing
-        fill.style.height = fillPercent + '%';
-        
-        // Color gradient based on advantage
-        if (evalScore > 50) {
-            fill.style.background = 'linear-gradient(to top, #1a1a1a 0%, #f0f0f0 100%)';
-        } else if (evalScore < -50) {
-            fill.style.background = 'linear-gradient(to top, #1a1a1a 0%, #f0f0f0 100%)';
-        } else {
-            fill.style.background = 'linear-gradient(to top, #555 0%, #bbb 100%)';
-        }
+        fill.style.display = 'none';
         
         // Format the value text
         if (Math.abs(evalScore) >= 10000) {
             // Mate score
             const mateIn = evalScore > 0 ? Math.ceil((20000 - evalScore) / 2) : Math.ceil((20000 + evalScore) / 2);
             value.textContent = evalScore > 0 ? `M${mateIn}` : `-M${mateIn}`;
+            value.style.color = evalScore > 0 ? '#f0f0f0' : '#1a1a1a';
         } else {
             const absCP = Math.abs(evalScore / 100);
             const sign = evalScore >= 0 ? '+' : '-';
             value.textContent = evalScore === 0 ? '0.0' : `${sign}${absCP.toFixed(1)}`;
+            value.style.color = evalScore >= 0 ? '#f0f0f0' : '#1a1a1a';
         }
     }
 
@@ -1397,13 +1390,16 @@ class ChessGame {
         }));
 
         // Weighted vote: tally votes by move with weights
+        // Tiebreaker: when two moves have equal weight, higher eval score wins
         const voteTally = {};
-        let topMove = null, topWeight = 0;
+        let topMove = null, topWeight = 0, topScore = -Infinity;
         for (const r of this._councilResults) {
             if (!r.move) continue;
             voteTally[r.move] = (voteTally[r.move] || 0) + r.weight;
-            if (voteTally[r.move] > topWeight) {
-                topWeight = voteTally[r.move];
+            const w = voteTally[r.move];
+            if (w > topWeight || (w === topWeight && r.score > topScore)) {
+                topWeight = w;
+                topScore = r.score;
                 topMove = r.move;
             }
         }
@@ -1679,6 +1675,10 @@ class ChessGame {
         this.playerColor = playerColor;
         this.onlineOpponent = null;
         this._isWaiting = false;
+
+        // Hide eval bar for online games
+        const evalContainer = document.getElementById('evalBarContainer');
+        if (evalContainer) evalContainer.classList.remove('visible');
 
         // Show draw button during online games
         const drawBtn = document.getElementById('drawBtn');
@@ -4858,6 +4858,9 @@ class ChessGame {
         
         // Update turn indicator
         this.updateTurnIndicator();
+        
+        // Update nav buttons (chess.com style)
+        this.updateNavButtons();
     }
 
     async handleGameOver() {
@@ -5060,26 +5063,30 @@ class ChessGame {
      */
     showCheckmateEffect() {
         const board = this.chess.board();
-        let losingSquare = null;
-        let winningSquare = null;
+        let checkmatedSquare = null;  // King that is checkmated (its side to move)
+        let winningSquare = null;    // King that delivered checkmate
+        
+        // The side whose turn it is (in checkmate) is the LOSING side
+        const losingColor = this.chess.turn();
+        const winningColor = losingColor === 'w' ? 'b' : 'w';
         
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const piece = board[row][col];
                 if (piece && piece.type === 'k') {
                     const sq = String.fromCharCode(97 + col) + (8 - row);
-                    if (piece.color === this.playerColor) {
+                    if (piece.color === losingColor) {
+                        checkmatedSquare = sq;
+                    } else if (piece.color === winningColor) {
                         winningSquare = sq;
-                    } else {
-                        losingSquare = sq;
                     }
                 }
             }
         }
         
-        // Overlay on losing king (checkmated)
-        if (losingSquare) {
-            const sqEl = this.board.querySelector('[data-square="' + losingSquare + '"]');
+        // Overlay on checkmated king
+        if (checkmatedSquare) {
+            const sqEl = this.board.querySelector('[data-square="' + checkmatedSquare + '"]');
             if (sqEl) {
                 const overlay = document.createElement('div');
                 overlay.className = 'checkmate-overlay';
@@ -5265,12 +5272,15 @@ class ChessGame {
 
         // Analyze imported game button
         document.getElementById('analyzeImportedBtn').addEventListener('click', async () => {
-            // If a chess.com game was selected, import it first
+            // If a chess.com game was selected, import it first (auto-analyzes after import)
             if (this._chesscomGames && this._selectedChesscomGameIdx !== undefined) {
                 await this.importSelectedChesscomGame();
+                document.getElementById('importModal').style.display = 'none';
+                // Analysis already triggered by importChesscomGame
+                return;
             }
+            // For PGN paste imports, close modal and analyze
             document.getElementById('importModal').style.display = 'none';
-            // Now analyze
             this.analyzeGame();
         });
 
@@ -6517,7 +6527,12 @@ class ChessGame {
             alert('No PGN data available for this game.');
             return false;
         }
-        return await this.importPGN(gameData.pgn);
+        const success = await this.importPGN(gameData.pgn);
+        if (success) {
+            // Auto-analyze after chess.com game import
+            setTimeout(() => this.analyzeGame(), 300);
+        }
+        return success;
     }
 
     /** Parse chess.com URL to extract game ID and fetch PGN */
@@ -6538,18 +6553,28 @@ class ChessGame {
         try {
             const exportUrl = 'https://api.chess.com/pub/chess/game/' + gameId;
             const res = await fetch(exportUrl);
+            let success = false;
             if (res.ok) {
                 const data = await res.json();
                 if (data && data.pgn) {
-                    return await this.importPGN(data.pgn);
+                    success = await this.importPGN(data.pgn);
                 }
             }
-            // Fallback: try the export download endpoint
-            const pgnUrl = 'https://www.chess.com/game/download/' + gameId;
-            const pgnRes = await fetch(pgnUrl);
-            if (pgnRes.ok) {
-                const pgnText = await pgnRes.text();
-                return await this.importPGN(pgnText);
+            if (!success) {
+                // Fallback: try the export download endpoint
+                const pgnUrl = 'https://www.chess.com/game/download/' + gameId;
+                const pgnRes = await fetch(pgnUrl);
+                if (pgnRes.ok) {
+                    const pgnText = await pgnRes.text();
+                    success = await this.importPGN(pgnText);
+                }
+            }
+            if (success) {
+                // Close import modal and auto-analyze
+                document.getElementById('importModal').style.display = 'none';
+                // Small delay to let UI update before starting analysis
+                setTimeout(() => this.analyzeGame(), 300);
+                return true;
             }
             alert('Could not fetch game from Chess.com. The game may be private or the URL is invalid.');
             return false;
@@ -7313,16 +7338,22 @@ class ChessGame {
     }
     
     updateNavButtons() {
+        // Treat -1 as "at latest position" (like chess.com)
+        const effectiveIndex = this.currentMoveIndex === -1 ? this.moveHistory.length - 1 : this.currentMoveIndex;
+        // Only disable First/Prev at the start. Next/Last stay clickable always (chess.com style).
+        const isAtStart = this.moveHistory.length === 0 || effectiveIndex <= 0;
+        
         // Update toolbar nav buttons
         const navFirst = document.getElementById('navFirst');
         const navPrev = document.getElementById('navPrev');
         const navNext = document.getElementById('navNext');
         const navLast = document.getElementById('navLast');
         
-        if (navFirst) navFirst.disabled = this.currentMoveIndex <= 0;
-        if (navPrev) navPrev.disabled = this.currentMoveIndex <= 0;
-        if (navNext) navNext.disabled = this.currentMoveIndex >= this.moveHistory.length - 1;
-        if (navLast) navLast.disabled = this.currentMoveIndex >= this.moveHistory.length - 1;
+        if (navFirst) navFirst.disabled = isAtStart;
+        if (navPrev) navPrev.disabled = isAtStart;
+        // Never disable Next/Last — chess.com keeps them clickable even at the end
+        if (navNext) navNext.disabled = false;
+        if (navLast) navLast.disabled = false;
         
         // Also update review panel nav buttons
         const navFirstR = document.getElementById('navFirstReview');
@@ -7330,10 +7361,10 @@ class ChessGame {
         const navNextR = document.getElementById('navNextReview');
         const navLastR = document.getElementById('navLastReview');
         
-        if (navFirstR) navFirstR.disabled = this.currentMoveIndex <= 0;
-        if (navPrevR) navPrevR.disabled = this.currentMoveIndex <= 0;
-        if (navNextR) navNextR.disabled = this.currentMoveIndex >= this.moveHistory.length - 1;
-        if (navLastR) navLastR.disabled = this.currentMoveIndex >= this.moveHistory.length - 1;
+        if (navFirstR) navFirstR.disabled = isAtStart;
+        if (navPrevR) navPrevR.disabled = isAtStart;
+        if (navNextR) navNextR.disabled = false;
+        if (navLastR) navLastR.disabled = false;
     }
     
     toggleAutoPlay() {
@@ -8871,6 +8902,22 @@ document.addEventListener('DOMContentLoaded', () => {
         contemptSlider.addEventListener('input', (e) => {
             const val = parseInt(e.target.value);
             window.chessGame._setContempt(val);
+            // Sync number input
+            const numInput = document.getElementById('contemptValueInput');
+            if (numInput) numInput.value = val;
+        });
+    }
+    // Also wire number input for contempt
+    const contemptNumInput = document.getElementById('contemptValueInput');
+    if (contemptNumInput) {
+        contemptNumInput.addEventListener('change', (e) => {
+            const val = parseInt(e.target.value);
+            if (!isNaN(val)) {
+                const clamped = Math.max(-100, Math.min(100, val));
+                e.target.value = clamped;
+                contemptSlider.value = clamped;
+                window.chessGame._setContempt(clamped);
+            }
         });
     }
     
