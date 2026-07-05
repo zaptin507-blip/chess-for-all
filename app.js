@@ -6222,7 +6222,9 @@ class ChessGame {
                     suggestedMove: null,
                     evalBefore: 0,
                     evalAfter: 0,
-                    evalChange: 0
+                    evalChange: 0,
+                    pointLoss: 0,
+                    moveAccuracy: 0
                 });
                 this.movesAnalyzed = i + 1;
             }
@@ -6811,50 +6813,80 @@ class ChessGame {
         const accuraciesEl = document.getElementById('reviewAccuracies');
         if (!accuraciesContent || !this.moveAnalyses || this.moveAnalyses.length === 0) return;
         
-        // Classification-based accuracy mapping
-        const accuracyMap = {
-            'brilliant': 100, 'best': 100, 'forced': 95, 'critical': 95,
-            'excellent': 90, 'great': 84, 'good': 80, 'okay': 75, 'book': 80,
-            'inaccuracy': 60, 'mistake': 35, 'blunder': 15, 'missedWin': 20
-        };
-        
-        // Separate moves by side
-        const playerMoves = [];
-        const botMoves = [];
-        
+        // Separate moves by side: even indices = White, odd = Black
+        const whiteMoves = [];
+        const blackMoves = [];
         this.moveAnalyses.forEach((analysis, i) => {
-            const isWhiteMove = i % 2 === 0;
-            const isPlayerMove = (isWhiteMove && this.playerColor === 'w') || (!isWhiteMove && this.playerColor === 'b');
-            if (isPlayerMove) {
-                playerMoves.push(analysis);
-            } else {
-                botMoves.push(analysis);
-            }
+            if (i % 2 === 0) { whiteMoves.push(analysis); }
+            else { blackMoves.push(analysis); }
         });
         
-        const calcAccuracy = (moves) => {
+        // For imported games: show White vs Black
+        // For regular games: map white/black → player/bot based on playerColor
+        let sideAMoves, sideBMoves, sideALabel, sideBLabel;
+        if (this._isImportedGame) {
+            const imported = this._importedGame || {};
+            sideAMoves = whiteMoves;
+            sideBMoves = blackMoves;
+            sideALabel = imported.whiteName || 'White';
+            sideBLabel = imported.blackName || 'Black';
+        } else {
+            const isPlayerWhite = this.playerColor === 'w';
+            sideAMoves = isPlayerWhite ? whiteMoves : blackMoves;
+            sideBMoves = isPlayerWhite ? blackMoves : whiteMoves;
+            sideALabel = 'You';
+            sideBLabel = this.selectedBot ? (this.selectedBot.charAt(0).toUpperCase() + this.selectedBot.slice(1)) : 'Bot';
+        }
+        
+        /**
+         * Chess.com CAPS-style accuracy calculation:
+         * - Uses point-loss per move (how much winning chances dropped)
+         * - Formula: accuracy = 103.16 * exp(-4 * pointLoss) - 3.17
+         * - Per-move accuracy is averaged for final score
+         * - Book/forced moves are excluded from average (always ~100%)
+         */
+        const calcCAPSAccuracy = (moves) => {
             if (moves.length === 0) return 0;
-            const total = moves.reduce((sum, m) => sum + (accuracyMap[m.classification] || 75), 0);
-            return Math.round(total / moves.length);
+            // Only rate non-book, non-forced moves (book/forced are always accurate)
+            const ratedMoves = moves.filter(m =>
+                m.classification !== 'forced' && m.classification !== 'book'
+            );
+            if (ratedMoves.length === 0) return 100;
+            // Compute per-move accuracy and average (chess.com approach)
+            const accuracies = ratedMoves.map(m => {
+                if (m.moveAccuracy !== undefined && m.moveAccuracy > 0) return m.moveAccuracy;
+                // Fallback: compute from pointLoss if stored
+                const pl = (m.pointLoss !== undefined) ? m.pointLoss : 0;
+                return ChessAnalyzer.getMoveAccuracy(pl);
+            });
+            const avg = accuracies.reduce((s, a) => s + a, 0) / accuracies.length;
+            return Math.round(Math.max(0, Math.min(100, avg)));
         };
         
-        const playerAcc = calcAccuracy(playerMoves);
-        const botAcc = calcAccuracy(botMoves);
+        const playerAcc = calcCAPSAccuracy(sideAMoves);
+        const botAcc = calcCAPSAccuracy(sideBMoves);
         
-        const botName = this.selectedBot ? (this.selectedBot.charAt(0).toUpperCase() + this.selectedBot.slice(1)) : 'Bot';
+        // Color-code accuracy bars based on score
+        const getAccColor = (pct) => {
+            if (pct >= 90) return 'linear-gradient(90deg, #4CAF50, #81C784)';
+            if (pct >= 80) return 'linear-gradient(90deg, #8BC34A, #AED581)';
+            if (pct >= 70) return 'linear-gradient(90deg, #e8e0d4, #fff)';
+            if (pct >= 60) return 'linear-gradient(90deg, #FFC107, #FFD54F)';
+            return 'linear-gradient(90deg, #FF7043, #FF8A65)';
+        };
         
         const barHtml =
             '<div class="accuracy-row">' +
-                '<span class="accuracy-label">You</span>' +
+                '<span class="accuracy-label">' + sideALabel + '</span>' +
                 '<div class="accuracy-bar-track">' +
-                    '<div class="accuracy-bar-fill white-acc" style="width:' + playerAcc + '%"></div>' +
+                    '<div class="accuracy-bar-fill" style="width:' + playerAcc + '%;background:' + getAccColor(playerAcc) + '"></div>' +
                 '</div>' +
                 '<span class="accuracy-pct">' + playerAcc + '%</span>' +
             '</div>' +
             '<div class="accuracy-row">' +
-                '<span class="accuracy-label">' + botName + '</span>' +
+                '<span class="accuracy-label">' + sideBLabel + '</span>' +
                 '<div class="accuracy-bar-track">' +
-                    '<div class="accuracy-bar-fill black-acc" style="width:' + botAcc + '%"></div>' +
+                    '<div class="accuracy-bar-fill" style="width:' + botAcc + '%;background:' + getAccColor(botAcc) + '"></div>' +
                 '</div>' +
                 '<span class="accuracy-pct">' + botAcc + '%</span>' +
             '</div>';

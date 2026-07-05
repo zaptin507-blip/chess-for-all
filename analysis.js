@@ -260,8 +260,8 @@ class ChessAnalyzer {
         const isGameOver = legalMoves.length === 0;
         const isForced = !isGameOver && legalMoves.length === 1;
 
-        if (isGameOver) return { move: move.san, classification: 'forced', description: 'Game already over', suggestedMove: null, evalBefore: 0, evalAfter: 0, evalChange: 0 };
-        if (isForced) return { move: move.san, classification: 'forced', description: 'Forced move', suggestedMove: null, evalBefore: 0, evalAfter: 0, evalChange: 0 };
+        if (isGameOver) return { move: move.san, classification: 'forced', description: 'Game already over', suggestedMove: null, evalBefore: 0, evalAfter: 0, evalChange: 0, pointLoss: 0, moveAccuracy: 100 };
+        if (isForced) return { move: move.san, classification: 'forced', description: 'Forced move', suggestedMove: null, evalBefore: 0, evalAfter: 0, evalChange: 0, pointLoss: 0, moveAccuracy: 100 };
 
         const evalBefore = await this.evaluatePosition(fenBefore);
         const evalAfter = await this.evaluatePosition(fenAfter);
@@ -337,10 +337,13 @@ class ChessAnalyzer {
             if (!description) description = this._buildDescription(classification, '', suggestedMove, topMovePlayed);
         }
 
+        const perMoveAccuracy = ChessAnalyzer.getMoveAccuracy(pointLoss);
+
         return {
             move: move.san, classification, description, suggestedMove,
             evalBefore: evalBefore.score, evalAfter: evalAfter.score, evalChange: actualEvalChange,
-            topMoves: topMoves.slice(0, 3).map(tm => tm.san), gamePhase
+            topMoves: topMoves.slice(0, 3).map(tm => tm.san), gamePhase,
+            pointLoss, moveAccuracy: Math.max(0, Math.min(100, perMoveAccuracy))
         };
     }
 
