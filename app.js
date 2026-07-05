@@ -1364,8 +1364,8 @@ class ChessGame {
     async consultationBestMove(fen, callback) {
         const engines = [
             { engine: this.stockfish,       name: 'Stockfish NNUE',  weight: 3, icon: '🧠' },
-            { engine: this.lczero,          name: 'LCZero',          weight: 3, icon: '🌐' },
-            { engine: this.recklessEngine,  name: 'Reckless',        weight: 1, icon: '⚡' }
+            { engine: this.recklessEngine,  name: 'Reckless',        weight: 3, icon: '⚡' },
+            { engine: this.lczero,          name: 'LCZero',          weight: 2, icon: '🌐' }
         ];
 
         // Filter out unavailable engines
