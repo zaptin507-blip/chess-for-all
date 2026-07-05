@@ -6544,6 +6544,32 @@ class ChessGame {
         }
         const success = await this.importPGN(gameData.pgn);
         if (success) {
+            // Override _importedGame with chess.com API usernames (authoritative source)
+            // PGN headers may be missing or malformed; chess.com API always has correct usernames
+            const whiteUser = (gameData.white && gameData.white.username) || null;
+            const blackUser = (gameData.black && gameData.black.username) || null;
+            if (whiteUser || blackUser) {
+                this._importedGame = {
+                    ...this._importedGame,
+                    whiteName: whiteUser || this._importedGame.whiteName,
+                    blackName: blackUser || this._importedGame.blackName
+                };
+                // Also update the displayed game info
+                const gameDetails = document.getElementById('importedGameDetails');
+                if (gameDetails) {
+                    const wn = whiteUser || this._importedGame.whiteName;
+                    const bn = blackUser || this._importedGame.blackName;
+                    const resultStr = this._importedGame.result || '*';
+                    const header = this._importedGame.header || {};
+                    const ratingInfo = header['WhiteElo'] || header['BlackElo']
+                        ? ' | Ratings: ' + (header['WhiteElo'] || '?') + ' vs ' + (header['BlackElo'] || '?')
+                        : '';
+                    gameDetails.innerHTML = '<strong>' + wn + '</strong> vs <strong>' + bn + '</strong>'
+                        + ' | ' + this.moveHistory.length + ' moves'
+                        + ' | ' + resultStr
+                        + ratingInfo;
+                }
+            }
             // Auto-analyze after chess.com game import
             console.log('🔍 Auto-analyzing imported chess.com game...');
             // Use a small delay to let the UI settle, then start analysis
@@ -6577,10 +6603,11 @@ class ChessGame {
             const exportUrl = 'https://api.chess.com/pub/chess/game/' + gameId;
             const res = await fetch(exportUrl);
             let success = false;
+            let apiData = null;  // Capture API response for usernames
             if (res.ok) {
-                const data = await res.json();
-                if (data && data.pgn) {
-                    success = await this.importPGN(data.pgn);
+                apiData = await res.json();
+                if (apiData && apiData.pgn) {
+                    success = await this.importPGN(apiData.pgn);
                 }
             }
             if (!success) {
@@ -6593,6 +6620,33 @@ class ChessGame {
                 }
             }
             if (success) {
+                // Override _importedGame with chess.com API usernames (more reliable than PGN headers)
+                if (apiData) {
+                    const whiteUser = (apiData.white && apiData.white.username) || null;
+                    const blackUser = (apiData.black && apiData.black.username) || null;
+                    if (whiteUser || blackUser) {
+                        this._importedGame = {
+                            ...this._importedGame,
+                            whiteName: whiteUser || this._importedGame.whiteName,
+                            blackName: blackUser || this._importedGame.blackName
+                        };
+                        // Also update the displayed game info
+                        const gameDetails = document.getElementById('importedGameDetails');
+                        if (gameDetails) {
+                            const wn = whiteUser || this._importedGame.whiteName;
+                            const bn = blackUser || this._importedGame.blackName;
+                            const resultStr = this._importedGame.result || '*';
+                            const header = this._importedGame.header || {};
+                            const ratingInfo = header['WhiteElo'] || header['BlackElo']
+                                ? ' | Ratings: ' + (header['WhiteElo'] || '?') + ' vs ' + (header['BlackElo'] || '?')
+                                : '';
+                            gameDetails.innerHTML = '<strong>' + wn + '</strong> vs <strong>' + bn + '</strong>'
+                                + ' | ' + this.moveHistory.length + ' moves'
+                                + ' | ' + resultStr
+                                + ratingInfo;
+                        }
+                    }
+                }
                 // Close import modal and auto-analyze
                 const modal = document.getElementById('importModal');
                 if (modal) modal.style.display = 'none';
