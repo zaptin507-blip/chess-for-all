@@ -6105,9 +6105,18 @@ class ChessGame {
         
         // Navigation controls
         document.getElementById('navFirst').addEventListener('click', () => this.navToMove(0));
-        document.getElementById('navPrev').addEventListener('click', () => this.navToMove(this.currentMoveIndex - 1));
-        document.getElementById('navNext').addEventListener('click', () => this.navToMove(this.currentMoveIndex + 1));
-        document.getElementById('navLast').addEventListener('click', () => this.navToMove(this.moveHistory.length - 1));
+        document.getElementById('navPrev').addEventListener('click', () => {
+            const idx = this.currentMoveIndex === -1 ? this.moveHistory.length - 1 : this.currentMoveIndex;
+            if (idx > 0) this.navToMove(idx - 1);
+        });
+        document.getElementById('navNext').addEventListener('click', () => {
+            const idx = this.currentMoveIndex === -1 ? this.moveHistory.length - 1 : this.currentMoveIndex;
+            if (idx < this.moveHistory.length - 1) this.navToMove(idx + 1);
+        });
+        document.getElementById('navLast').addEventListener('click', () => {
+            const idx = this.currentMoveIndex === -1 ? this.moveHistory.length - 1 : this.currentMoveIndex;
+            if (idx < this.moveHistory.length - 1) this.navToMove(this.moveHistory.length - 1);
+        });
         document.getElementById('navPlay').addEventListener('click', () => this.toggleAutoPlay());
         
         // Review panel nav buttons (duplicate for analysis mode)
@@ -6116,9 +6125,18 @@ class ChessGame {
         const navNextR = document.getElementById('navNextReview');
         const navLastR = document.getElementById('navLastReview');
         if (navFirstR) navFirstR.addEventListener('click', () => this.navToMove(0));
-        if (navPrevR) navPrevR.addEventListener('click', () => this.navToMove(this.currentMoveIndex - 1));
-        if (navNextR) navNextR.addEventListener('click', () => this.navToMove(this.currentMoveIndex + 1));
-        if (navLastR) navLastR.addEventListener('click', () => this.navToMove(this.moveHistory.length - 1));
+        if (navPrevR) navPrevR.addEventListener('click', () => {
+            const idx = this.currentMoveIndex === -1 ? this.moveHistory.length - 1 : this.currentMoveIndex;
+            if (idx > 0) this.navToMove(idx - 1);
+        });
+        if (navNextR) navNextR.addEventListener('click', () => {
+            const idx = this.currentMoveIndex === -1 ? this.moveHistory.length - 1 : this.currentMoveIndex;
+            if (idx < this.moveHistory.length - 1) this.navToMove(idx + 1);
+        });
+        if (navLastR) navLastR.addEventListener('click', () => {
+            const idx = this.currentMoveIndex === -1 ? this.moveHistory.length - 1 : this.currentMoveIndex;
+            if (idx < this.moveHistory.length - 1) this.navToMove(this.moveHistory.length - 1);
+        });
         
         // Annotation popup buttons
         document.getElementById('retryMoveBtn').addEventListener('click', () => {
@@ -6530,7 +6548,15 @@ class ChessGame {
         const success = await this.importPGN(gameData.pgn);
         if (success) {
             // Auto-analyze after chess.com game import
-            setTimeout(() => this.analyzeGame(), 300);
+            console.log('🔍 Auto-analyzing imported chess.com game...');
+            // Use a small delay to let the UI settle, then start analysis
+            setTimeout(() => {
+                try {
+                    this.analyzeGame();
+                } catch (e) {
+                    console.error('Auto-analyze failed:', e);
+                }
+            }, 500);
         }
         return success;
     }
@@ -6571,9 +6597,17 @@ class ChessGame {
             }
             if (success) {
                 // Close import modal and auto-analyze
-                document.getElementById('importModal').style.display = 'none';
-                // Small delay to let UI update before starting analysis
-                setTimeout(() => this.analyzeGame(), 300);
+                const modal = document.getElementById('importModal');
+                if (modal) modal.style.display = 'none';
+                // Delay to let the board render, then start analysis
+                console.log('🔍 Auto-analyzing game from chess.com URL...');
+                setTimeout(() => {
+                    try {
+                        this.analyzeGame();
+                    } catch (e) {
+                        console.error('Auto-analyze failed:', e);
+                    }
+                }, 500);
                 return true;
             }
             alert('Could not fetch game from Chess.com. The game may be private or the URL is invalid.');
