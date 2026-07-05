@@ -1199,9 +1199,7 @@ class ChessGame {
         if (window.NNUE_SUPPORTED && typeof window.Stockfish === 'function') {
             let rawEngine;
             try {
-                rawEngine = window.Stockfish();
-                // Wait for WASM engine to fully initialize before sending commands
-                await rawEngine.ready;
+                rawEngine = await window.Stockfish();
                 const engine = new NNUEWorkerAdapter(rawEngine);
 
                 // Proper UCI handshake: wait for uciok before sending options
@@ -1464,9 +1462,7 @@ class ChessGame {
         if (window.NNUE_SUPPORTED && typeof window.Stockfish === 'function') {
             let rawEngine;
             try {
-                rawEngine = window.Stockfish();
-                // Wait for WASM engine to fully initialize before sending commands
-                await rawEngine.ready;
+                rawEngine = await window.Stockfish();
                 const engine = new NNUEWorkerAdapter(rawEngine);
 
                 // Proper UCI handshake
@@ -4271,8 +4267,7 @@ class ChessGame {
         // Attempt NNUE first
         if (window.NNUE_SUPPORTED && typeof window.Stockfish === 'function') {
             try {
-                raw = window.Stockfish();
-                await raw.ready;
+                raw = await window.Stockfish();
                 engine = new NNUEWorkerAdapter(raw);
                 engine.postMessage('uci');
                 await this._waitForUciMessage(engine, msg => msg === 'uciok', 5000);
