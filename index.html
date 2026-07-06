@@ -186,7 +186,12 @@
             </div>
             
             <div class="move-history">
-                <h3>Moves</h3>
+                <h3 id="moveHistoryTitle">Moves</h3>
+                <div id="analysisStatus" class="analysis-status" style="display: none;">
+                    <span id="analysisStatusIcon">🔍</span>
+                    <span id="analysisStatusText">Analyzing game...</span>
+                    <div class="analysis-spinner"></div>
+                </div>
                 <div id="movesList" class="moves-list"></div>
             </div>
             

@@ -2352,6 +2352,10 @@ class ChessGame {
         document.getElementById('gameReviewPanel').style.display = 'none';
         document.getElementById('evalGraph').style.display = 'none';
         document.getElementById('navControls').style.display = 'none';
+        const analysisStatus = document.getElementById('analysisStatus');
+        const moveTitle = document.getElementById('moveHistoryTitle');
+        if (analysisStatus) analysisStatus.style.display = 'none';
+        if (moveTitle) moveTitle.textContent = 'Moves';
         
         // Reset rating data for The Tester
         if (this.selectedBot === 'tester') {
@@ -6190,6 +6194,7 @@ class ChessGame {
 
         if (this.moveHistory.length === 0) {
             alert('No moves to analyze yet! Make some moves first.');
+            this._analyzing = false;
             return;
         }
         
@@ -6199,10 +6204,24 @@ class ChessGame {
         this.originalMoveHistory = JSON.parse(JSON.stringify(this.moveHistory));
         this.originalMoveAnalyses = null;  // Will be set after analysis completes
         
+        // Show analysis progress in sidebar
+        const statusEl = document.getElementById('analysisStatus');
+        const statusText = document.getElementById('analysisStatusText');
+        const statusIcon = document.getElementById('analysisStatusIcon');
+        const moveTitle = document.getElementById('moveHistoryTitle');
+        const totalMoves = this.moveHistory.length;
+        if (statusEl) statusEl.style.display = 'flex';
+        if (moveTitle) moveTitle.textContent = 'Analyzing...';
+        
         // Analyze each move
         for (let i = 0; i < this.moveHistory.length; i++) {
             try {
                 const moveData = this.moveHistory[i];
+                
+                // Update progress in sidebar
+                if (statusText) statusText.textContent = `Analyzing move ${i + 1} of ${totalMoves}...`;
+                if (statusIcon) statusIcon.textContent = '⏳';
+                
                 const analysis = await this.analyzer.analyzeMove(
                     moveData.move,
                     moveData.fenBefore,
@@ -6229,6 +6248,10 @@ class ChessGame {
                 this.movesAnalyzed = i + 1;
             }
         }
+
+        // Hide analysis progress, show completion
+        if (statusEl) statusEl.style.display = 'none';
+        if (moveTitle) moveTitle.textContent = 'Moves';
 
         // Store original analyses for replay functionality
         this.originalMoveAnalyses = JSON.parse(JSON.stringify(this.moveAnalyses));
@@ -7932,9 +7955,13 @@ class ChessGame {
         const evalGraph = document.getElementById('evalGraph');
         const navControls = document.getElementById('navControls');
         const gameReviewPanel = document.getElementById('gameReviewPanel');
+        const analysisStatus = document.getElementById('analysisStatus');
+        const moveTitle = document.getElementById('moveHistoryTitle');
         if (evalGraph) evalGraph.style.display = 'none';
         if (navControls) navControls.style.display = 'none';
         if (gameReviewPanel) gameReviewPanel.style.display = 'none';
+        if (analysisStatus) analysisStatus.style.display = 'none';
+        if (moveTitle) moveTitle.textContent = 'Moves';
         
         this.renderBoard();
         this.updateMoveList();

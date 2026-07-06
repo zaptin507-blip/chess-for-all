@@ -967,6 +967,49 @@ body::after {
     letter-spacing: -0.2px;
 }
 
+/* ── Analysis status indicator (sidebar progress bar) ── */
+.analysis-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: rgba(100, 126, 234, 0.12);
+    border: 1px solid rgba(100, 126, 234, 0.25);
+    border-radius: 10px;
+    margin-bottom: 4px;
+    flex-shrink: 0;
+}
+
+.analysis-status span {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+#analysisStatusIcon {
+    font-size: 16px;
+    animation: analysisPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes analysisPulse {
+    0%, 100% { opacity: 0.5; transform: scale(0.95); }
+    50% { opacity: 1; transform: scale(1.1); }
+}
+
+.analysis-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2.5px solid rgba(100, 126, 234, 0.2);
+    border-top-color: rgba(100, 126, 234, 0.9);
+    border-radius: 50%;
+    animation: analysisSpin 0.8s linear infinite;
+    margin-left: auto;
+}
+
+@keyframes analysisSpin {
+    to { transform: rotate(360deg); }
+}
+
 .moves-list {
     background: rgba(0, 0, 0, 0.2);
     border-radius: 10px;
