@@ -46,18 +46,18 @@ else
     echo "✅ lc0.data already exists"
 fi
 
-# Download a small weights file (~6MB, id9155 — 6b/64 net, ~1800 ELO)
-if [ ! -f "weights_run1_9155.txt.gz" ]; then
-    echo "📥 Downloading network weights (small net, ~6MB)..."
-    curl -L -o "weights_run1_9155.txt.gz" \
-        "https://storage.lczero.org/files/networks-contrib/t40/9155.txt.gz" 2>/dev/null || {
-        echo "⚠️  Could not download weights from LCZero storage."
-        echo "   Alternative: download any .txt.gz weights file from:"
-        echo "   https://lczero.org/play/networks/bestnets/"
-        echo "   and place in /lc0/ as 'weights.txt.gz'"
+# Download stronger network weights (20b protobuf, ~44MB, ~3400+ ELO)
+# Compatible networks: weights_32195.dat.gz (strongest), weights_11248.dat.gz
+if [ ! -f "weights_320b_32195.dat.gz" ]; then
+    echo ""
+    echo "📥 Downloading strong LCZero network (20b protobuf, 44MB)..."
+    echo "   This is the strongest net supported by lc0-js (~3400+ ELO)"
+    curl -L -o "weights_320b_32195.dat.gz" "$BASE_URL/weights_32195.dat.gz" 2>/dev/null || {
+        echo "⚠️  Download failed. Falling back to small net (6MB, ~1800 ELO)..."
+        curl -L -o "weights_run1_9155.txt.gz" "$BASE_URL/weights_9155.txt.gz" 2>/dev/null
     }
 else
-    echo "✅ weights_run1_9155.txt.gz already exists"
+    echo "✅ weights_320b_32195.dat.gz already exists"
 fi
 
 echo ""
@@ -68,10 +68,6 @@ echo ""
 echo "Files in /lc0/:"
 ls -lh "$SCRIPT_DIR"/*.{js,wasm,data,gz} 2>/dev/null || echo "  (some files missing — see warnings above)"
 echo ""
-echo "Next steps:"
-echo "  1. Add tensorflow.js CDN to index.html:"
-echo "     <script src='https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4'></script>"
-echo "  2. Add lc0_loader.js to index.html:"
-echo "     <script src='lc0/lc0_loader.js'></script>"
-echo "  3. The engine will auto-initialize via initLCZero() in app.js"
+echo "The app.js uses 'weights_320b_32195.dat.gz' by default."
+echo "To switch nets, edit app.js line: const weightsUrl = ..."
 echo ""

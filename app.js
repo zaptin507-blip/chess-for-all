@@ -1228,7 +1228,7 @@ class ChessGame {
 
     async initStockfish() {
         const numThreads = Math.max(2, navigator.hardwareConcurrency || 4);
-        const hashMB = 256;
+        const hashMB = 512;
 
         // Try NNUE engine first (requires SharedArrayBuffer support)
         if (window.NNUE_SUPPORTED && typeof window.Stockfish === 'function') {
@@ -1309,7 +1309,7 @@ class ChessGame {
 
             // Determine which weights file to use
             // Priority: LC0_WEIGHTS_URL env, then strongest available local file
-            const weightsUrl = window.LC0_WEIGHTS_URL || 'lc0/weights_run1_9155.txt.gz';
+            const weightsUrl = window.LC0_WEIGHTS_URL || 'lc0/weights_320b_32195.dat.gz';
 
             // LCZero uses 'load <url>' to load neural network weights BEFORE uci
             adapter.postMessage('load ' + weightsUrl);
@@ -1339,28 +1339,51 @@ class ChessGame {
     }
 
     async _initEngineAsync() {
-        // Initialize Reckless engine (stronger, ~3833 ELO) via WebSocket bridge
+        // Initialize Stockfish 18 (native) via WebSocket bridge — strongest engine available
         try {
             const reckless = new RecklessClient();
             await reckless.connect('ws://localhost:9001');
             reckless.postMessage('uci');
             await this._waitForUciMessage(reckless, msg => msg === 'uciok', 8000);
-            reckless.postMessage(`setoption name Contempt value ${this.contemptValue}`);
+            // Native Stockfish: Threads=all cores, Hash=4GB, Overhead=10ms
+            // (bridge.js also sends these at startup, but sending again here is harmless)
+            const numThreads = Math.max(2, navigator.hardwareConcurrency || 4);
+            reckless.postMessage(`setoption name Threads value ${numThreads}`);
+            reckless.postMessage('setoption name Hash value 4096');
+            reckless.postMessage('setoption name Move Overhead value 10');
             reckless.postMessage('isready');
             await this._waitForUciMessage(reckless, msg => msg === 'readyok', 8000);
-            console.log('✅ Reckless engine initialized');
+            console.log(`✅ Server Stockfish 18 initialized (native, Threads=${numThreads}, Hash=4096MB)`);
             this.recklessEngine = reckless;
         } catch (e) {
-            console.warn('⚠️ Reckless bridge not available:', e.message);
+            console.warn('⚠️ Server Stockfish bridge not available:', e.message);
             this.recklessEngine = null;
         }
         
-        // Initialize LCZero — MCTS + neural net engine (runs in parallel with Stockfish)
+        // Initialize LCZero — MCTS + neural net engine (runs in parallel with other engines)
         this.lczero = await this.initLCZero();
         this.lczeroReady = !!this.lczero;
 
-        // Initialize Stockfish (always available, used for eval & when bot is losing)
-        this.stockfish = await this.initStockfish();
+        // Initialize Reckless v0.9.0 (~3767 ELO) via WebSocket bridge — stronger than WASM Stockfish
+        let recklessBridge = null;
+        try {
+            const recklessClient = new RecklessClient();
+            await recklessClient.connect('ws://localhost:9002');
+            recklessClient.postMessage('uci');
+            await this._waitForUciMessage(recklessClient, msg => msg === 'uciok', 8000);
+            const numThreads = Math.max(2, navigator.hardwareConcurrency || 4);
+            recklessClient.postMessage(`setoption name Threads value ${numThreads}`);
+            recklessClient.postMessage('setoption name Hash value 4096');
+            recklessClient.postMessage('setoption name MoveOverhead value 10');
+            recklessClient.postMessage('isready');
+            await this._waitForUciMessage(recklessClient, msg => msg === 'readyok', 8000);
+            console.log(`✅ Reckless v0.9.0 initialized (native, Threads=${numThreads}, Hash=4096MB)`);
+            recklessBridge = recklessClient;
+        } catch (e) {
+            console.warn('⚠️ Reckless bridge (port 9002) not available:', e.message);
+        }
+        // Prefer Reckless bridge over WASM Stockfish, fall back to WASM
+        this.stockfish = recklessBridge || await this.initStockfish();
         this.stockfishReady = !!this.stockfish;
         
         if (!this.stockfish && !this.recklessEngine) {
@@ -1368,7 +1391,7 @@ class ChessGame {
         }
     }
 
-    /** Apply Contempt value to all engines that support it (NNUE Stockfish + Reckless) */
+    /** Apply Contempt value to all engines that support it (NNUE Stockfish + bridge engine) */
     _setContempt(value) {
         this.contemptValue = value;
         const cmd = `setoption name Contempt value ${value}`;
@@ -1376,16 +1399,16 @@ class ChessGame {
         if (this.stockfish && this.stockfish.postMessage) {
             try { this.stockfish.postMessage(cmd); } catch (e) {}
         }
-        // Reckless engine also supports Contempt
+        // Server Stockfish 18 ignores Contempt (no such option), but sending is harmless
         if (this.recklessEngine && typeof this.recklessEngine.postMessage === 'function') {
             try { this.recklessEngine.postMessage(cmd); } catch (e) {}
         }
-        console.log(`⚡ Contempt set to ${value} (NNUE + Reckless)`);
+        console.log(`⚡ Contempt set to ${value} (applied to engines that support it)`);
     }
 
     _getBotEngine() {
-        // Use Reckless if bot is winning (win probability > 50%),
-        // otherwise use Stockfish to give the player a fighting chance.
+        // Use the native Server Stockfish 18 when bot is winning (fastest, deepest),
+        // otherwise use Reckless v0.9.0 or WASM Stockfish.
         // winProbability.loss = bot's win prob (from player's perspective).
         const botWinProb = this.winProbability ? this.winProbability.loss : 0;
         if (botWinProb > 50 && this.recklessEngine) {
@@ -1394,18 +1417,277 @@ class ChessGame {
         return this.stockfish;
     }
 
-    /** Grandmaster Council: query all engines and vote on the best move */
+    /** Quick blunder check: verify a proposed move isn't tactically unsound */
+    async _quickVerifyMove(currentFen, proposedMove) {
+        // Clone position and make the proposed move
+        const board = new Chess(currentFen);
+        try {
+            board.move({
+                from: proposedMove.substring(0, 2),
+                to: proposedMove.substring(2, 4),
+                promotion: proposedMove.length > 4 ? proposedMove[4] : 'q'
+            });
+        } catch (e) {
+            console.warn(`⚠️ Tactical Alarm: illegal move ${proposedMove} — ${e.message}`);
+            return { safe: false, reason: 'Illegal move', details: e.message };
+        }
+
+        // Static checks (instant, no engine needed)
+        if (board.isCheckmate()) {
+            return { safe: true, reason: 'Checkmate!' };
+        }
+        if (board.isDraw() || board.isStalemate()) {
+            console.warn(`⚠️ Tactical Alarm: ${proposedMove} leads to draw/stalemate`);
+            return { safe: false, reason: 'Draw or stalemate', details: 'Position is drawn after this move' };
+        }
+
+        // Use native Server Stockfish 18 for tactical alarm (native speed, depth 30+ in 1s)
+        if (this.recklessEngine) {
+            console.log(`🔍 Tactical Alarm verifying ${proposedMove}...`);
+            const oppResult = await this._queryEngine(this.recklessEngine, board.fen(), 'Tactical Alarm', 1000);
+            if (oppResult.score < -300) {
+                const details = `Position drops from current eval to ${oppResult.scoreDisplay} (opponent winning)`;
+                console.warn(`⚠️ Tactical Alarm: ${proposedMove} FLAGGED — ${details}`);
+                return { safe: false, reason: 'Opponent gets winning advantage', details };
+            }
+            if (oppResult.score < -100) {
+                const details = `Position worsens to ${oppResult.scoreDisplay}`;
+                console.warn(`⚠️ Tactical Alarm: ${proposedMove} slightly suspect — ${details}`);
+            }
+            console.log(`✅ Tactical Alarm: ${proposedMove} verified safe`);
+        }
+
+        return { safe: true };
+    }
+
+    /** Describe an engine's move in human terms for console logging */
+    _describeEngineThought(fen, move, score, scoreDisplay) {
+        if (!move) return '';
+        const board = new Chess(fen);
+        const from = move.substring(0, 2);
+        const to = move.substring(2, 4);
+        const piece = board.get(from);
+        if (!piece) return `"I'm analyzing ${move}..."`;
+
+        const captured = board.get(to);
+        const color = piece.color === 'w' ? 'White' : 'Black';
+        const pType = piece.type;
+        const pNames = { p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen', k: 'king' };
+        let description = '';
+
+        try {
+            const prom = move.length > 4 ? move[4] : 'q';
+            board.move({ from, to, promotion: prom });
+        } catch (e) {
+            return `"I'm considering ${move}"`;
+        }
+
+        // === Tactical outcomes (highest priority) ===
+        if (board.isCheckmate()) {
+            description = `Checkmate! ${move} ends the game — the king has nowhere to run`;
+        } else if (board.isStalemate()) {
+            description = `${move} would draw by stalemate — opponent has no legal moves`;
+        } else if (board.isCheck()) {
+            if (captured) {
+                description = `${move} is a discovered check — capturing ${pNames[captured.type]} while delivering check`;
+            } else {
+                description = `${pNames[pType]} gives check with ${move} — forcing a response`;
+            }
+        }
+        // === Captures ===
+        else if (captured) {
+            const capName = pNames[captured.type] || 'piece';
+            const pieceVals = { p: 1, n: 3, b: 3, r: 5, q: 9 };
+            const myVal = pieceVals[pType] || 1;
+            const capVal = pieceVals[captured.type] || 1;
+            const netGain = capVal - myVal;
+            if (netGain > 0 && captured.type !== 'k') {
+                description = `${move} wins material — ${pNames[pType]} captures ${capName} (+${netGain} net gain)`;
+            } else if (netGain < 0) {
+                description = `${move} sacrifices ${pNames[pType]} for ${capName} (${netGain} net) — likely positional compensation`;
+            } else {
+                description = `${move} trades ${pNames[pType]} for ${capName} — equal material exchange`;
+            }
+        }
+        // === Castling ===
+        else if (pType === 'k' && Math.abs(to.charCodeAt(0) - from.charCodeAt(0)) === 2) {
+            const side = (to === 'g1' || to === 'g8') ? 'kingside' : 'queenside';
+            description = `${move} castles ${side} — king finds shelter behind a pawn wall, rook enters the game`;
+        }
+        // === Pawn moves ===
+        else if (pType === 'p') {
+            const fileIdx = to.charCodeAt(0) - 96; // a=1, b=2, ...
+            if (to[1] === '1' || to[1] === '8') {
+                const promPiece = move.length > 4 ? move[4] : 'q';
+                description = `${move} pawn promotes to ${promPiece === 'q' ? 'queen' : promPiece} — a new powerhouse arrives`;
+            } else if (fileIdx >= 3 && fileIdx <= 6) {
+                description = `${move} central pawn advance — fighting for control of squares d4/d5/e4/e5`;
+            } else if (fileIdx <= 2) {
+                description = `${move} queenside pawn push — gaining space on the left flank`;
+            } else {
+                description = `${move} kingside pawn advance — creating attacking angles`;
+            }
+        }
+        // === Knight moves ===
+        else if (pType === 'n') {
+            const fileIdx = to.charCodeAt(0) - 96;
+            if (fileIdx >= 3 && fileIdx <= 6 && (to[1] === '5' || to[1] === '4' || to[1] === '6')) {
+                description = `${move} centralizes the knight to ${to} — an outpost dominating key squares`;
+            } else if (fileIdx <= 2 || fileIdx >= 7) {
+                description = `${move} repositions knight to the rim — a tactical maneuver`;
+            } else {
+                description = `${move} improves knight position — preparing to jump into the action`;
+            }
+        }
+        // === Bishop moves ===
+        else if (pType === 'b') {
+            const bFileIdx = to.charCodeAt(0) - 96;
+            if ((to === 'g2' || to === 'b2' || to === 'g7' || to === 'b7') &&
+                (from === 'f1' || from === 'c1' || from === 'f8' || from === 'c8')) {
+                description = `${move} fianchettos the bishop — a long-range threat down the diagonal`;
+            } else if (bFileIdx >= 3 && bFileIdx <= 6 && (to[1] === '5' || to[1] === '4' || to[1] === '6')) {
+                description = `${move} activates bishop to ${to} — controlling both the center and flanks`;
+            } else {
+                description = `${move} develops the ${color.toLowerCase()} bishop — opening lines for pressure`;
+            }
+        }
+        // === Rook moves ===
+        else if (pType === 'r') {
+            const fileIdx = to.charCodeAt(0) - 96;
+            if (fileIdx === 4 || fileIdx === 5) {
+                description = `${move} centralizes rook to ${to} — dominating the open file`;
+            } else {
+                description = `${move} activates the rook — bringing the heavy artillery into play`;
+            }
+        }
+        // === Queen moves ===
+        else if (pType === 'q') {
+            if (score > 200) {
+                description = `${move} launches the queen into the attack — maximum pressure`;
+            } else if (score < -200) {
+                description = `${move} rallies the queen to defend — trying to hold a difficult position together`;
+            } else {
+                description = `${move} posts the queen on ${to} — centralization with maximum flexibility`;
+            }
+        }
+        // === King moves ===
+        else if (pType === 'k') {
+            const fileIdx = to.charCodeAt(0) - 96;
+            if (fileIdx <= 2 || fileIdx >= 7) {
+                description = `${move} walks the king to the wing — preparing for endgame activity`;
+            } else {
+                description = `${move} centralizes the king — a classic endgame principle`;
+            }
+        }
+
+        // === Evaluation context with actual score ===
+        let evalComment = '';
+        const absScore = Math.abs(score);
+        if (Math.abs(score) >= 10000) {
+            evalComment = score > 0 ? '! Forcing checkmate' : '! Running from checkmate';
+        } else if (absScore <= 30) {
+            evalComment = `= Position dead equal (${scoreDisplay})`;
+        } else if (score > 500) {
+            evalComment = `+- Decisive winning advantage (+${scoreDisplay})`;
+        } else if (score > 200) {
+            evalComment = `± Clear advantage (+${scoreDisplay})`;
+        } else if (score > 50) {
+            evalComment = `+= Slight edge (+${scoreDisplay})`;
+        } else if (score < -500) {
+            evalComment = `-+ Position is critical (${scoreDisplay})`;
+        } else if (score < -200) {
+            evalComment = `∓ Clear disadvantage (${scoreDisplay})`;
+        } else if (score < -50) {
+            evalComment = `=+ Slightly worse (${scoreDisplay})`;
+        }
+
+        return `"${description}. ${evalComment}"`;
+    }
+
+    /** Query Lichess Syzygy tablebase for perfect endgame moves (up to 7 pieces, free API) */
+    async _queryTablebase(fen) {
+        // Count pieces on the board — tablebase only works for <= 7 pieces
+        const pieceCount = (fen.split(' ')[0].match(/[pnbrqk]/gi) || []).length;
+        if (pieceCount > 7) return null;
+
+        console.log(`🏛️  Querying Lichess tablebase (${pieceCount} pieces)...`);
+        try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 5000);
+            const response = await fetch(
+                `https://tablebase.lichess.ovh/standard?fen=${encodeURIComponent(fen)}`,
+                { signal: controller.signal }
+            );
+            clearTimeout(timeout);
+            if (!response.ok) return null;
+            const data = await response.json();
+            if (!data.moves || data.moves.length === 0) return null;
+
+            // Pick the best move: prefer winning moves, then drawing, then losing
+            const categoryRank = { win: 3, draw: 2, loss: 1 };
+            let bestMove = null, bestRank = 0;
+            for (const m of data.moves) {
+                const rank = categoryRank[m.category] || 0;
+                if (rank > bestRank) {
+                    bestRank = rank;
+                    bestMove = m;
+                }
+            }
+
+            if (bestMove) {
+                const outcome = data.category === 'win' ? 'winning' :
+                                data.category === 'loss' ? 'losing' : 'drawn';
+                console.log(`✅ Tablebase: ${bestMove.uci} (${outcome}, ${bestMove.category})`);
+                return {
+                    move: bestMove.uci,
+                    outcome: data.category,
+                    san: bestMove.san,
+                    from: bestMove.uci.substring(0, 2),
+                    to: bestMove.uci.substring(2, 4)
+                };
+            }
+            return null;
+        } catch (e) {
+            console.warn('⚠️ Tablebase query failed:', e.message);
+            return null;
+        }
+    }
+
+    /** Grandmaster Council: query all engines and vote on the best move (enhanced) */
     async consultationBestMove(fen, callback) {
+        console.log('');
+        console.log('🏛️ ════════════════════════════════════════');
+        console.log('🏛️  GRANDMASTER COUNCIL CONVENED');
+        console.log('🏛️ ════════════════════════════════════════');
+        console.log(`📌 Position: ${fen}`);
+
         const engines = [
-            { engine: this.stockfish,       name: 'Stockfish NNUE',  weight: 3, icon: '🧠' },
-            { engine: this.recklessEngine,  name: 'Reckless',        weight: 3, icon: '⚡' },
-            { engine: this.lczero,          name: 'LCZero',          weight: 2, icon: '🌐' }
+            { engine: this.recklessEngine,  name: 'Server Stockfish 18', weight: 4, icon: '🖥️' },
+            { engine: this.stockfish,       name: 'Reckless v0.9.0', weight: 3, icon: '⚡' },
+            { engine: this.lczero,          name: 'LCZero',          weight: 1, icon: '🌐' }
         ];
 
         // Filter out unavailable engines
         const available = engines.filter(e => e.engine);
         if (available.length === 0) {
+            console.warn('🏛️  No engines available!');
             callback(null);
+            return;
+        }
+
+        console.log(`🏛️  Engines: ${available.map(e => `${e.icon}${e.name}(×${e.weight})`).join(', ')}`);
+
+        // Check tablebase first — if position has <= 7 pieces, we get a perfect answer instantly
+        const tbResult = await this._queryTablebase(fen);
+        if (tbResult) {
+            console.log(`🏛️  Tablebase override: ${tbResult.move} (perfect play)`);
+            this._councilResults = [];
+            this._councilMove = tbResult.move;
+            callback({
+                from: tbResult.from,
+                to: tbResult.to,
+                promotion: 'q'
+            });
             return;
         }
 
@@ -1416,16 +1698,20 @@ class ChessGame {
         let consensusReached = false;
 
         const results = await Promise.all(available.map((e) => {
-            return this._queryEngine(e.engine, fen).then(result => {
+            return this._queryEngine(e.engine, fen, e.name, 5000).then(result => {
                 if (!consensusReached && result.move) {
                     partialVotes[result.move] = (partialVotes[result.move] || 0) + e.weight;
                     // Consensus: any move with > half total weight is mathematically unbeatable
                     if (partialVotes[result.move] > totalWeight / 2) {
                         consensusReached = true;
+                        console.log(`🏛️  Early consensus! ${result.move} has ${partialVotes[result.move]}/${totalWeight} votes`);
                         // Stop remaining engines — their vote can't change the winner
                         available.forEach(other => {
                             if (other.engine !== e.engine) {
-                                try { other.engine.postMessage('stop'); } catch (_) {}
+                                try {
+                                    other.engine.postMessage('stop');
+                                    console.log(`⏹️  Stopped ${other.name} (consensus reached)`);
+                                } catch (_) {}
                             }
                         });
                     }
@@ -1444,6 +1730,14 @@ class ChessGame {
             weight: e.weight
         }));
 
+        // Log all votes before tallying with engine thoughts
+        console.log(`🏛️ ──────── Council Votes ────────`);
+        for (const r of this._councilResults) {
+            const thought = r.move ? this._describeEngineThought(fen, r.move, r.score, r.scoreDisplay) : '';
+            const voteStr = r.move ? `${r.move} (${r.scoreDisplay}, weight ×${r.weight})` : 'ABSTAIN (no move)';
+            console.log(`${r.icon} ${r.name}: ${voteStr} ${thought}`);
+        }
+
         // Weighted vote: tally votes by move with weights
         // Tiebreaker: when two moves have equal weight, higher eval score wins
         const voteTally = {};
@@ -1459,6 +1753,41 @@ class ChessGame {
             }
         }
 
+        console.log(`🏛️ ──────── Vote Tally ────────`);
+        for (const [move, weight] of Object.entries(voteTally)) {
+            const marker = (move === topMove) ? ' ← SELECTED' : '';
+            console.log(`   ${move}: ${weight} votes${marker}`);
+        }
+
+        // Verify the winning move isn't a blunder using tactical alarm
+        if (this.recklessEngine && topMove && this._councilResults.some(r => r.move === topMove && r.score > -200)) {
+            const verification = await this._quickVerifyMove(fen, topMove);
+            if (!verification.safe) {
+                console.warn(`⚠️ ⚠️ ⚠️ TACTICAL ALARM: ${topMove} FLAGGED — ${verification.reason}`);
+                console.warn(`⚠️  Falling back to second choice...`);
+
+                // Find second best move
+                let fallbackMove = null, fallbackWeight = 0, fallbackScore = -Infinity;
+                for (const [move, weight] of Object.entries(voteTally)) {
+                    if (move === topMove) continue;
+                    const moveResults = this._councilResults.filter(r => r.move === move);
+                    const bestScore = Math.max(...moveResults.map(r => r.score));
+                    if (weight > fallbackWeight || (weight === fallbackWeight && bestScore > fallbackScore)) {
+                        fallbackWeight = weight;
+                        fallbackScore = bestScore;
+                        fallbackMove = move;
+                    }
+                }
+
+                if (fallbackMove) {
+                    console.log(`🏛️  Fallback: ${fallbackMove} (${fallbackWeight} votes)`);
+                    topMove = fallbackMove;
+                } else {
+                    console.warn('🏛️  No fallback available, using flagged move anyway');
+                }
+            }
+        }
+
         // Mark the chosen move in results
         for (const r of this._councilResults) {
             r.chosen = (r.move === topMove);
@@ -1466,6 +1795,9 @@ class ChessGame {
 
         this._councilMove = topMove;
         this.showCouncilPanel();
+
+        console.log(`🏛️ ═══════ FINAL DECISION: ${topMove} ═══════`);
+        console.log('');
 
         // Convert UCI to coordinate format
         const from = topMove.substring(0, 2);
@@ -1475,13 +1807,16 @@ class ChessGame {
     }
 
     /** Query a single engine for bestmove + score (used by Grandmaster Council) */
-    _queryEngine(engine, fen) {
+    _queryEngine(engine, fen, label, movetime) {
+        if (movetime === undefined) movetime = 5000;
+        console.log(`🔍 ${label} thinking... (movetime=${movetime}ms)`);
         return new Promise((resolve) => {
             let bestScore = 0, bestMove = null, scoreDisplay = '0.0';
             const timeout = setTimeout(() => {
                 engine.removeEventListener('message', listener);
+                console.warn(`⏰ ${label} timed out (${movetime + 1000}ms)`);
                 resolve({ move: bestMove, score: bestScore, scoreDisplay });
-            }, 6000);
+            }, movetime + 1000);
 
             const listener = (event) => {
                 const msg = event.data;
@@ -1501,6 +1836,8 @@ class ChessGame {
                     clearTimeout(timeout);
                     engine.removeEventListener('message', listener);
                     bestMove = bestMoveMatch[1];
+                    const thought = (label !== 'Tactical Alarm') ? this._describeEngineThought(fen, bestMove, bestScore, scoreDisplay) : '';
+                    console.log(`✅ ${label} → ${bestMove} (${scoreDisplay}) ${thought}`);
                     resolve({ move: bestMove, score: bestScore, scoreDisplay });
                 }
             };
@@ -1508,13 +1845,13 @@ class ChessGame {
             // ucinewgame clears stale hash state between positions (avoids search pollution)
             engine.postMessage('ucinewgame');
             engine.postMessage(`position fen ${fen}`);
-            engine.postMessage('go movetime 2500');
+            engine.postMessage(`go movetime ${movetime}`);
         });
     }
 
     async initAnalysisEngine() {
         const numThreads = Math.max(2, navigator.hardwareConcurrency || 4);
-        const hashMB = 256;
+        const hashMB = 512;
 
         // Try NNUE engine first
         if (window.NNUE_SUPPORTED && typeof window.Stockfish === 'function') {
@@ -3807,7 +4144,7 @@ class ChessGame {
         const isReckless = engine === this.recklessEngine;
         
         if (isReckless) {
-            // Reckless is stronger (~3833 ELO), use time-based search for deeper analysis
+            // Server Stockfish 18 is native and very strong, use time-based search for deeper analysis
             engine.postMessage('go movetime 3000');
         } else if (this.gameMode === 'practice' || this.selectedBot === 'mrstong') {
             // Stockfish: Chess.com-style difficulty system: depth control + interval blunder schedule.
@@ -3985,7 +4322,7 @@ class ChessGame {
                     </div>
                     <div class="council-engine thinking">
                         <span class="council-engine-icon">⏳</span>
-                        <span class="council-engine-name">Reckless</span>
+                        <span class="council-engine-name">Server SF 18</span>
                         <span class="council-engine-think">Analyzing...</span>
                     </div>
                 </div>

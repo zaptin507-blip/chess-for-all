@@ -1,25 +1,41 @@
 const { spawn } = require('child_process');
 const { WebSocketServer } = require('ws');
 const path = require('path');
+const os = require('os');
 
 const PORT = 9001;
-const RECKLESS_PATH = path.join(__dirname, 'reckless');
+const ENGINE_PATH = path.join(__dirname, 'stockfish-bin');
+const NUM_THREADS = Math.max(2, os.cpus().length);
+const HASH_MB = 4096; // 4GB server-side hash (unlike browser, we have RAM)
 
 const wss = new WebSocketServer({ port: PORT });
-console.log(`♟️ Reckless bridge listening on ws://localhost:${PORT}`);
+console.log(`Stockfish bridge listening on ws://localhost:${PORT}`);
 
 wss.on('connection', (ws) => {
-    console.log('🟢 Client connected');
+    console.log('[connect] Client connected');
 
-    // Spawn Reckless process
-    const reckless = spawn(RECKLESS_PATH, [], {
+    // Spawn Stockfish process
+    const engine = spawn(ENGINE_PATH, [], {
         stdio: ['pipe', 'pipe', 'pipe']
     });
 
     let buffer = '';
 
+    // Configure Stockfish with optimal settings on startup
+    // These are sent before any client commands
+    const startupConfig = [
+        `setoption name Threads value ${NUM_THREADS}`,
+        `setoption name Hash value ${HASH_MB}`,
+        'setoption name Move Overhead value 10',
+        'setoption name UCI_ShowWDL value true'  // Show Win/Draw/Loss probabilities in output
+    ];
+    for (const cfg of startupConfig) {
+        engine.stdin.write(cfg + '\n');
+        console.log('[cfg]', cfg);
+    }
+
     // Forward engine stdout to WebSocket client
-    reckless.stdout.on('data', (data) => {
+    engine.stdout.on('data', (data) => {
         buffer += data.toString();
         const lines = buffer.split('\n');
         buffer = lines.pop(); // Keep incomplete line in buffer
@@ -32,35 +48,37 @@ wss.on('connection', (ws) => {
     });
 
     // Forward engine stderr to console for debugging
-    reckless.stderr.on('data', (data) => {
-        console.error('🔴 Reckless error:', data.toString());
+    engine.stderr.on('data', (data) => {
+        console.error('[stderr]', data.toString());
     });
 
     // Handle WebSocket messages (UCI commands from client)
     ws.on('message', (msg) => {
         const command = msg.toString().trim();
         if (command) {
-            console.log('⬆️  >>', command);
-            reckless.stdin.write(command + '\n');
+            console.log('[>>]', command);
+            engine.stdin.write(command + '\n');
         }
     });
 
     // Cleanup on disconnect
     ws.on('close', () => {
-        console.log('🔴 Client disconnected');
-        reckless.stdin.write('quit\n');
+        console.log('[disconnect] Client disconnected');
+        engine.stdin.write('quit\n');
         setTimeout(() => {
-            reckless.kill();
+            engine.kill();
         }, 100);
     });
 
     // Cleanup on engine exit
-    reckless.on('exit', (code) => {
-        console.log(`💀 Reckless exited with code ${code}`);
+    engine.on('exit', (code) => {
+        console.log(`[exit] Stockfish exited with code ${code}`);
         ws.close();
     });
 });
 
-console.log('♟️  Reckless UCI Bridge Server');
-console.log(`📍 Engine: ${RECKLESS_PATH}`);
-console.log(`🔌 WebSocket port: ${PORT}`);
+console.log('Bridge Server');
+console.log(`Engine: ${ENGINE_PATH}`);
+console.log(`WebSocket port: ${PORT}`);
+console.log(`Threads: ${NUM_THREADS}, Hash: ${HASH_MB}MB`);
+
