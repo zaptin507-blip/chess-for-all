@@ -69,6 +69,7 @@ body::after {
     max-width: 100vw;
     width: 100%;
     height: 100vh;
+    height: 100dvh;
     align-items: flex-start;
     justify-content: center;
     position: relative;
@@ -2215,6 +2216,115 @@ html {
     }
 }
 
+/* Chess.com-style Backdrop Overlay — dims the board behind the sidebar */
+.chess-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.chess-sidebar-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* ── Gambit Accept / Decline Overlay ── */
+.gambit-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    animation: gambitFadeIn 0.25s ease-out;
+}
+@keyframes gambitFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+.gambit-overlay-card {
+    background: linear-gradient(145deg, #1e1e2e 0%, #2a2a3c 100%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    padding: 32px 40px;
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 80px rgba(118, 150, 86, 0.15);
+    animation: gambitCardIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes gambitCardIn {
+    from { transform: scale(0.85); opacity: 0; }
+    to   { transform: scale(1);    opacity: 1; }
+}
+.gambit-overlay-icon {
+    font-size: 48px;
+    margin-bottom: 8px;
+}
+.gambit-overlay-title {
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    margin-bottom: 4px;
+    opacity: 0.6;
+}
+.gambit-overlay-name {
+    color: #f0d060;
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+.gambit-overlay-desc {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 14px;
+    margin-bottom: 24px;
+    line-height: 1.5;
+}
+.gambit-overlay-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.gambit-btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 160px;
+}
+.gambit-btn-accept {
+    background: #769656;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(118, 150, 86, 0.4);
+}
+.gambit-btn-accept:hover {
+    background: #8ba865;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(118, 150, 86, 0.5);
+}
+.gambit-btn-decline {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.gambit-btn-decline:hover {
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    transform: translateY(-2px);
+}
+
 /* Chess.com overlay sidebar — close button always visible when sidebar shown */
 #closeChessSidebar {
     display: block !important;
@@ -2224,7 +2334,17 @@ html {
 #chessSidebar {
     min-height: 100vh !important;
     min-height: 100dvh !important;
+    height: 100dvh !important;
     bottom: 0 !important;
+}
+
+/* Sidebar slide-in from the right */
+#chessSidebar {
+    transform: translateX(100%);
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+#chessSidebar.sidebar-visible {
+    transform: translateX(0);
 }
 
 @media (max-width: 768px) {
@@ -2393,14 +2513,17 @@ html {
             min-height: 180px;
         }
         
-        /* Chess.com sidebar — when shown by JS, cover full screen */
+        /* Chess.com sidebar — when shown by JS, slide in from right */
         #chessSidebar[style*="display: block"],
         #chessSidebar[style*="display:block"] {
-            display: block !important;
-            width: 100vw !important;
-            max-width: 100vw;
+            display: flex !important;
+            flex-direction: column;
+            width: 280px !important;
+            max-width: 85vw;
             min-height: 100dvh !important;
+            height: 100dvh !important;
             z-index: 9999 !important;
+            transform: translateX(0) !important;
         }
         
         /* ---- Modals — full screen with scroll ---- */
@@ -3423,4 +3546,5 @@ a:focus-visible {
 }
 .game-result-win { color: #8bc34a; }
 .game-result-loss { color: #f44336; }
+.game-result-draw { color: #ffc107; }
 .game-result-draw { color: #ffc107; }

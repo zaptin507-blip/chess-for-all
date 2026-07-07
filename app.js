@@ -5,6 +5,38 @@ import { pieceSVG, pieceUnicode } from './js/chess/pieces.js';
 import { openings } from './js/chess/openings.js';
 
 /**
+ * Gambit offers — when the bot plays a gambit move, show Accept/Decline.
+ * Key = move sequence before the gambit move (space-separated SAN).
+ * gambitMove = the SAN move the bot just played that constitutes the gambit offer.
+ * declineMoves = non-gambit alternatives the bot can play instead if declined.
+ */
+const GAMBIT_OFFERS = {
+    'e4 e5':                     { gambitMove: 'f4',  name: "King's Gambit",          desc: 'White offers the f‑pawn for a rapid kingside attack',           declineMoves: ['Nf3','Bc4','Nc3','d4'] },
+    'd4 d5':                     { gambitMove: 'c4',  name: "Queen's Gambit",         desc: 'White offers the c‑pawn to dominate the center',                declineMoves: ['Nf3','Bf4','e3','Nc3'] },
+    'e4 e5 Nf3 Nc6 Bc4 Bc5':     { gambitMove: 'b4',  name: "Evans Gambit",           desc: 'White sacrifices a pawn for lightning‑fast development',         declineMoves: ['O-O','d3','Nc3','c3'] },
+    'e4 e5 Nf3 Nc6 d4 exd4':     { gambitMove: 'c3',  name: "Danish Gambit",          desc: 'White offers another pawn to rip open the centre',               declineMoves: ['Nxd4','Bc4','Qxd4'] },
+    'd4 Nf6 c4':                 { gambitMove: 'e5',  name: "Budapest Gambit",        desc: 'Black strikes back immediately with a pawn sacrifice',           declineMoves: ['d5','e3','Nf3','e6'] },
+    'd4 d5 c4':                  { gambitMove: 'e5',  name: "Albin Counter‑Gambit",   desc: 'Black counters the Queen\'s Gambit with a sharp pawn offer',     declineMoves: ['e3','Nf3','Nc3','e6'] },
+    'd4':                        { gambitMove: 'e5',  name: "Englund Gambit",         desc: 'Black offers the e‑pawn to lure the queen out early',            declineMoves: ['Nf3','c4','e3','Bf4'] },
+    'e4 e5 Nc3 Nf6':             { gambitMove: 'f4',  name: "Vienna Gambit",          desc: 'White offers the f‑pawn for kingside attacking chances',         declineMoves: ['Bc4','Nf3','g3','d3'] },
+};
+
+// Track whether the current gambit was already declined to prevent loops
+let _gambitDeclinedThisMove = false;
+
+/** Returns gambit info if the given move sequence ends with a known gambit offer */
+function detectGambitOffer(movesArray) {
+    if (movesArray.length < 1) return null;
+    const lastMove = movesArray[movesArray.length - 1];
+    const prefix = movesArray.slice(0, -1).join(' ');
+    const entry = GAMBIT_OFFERS[prefix];
+    if (entry && entry.gambitMove === lastMove) {
+        return { ...entry, prefix };
+    }
+    return null;
+}
+
+/**
  * Wraps an NNUE engine instance to expose Worker-compatible API
  * (addEventListener/removeEventListener/postMessage/terminate)
  */
@@ -2009,6 +2041,12 @@ class ChessGame {
                 // Set the selected bot
                 window.chessGame.selectedBot = this.dataset.bot;
                 
+                // Auto-enable Grandmaster Council for THE ONE ABOVE ALL
+                // Disable for other bots (user can manually re-enable if desired)
+                window.chessGame.councilMode = (this.dataset.bot === 'god');
+                const councilToggle = document.getElementById('councilModeToggle');
+                if (councilToggle) councilToggle.checked = window.chessGame.councilMode;
+                
                 // Update the display (avatar, name, rating, chat section)
                 window.chessGame.updateBotDisplay();
                 
@@ -2299,11 +2337,15 @@ class ChessGame {
         if (playerNameEl) playerNameEl.textContent = displayName;
         if (ratingEl) ratingEl.textContent = 'ELO: ' + playerELO;
         
-        // Reset council mode state for new game
+        // Reset council display for new game (keep councilMode on/off as set)
         const councilPanel = document.getElementById('councilPanel');
         if (councilPanel) councilPanel.style.display = 'none';
         this._councilResults = null;
         this._councilMove = null;
+        
+        // Re-sync toggle checkbox with current councilMode
+        const councilToggle = document.getElementById('councilModeToggle');
+        if (councilToggle) councilToggle.checked = this.councilMode;
         
         // Hide any open sections that could overlay the game board
         const homeSection = document.getElementById('homeSection');
@@ -2851,6 +2893,8 @@ class ChessGame {
             });
 
             if (move) {
+                // Reset gambit declined flag when player makes their move
+                _gambitDeclinedThisMove = false;
                 // Trainer mode: intercept for move validation
                 if (this.trainerMode && this.handleTrainerMove) {
                     this.handleTrainerMove(move);
@@ -3019,6 +3063,8 @@ class ChessGame {
             });
             
             if (move) {
+                // Reset gambit declined flag on player move
+                _gambitDeclinedThisMove = false;
                 // Valid move - play sound
                 this.playSound(move);
                 
@@ -3184,6 +3230,7 @@ class ChessGame {
         });
         
         if (move) {
+            _gambitDeclinedThisMove = false;
             this.playSound(move);
             // Play promotion sound
             try {
@@ -3790,6 +3837,17 @@ class ChessGame {
             this.renderBoard();
             this.updateMoveList();
             this.updateStatus();
+
+            // ── Gambit offer detection ──
+            // Only in boss-battle mode, and only for known gambit positions
+            if (this.gameMode === 'play' && !this.isOnlineGame) {
+                const gambit = detectGambitOffer(this.chess.history());
+                if (gambit && !_gambitDeclinedThisMove) {
+                    this._showGambitOverlay(gambit);
+                    return; // don't switch turn yet — wait for Accept/Decline
+                }
+            }
+
             this.switchTurn();
 
             if (this.selectedBot === 'god' && Math.random() < 0.25) {
@@ -3804,6 +3862,58 @@ class ChessGame {
                     this.addBotMessage(gloats[Math.floor(Math.random() * gloats.length)]);
                 }, 800);
             }
+        }
+    }
+
+    /** Show the Accept / Decline gambit overlay */
+    _showGambitOverlay(gambit) {
+        const overlay = document.getElementById('gambitOverlay');
+        if (!overlay) return;
+        document.getElementById('gambitName').textContent = gambit.name;
+        document.getElementById('gambitDesc').textContent = gambit.desc;
+        overlay.style.display = 'flex';
+        // store gambit data for the button handlers
+        overlay._gambitData = gambit;
+    }
+
+    /** Player accepts the gambit — dismiss overlay and let them make their move */
+    _handleGambitAccept() {
+        const overlay = document.getElementById('gambitOverlay');
+        if (overlay) overlay.style.display = 'none';
+        this.switchTurn();
+    }
+
+    /** Player declines the gambit — undo bot's gambit move and play a non-gambit alternative */
+    _handleGambitDecline() {
+        const overlay = document.getElementById('gambitOverlay');
+        const gambit = overlay?._gambitData;
+        if (overlay) overlay.style.display = 'none';
+        if (!gambit) { this.switchTurn(); return; }
+
+        _gambitDeclinedThisMove = true;
+
+        // Undo the bot's gambit move
+        this.chess.undo();
+        this.moveHistory.pop();
+        this.renderBoard();
+        this.updateMoveList();
+        this.updateStatus();
+
+        // Pick the first valid decline alternative
+        const legalMoves = this.chess.moves({ verbose: true });
+        let chosen = null;
+        for (const alt of gambit.declineMoves) {
+            chosen = legalMoves.find(m => m.san === alt);
+            if (chosen) break;
+        }
+
+        if (chosen) {
+            // Play the decline move as if the bot chose it
+            this._executeBotMove(chosen.from, chosen.to, chosen.promotion || undefined);
+        } else {
+            // Fallback: just re-query engine (wrapped in setTimeout to avoid recursion)
+            this.switchTurn();
+            setTimeout(() => this.makeBotMove(), 400);
         }
     }
 
@@ -5138,7 +5248,12 @@ class ChessGame {
         
         // Hide chess.com sidebar if visible
         const chessSidebar = document.getElementById('chessSidebar');
-        if (chessSidebar) chessSidebar.style.display = 'none';
+        if (chessSidebar) {
+            chessSidebar.classList.remove('sidebar-visible');
+            chessSidebar.style.display = 'none';
+        }
+        const chessBackdrop = document.getElementById('chessSidebarBackdrop');
+        if (chessBackdrop) chessBackdrop.classList.remove('active');
         
         // Only reposition sidebar menu on desktop (mobile uses overlay)
         if (window.innerWidth > 768) {
@@ -5657,8 +5772,17 @@ class ChessGame {
             document.getElementById('playSection').style.display = 'none';
             document.getElementById('practiceSection').style.display = 'none';
             document.getElementById('learnSection').style.display = 'none';
-            const chessSidebar = document.getElementById('chessSidebar');
-            if (chessSidebar) chessSidebar.style.display = 'none';
+            const chessSidebarHome = document.getElementById('chessSidebar');
+            if (chessSidebarHome) {
+                chessSidebarHome.classList.remove('sidebar-visible');
+                chessSidebarHome.style.display = 'none';
+            }
+            const homeBackdrop = document.getElementById('chessSidebarBackdrop');
+            if (homeBackdrop) homeBackdrop.classList.remove('active');
+            // Hide gambit overlay if open
+            const gambitOverlay2 = document.getElementById('gambitOverlay');
+            if (gambitOverlay2) gambitOverlay2.style.display = 'none';
+            _gambitDeclinedThisMove = false;
             // Hide profile page
             const profilePage = document.getElementById('profileStatsModal');
             if (profilePage) profilePage.style.display = 'none';
@@ -5758,7 +5882,14 @@ class ChessGame {
             if (container) container.style.display = '';
             // Show right sidebar only (no Boss Battle left panel)
             const chessSidebar = document.getElementById('chessSidebar');
-            if (chessSidebar) chessSidebar.style.display = 'block';
+            if (chessSidebar) {
+                chessSidebar.style.display = 'block';
+                // Trigger slide-in animation
+                requestAnimationFrame(() => chessSidebar.classList.add('sidebar-visible'));
+            }
+            // Show backdrop overlay
+            const backdrop = document.getElementById('chessSidebarBackdrop');
+            if (backdrop) backdrop.classList.add('active');
             // Hide Boss Battle left panel
             const playSection = document.getElementById('playSection');
             if (playSection) playSection.style.display = 'none';
@@ -5795,7 +5926,14 @@ class ChessGame {
             if (container) container.style.display = '';
             // Show Chess.com-style right sidebar for Boss Battle
             const chessSidebar = document.getElementById('chessSidebar');
-            if (chessSidebar) chessSidebar.style.display = 'block';
+            if (chessSidebar) {
+                chessSidebar.style.display = 'block';
+                // Trigger slide-in animation
+                requestAnimationFrame(() => chessSidebar.classList.add('sidebar-visible'));
+            }
+            // Show backdrop overlay
+            const backdrop = document.getElementById('chessSidebarBackdrop');
+            if (backdrop) backdrop.classList.add('active');
             // Restore bot sections, hide online section
             const botSection = document.getElementById('sidebarBotSection');
             if (botSection) botSection.style.display = '';
@@ -5810,7 +5948,22 @@ class ChessGame {
             document.getElementById('playSection').style.display = 'none';
             // Hide Chess.com-style right sidebar when closing Boss Battle
             const chessSidebar = document.getElementById('chessSidebar');
-            if (chessSidebar) chessSidebar.style.display = 'none';
+            if (chessSidebar) {
+                chessSidebar.classList.remove('sidebar-visible');
+                // Wait for slide-out animation, then hide
+                setTimeout(() => {
+                    if (!chessSidebar.classList.contains('sidebar-visible')) {
+                        chessSidebar.style.display = 'none';
+                    }
+                }, 350);
+            }
+            // Hide backdrop
+            const backdrop = document.getElementById('chessSidebarBackdrop');
+            if (backdrop) backdrop.classList.remove('active');
+            // Hide gambit overlay if open
+            const gambitOverlay = document.getElementById('gambitOverlay');
+            if (gambitOverlay) gambitOverlay.style.display = 'none';
+            _gambitDeclinedThisMove = false;
             // Close submenu
             document.getElementById('playSubmenu').style.display = 'none';
             document.getElementById('playArrow').style.transform = 'rotate(0deg)';
@@ -5826,6 +5979,14 @@ class ChessGame {
             if (onlineSection) onlineSection.style.display = 'none';
             const sidebarTitle = document.getElementById('sidebarTitle');
             if (sidebarTitle) sidebarTitle.textContent = '♟️ Play Bots';
+        };
+
+        // ── Gambit overlay handlers (called from HTML onclick) ──
+        window.acceptGambit = () => {
+            if (window.chessGame) window.chessGame._handleGambitAccept();
+        };
+        window.declineGambit = () => {
+            if (window.chessGame) window.chessGame._handleGambitDecline();
         };
         
         window.showPracticeSection = () => {
@@ -9278,5 +9439,6 @@ window.addEventListener('load', () => {
             alert('Error loading chess game: ' + error.message);
         }
         // For non-critical errors (like sound files), the game will still work
-    }
+
+}
 });

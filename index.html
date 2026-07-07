@@ -53,6 +53,23 @@
             </div>
         </div>
         
+        <!-- Chess.com-style Backdrop Overlay -->
+        <div id="chessSidebarBackdrop" class="chess-sidebar-backdrop" onclick="closePlaySection()"></div>
+
+        <!-- Gambit Accept/Decline Overlay -->
+        <div id="gambitOverlay" class="gambit-overlay" style="display: none;">
+            <div class="gambit-overlay-card">
+                <div class="gambit-overlay-icon">⚔️</div>
+                <div class="gambit-overlay-title">Gambit!</div>
+                <div id="gambitName" class="gambit-overlay-name">King's Gambit</div>
+                <div id="gambitDesc" class="gambit-overlay-desc">White offers a pawn for rapid development</div>
+                <div class="gambit-overlay-buttons">
+                    <button class="gambit-btn gambit-btn-accept" onclick="acceptGambit()">✅ Accept Gambit</button>
+                    <button class="gambit-btn gambit-btn-decline" onclick="declineGambit()">❌ Decline Gambit</button>
+                </div>
+            </div>
+        </div>
+
         <div class="sidebar">
             <div class="game-status">
                 <h2 id="status">Configure your game to start</h2>
@@ -60,15 +77,14 @@
             </div>
             
             <!-- Chess.com Style Sidebar -->
-            <div id="chessSidebar" style="position: fixed; right: 0; top: 0; width: 260px; height: 100vh; background: linear-gradient(180deg, #312e2b 0%, #272522 100%); border-left: 1px solid rgba(255, 255, 255, 0.1); padding: 15px; overflow-y: auto; z-index: 1000; box-shadow: -5px 0 20px rgba(0,0,0,0.5);">
+            <div id="chessSidebar" style="position: fixed; right: 0; top: 0; width: 300px; height: 100dvh; background: rgba(30, 30, 40, 0.92); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-left: 1px solid rgba(255, 255, 255, 0.08); padding: 20px; overflow-y: auto; z-index: 1000; box-shadow: -8px 0 40px rgba(0,0,0,0.6); display: flex; flex-direction: column; transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);">
                 <!-- Sidebar Header -->
-                <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid rgba(255, 255, 255, 0.1); position: relative;">
-                    <!-- Close button — visible on mobile only -->
-                    <button id="closeChessSidebar" onclick="closePlaySection(); if(window.innerWidth<=768)document.getElementById('sidebarToggle').style.display='block';" style="position: absolute; left: 0; top: 50%; transform: translateY(-50%); background: none; border: none; color: rgba(255,255,255,0.5); font-size: 20px; cursor: pointer; padding: 4px 8px; display: none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">←</button>
-                    <div id="sidebarTitle" style="font-size: 20px; font-weight: 700; color: #fff; text-align: center;">♟️ Play Bots</div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+                    <div id="sidebarTitle" style="font-size: 18px; font-weight: 700; color: #fff;">♟️ Play Bots</div>
+                    <button id="closeChessSidebar" onclick="closePlaySection()" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); font-size: 16px; cursor: pointer; padding: 6px 10px; border-radius: 6px; line-height: 1; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.12)';this.style.color='#fff'" onmouseout="this.style.background='rgba(255,255,255,0.06)';this.style.color='rgba(255,255,255,0.7)'">✕</button>
                 </div>
                 
-                <div id="sidebarBotSection">
+                <div id="sidebarBotSection" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
                 <div id="selectedBotDisplay" style="background: rgba(0, 0, 0, 0.3); border-radius: 10px; padding: 15px; margin-bottom: 20px; text-align: center; border: 2px solid rgba(118, 150, 86, 0.3);">
                     <div style="font-size: 48px; margin-bottom: 8px;">🤖</div>
                     <div style="color: #fff; font-weight: 700; font-size: 18px; margin-bottom: 4px;">THE ONE ABOVE ALL</div>
@@ -76,7 +92,7 @@
                 </div>
                 
                 <!-- Bot List -->
-                <div style="margin-bottom: 20px;">
+                <div style="flex: 1; min-height: 0; overflow-y: auto; margin-bottom: 20px;">
                     <div style="color: rgba(255, 255, 255, 0.5); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">Select Opponent</div>
                     
                     <div id="bot-god" class="bot-option bot-option-card" data-bot="god">
