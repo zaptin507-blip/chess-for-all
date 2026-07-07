@@ -1326,7 +1326,7 @@ class ChessGame {
             adapter.postMessage('setoption name WeightsFile value ' + weightsUrl);
             adapter.postMessage('setoption name MinibatchSize value 256');
             adapter.postMessage('setoption name MaxPrefetch value 32');
-            adapter.postMessage('setoption name CPuct value 2.5');
+            adapter.postMessage('setoption name CPuct value 3.5');  // High exploration = creative play
             adapter.postMessage('isready');
             await this._waitForUciMessage(adapter, msg => msg === 'readyok', 15000);
 
@@ -1407,8 +1407,9 @@ class ChessGame {
     }
 
     _getBotEngine() {
-        // Use the native Server Stockfish 18 when bot is winning (fastest, deepest),
-        // otherwise use Reckless v0.9.0 or WASM Stockfish.
+        // All three engines have equal say (weights 2-2-2) in Grandmaster Council mode.
+        // For direct play: Server SF 18 when bot is winning (deepest, fastest),
+        // otherwise Reckless v0.9.0 or WASM Stockfish (more balanced).
         // winProbability.loss = bot's win prob (from player's perspective).
         const botWinProb = this.winProbability ? this.winProbability.loss : 0;
         if (botWinProb > 50 && this.recklessEngine) {
@@ -1661,10 +1662,15 @@ class ChessGame {
         console.log('🏛️ ════════════════════════════════════════');
         console.log(`📌 Position: ${fen}`);
 
+        // Equalized weights (2-2-2) so no engine family dominates.
+        // Each engine gets a different search time for personality diversity:
+        //   Server SF 18 (4s) → deep, principled chess
+        //   Reckless (2s)    → fast, instinctive, tactical
+        //   LCZero (5s)      → more MCTS simulations, creative/positional
         const engines = [
-            { engine: this.recklessEngine,  name: 'Server Stockfish 18', weight: 4, icon: '🖥️' },
-            { engine: this.stockfish,       name: 'Reckless v0.9.0', weight: 3, icon: '⚡' },
-            { engine: this.lczero,          name: 'LCZero',          weight: 1, icon: '🌐' }
+            { engine: this.recklessEngine,  name: 'Server Stockfish 18', weight: 2, icon: '🖥️', searchMs: 4000 },
+            { engine: this.stockfish,       name: 'Reckless v0.9.0',    weight: 2, icon: '⚡',  searchMs: 2000 },
+            { engine: this.lczero,          name: 'LCZero',             weight: 2, icon: '🌐',  searchMs: 5000 }
         ];
 
         // Filter out unavailable engines
@@ -1692,13 +1698,13 @@ class ChessGame {
         }
 
         // Send FEN to all engines in parallel with early consensus detection.
-        // If two heavy engines agree (6 of 8 total votes), cancel remaining search.
+        // If two engines agree (4 of 6 total votes), cancel remaining search.
         const totalWeight = available.reduce((s, e) => s + e.weight, 0);
         const partialVotes = {};
         let consensusReached = false;
 
         const results = await Promise.all(available.map((e) => {
-            return this._queryEngine(e.engine, fen, e.name, 5000).then(result => {
+            return this._queryEngine(e.engine, fen, e.name, e.searchMs).then(result => {
                 if (!consensusReached && result.move) {
                     partialVotes[result.move] = (partialVotes[result.move] || 0) + e.weight;
                     // Consensus: any move with > half total weight is mathematically unbeatable
@@ -1738,24 +1744,50 @@ class ChessGame {
             console.log(`${r.icon} ${r.name}: ${voteStr} ${thought}`);
         }
 
-        // Weighted vote: tally votes by move with weights
-        // Tiebreaker: when two moves have equal weight, higher eval score wins
+        // 🎨 Weighted vote with creativity bonuses — not just raw consensus.
+        // Tiebreaker: when votes are close, prefer LCZero's pick (creative diversity).
         const voteTally = {};
-        let topMove = null, topWeight = 0, topScore = -Infinity;
         for (const r of this._councilResults) {
             if (!r.move) continue;
             voteTally[r.move] = (voteTally[r.move] || 0) + r.weight;
-            const w = voteTally[r.move];
-            if (w > topWeight || (w === topWeight && r.score > topScore)) {
-                topWeight = w;
-                topScore = r.score;
-                topMove = r.move;
+        }
+
+        // 🎨 Creativity bonus: LCZero's unique finds get +1 extra consideration.
+        // This ensures the MCTS engine's different perspective is actually heard,
+        // not drowned out by two alpha-beta engines agreeing.
+        const lc0Result = this._councilResults.find(r => r.name === 'LCZero');
+        if (lc0Result && lc0Result.move && Object.keys(voteTally).length > 1) {
+            const onlyLCZero = !this._councilResults.some(
+                r => r.name !== 'LCZero' && r.move === lc0Result.move
+            );
+            if (onlyLCZero) {
+                voteTally[lc0Result.move] = (voteTally[lc0Result.move] || 0) + 1;
+                console.log(`🎨 Creativity bonus! LCZero's ${lc0Result.move} is unique (+1)`);
+            }
+        }
+
+        // Winner selection: primary by weight, tiebreak by creativity preference
+        let topMove = null, topWeight = 0, topScore = -Infinity;
+        for (const [move, weight] of Object.entries(voteTally)) {
+            const moveResults = this._councilResults.filter(r => r.move === move);
+            const avgScore = moveResults.reduce((s, r) => s + r.score, 0) / moveResults.length;
+
+            // Highest weight wins. When votes are close (within 1), prefer LCZero's pick
+            // to favor creative diversity over stale alpha-beta consensus.
+            const lc0Prefers = lc0Result && lc0Result.move === move;
+            const creativeBreak = lc0Prefers && Math.abs(weight - topWeight) <= 1 && topMove !== null;
+
+            if (weight > topWeight || (weight === topWeight && avgScore > topScore) || creativeBreak) {
+                topWeight = weight;
+                topScore = avgScore;
+                topMove = move;
             }
         }
 
         console.log(`🏛️ ──────── Vote Tally ────────`);
         for (const [move, weight] of Object.entries(voteTally)) {
-            const marker = (move === topMove) ? ' ← SELECTED' : '';
+            const creativeMark = lc0Result && lc0Result.move === move ? ' 🎨' : '';
+            const marker = (move === topMove) ? ` ← SELECTED${creativeMark}` : '';
             console.log(`   ${move}: ${weight} votes${marker}`);
         }
 
@@ -4311,19 +4343,19 @@ class ChessGame {
                 </div>
                 <div class="council-engines">
                     <div class="council-engine thinking">
-                        <span class="council-engine-icon">⏳</span>
-                        <span class="council-engine-name">Stockfish NNUE</span>
-                        <span class="council-engine-think">Analyzing...</span>
+                        <span class="council-engine-icon">🖥️</span>
+                        <span class="council-engine-name">Server Stockfish 18</span>
+                        <span class="council-engine-think">Deep calculation...</span>
                     </div>
                     <div class="council-engine thinking">
-                        <span class="council-engine-icon">⏳</span>
+                        <span class="council-engine-icon">⚡</span>
+                        <span class="council-engine-name">Reckless v0.9.0</span>
+                        <span class="council-engine-think">Tactical blitz...</span>
+                    </div>
+                    <div class="council-engine thinking">
+                        <span class="council-engine-icon">🌐</span>
                         <span class="council-engine-name">LCZero</span>
-                        <span class="council-engine-think">Analyzing...</span>
-                    </div>
-                    <div class="council-engine thinking">
-                        <span class="council-engine-icon">⏳</span>
-                        <span class="council-engine-name">Server SF 18</span>
-                        <span class="council-engine-think">Analyzing...</span>
+                        <span class="council-engine-think">Creative exploration...</span>
                     </div>
                 </div>
             `;
