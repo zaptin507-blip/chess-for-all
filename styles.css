@@ -2330,11 +2330,9 @@ html {
     display: block !important;
 }
 
-/* Fix sidebar height — stretch from top to bottom, always full viewport */
+/* Fix sidebar height — pin from top to bottom of viewport */
 #chessSidebar {
-    min-height: 100vh !important;
-    min-height: 100dvh !important;
-    height: 100dvh !important;
+    top: 0 !important;
     bottom: 0 !important;
 }
 
@@ -2520,8 +2518,8 @@ html {
             flex-direction: column;
             width: 280px !important;
             max-width: 85vw;
-            min-height: 100dvh !important;
-            height: 100dvh !important;
+            top: 0 !important;
+            bottom: 0 !important;
             z-index: 9999 !important;
             transform: translateX(0) !important;
         }

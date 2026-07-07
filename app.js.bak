@@ -1147,8 +1147,6 @@ class ChessGame {
             if (container) container.classList.remove('visible');
             return;
         }
-        // Skip during council deliberation — avoids engine contention with council queries
-        if (this.councilMode) return;
         // Quick evaluation to update probabilities
         if (!this.stockfish) return;
         
@@ -1227,7 +1225,7 @@ class ChessGame {
     }
 
     async initStockfish() {
-        const numThreads = Math.max(2, navigator.hardwareConcurrency || 4);
+        const numThreads = Math.max(2, Math.min(8, (navigator.hardwareConcurrency || 4)));
         const hashMB = 256;
 
         // Try NNUE engine first (requires SharedArrayBuffer support)
@@ -1244,12 +1242,11 @@ class ChessGame {
                 // Max-strength configuration for NNUE Stockfish
                 engine.postMessage(`setoption name Threads value ${numThreads}`);
                 engine.postMessage(`setoption name Hash value ${hashMB}`);
-                engine.postMessage('setoption name Move Overhead value 10');
                 engine.postMessage(`setoption name Contempt value ${this.contemptValue}`);
                 engine.postMessage('isready');
                 await this._waitForUciMessage(engine, msg => msg === 'readyok', 8000);
 
-                console.log(`✅ NNUE Stockfish initialized (Threads=${numThreads}, Hash=${hashMB}MB, Overhead=10ms, Contempt=${this.contemptValue})`);
+                console.log(`✅ NNUE Stockfish initialized (Threads=${numThreads}, Hash=${hashMB}MB, Contempt=${this.contemptValue})`);
                 return engine;
             } catch (error) {
                 console.warn('⚠️ NNUE init failed, falling back to classic Worker:', error);
@@ -1409,30 +1406,9 @@ class ChessGame {
             return;
         }
 
-        // Send FEN to all engines in parallel with early consensus detection.
-        // If two heavy engines agree (6 of 8 total votes), cancel remaining search.
-        const totalWeight = available.reduce((s, e) => s + e.weight, 0);
-        const partialVotes = {};
-        let consensusReached = false;
-
-        const results = await Promise.all(available.map((e) => {
-            return this._queryEngine(e.engine, fen).then(result => {
-                if (!consensusReached && result.move) {
-                    partialVotes[result.move] = (partialVotes[result.move] || 0) + e.weight;
-                    // Consensus: any move with > half total weight is mathematically unbeatable
-                    if (partialVotes[result.move] > totalWeight / 2) {
-                        consensusReached = true;
-                        // Stop remaining engines — their vote can't change the winner
-                        available.forEach(other => {
-                            if (other.engine !== e.engine) {
-                                try { other.engine.postMessage('stop'); } catch (_) {}
-                            }
-                        });
-                    }
-                }
-                return result;
-            });
-        }));
+        // Send FEN to all engines in parallel
+        const queries = available.map(e => this._queryEngine(e.engine, fen));
+        const results = await Promise.all(queries);
 
         // Build council results
         this._councilResults = available.map((e, i) => ({
@@ -1481,7 +1457,7 @@ class ChessGame {
             const timeout = setTimeout(() => {
                 engine.removeEventListener('message', listener);
                 resolve({ move: bestMove, score: bestScore, scoreDisplay });
-            }, 6000);
+            }, 10000);
 
             const listener = (event) => {
                 const msg = event.data;
@@ -1505,15 +1481,14 @@ class ChessGame {
                 }
             };
             engine.addEventListener('message', listener);
-            // ucinewgame clears stale hash state between positions (avoids search pollution)
-            engine.postMessage('ucinewgame');
+            engine.postMessage('stop');
             engine.postMessage(`position fen ${fen}`);
             engine.postMessage('go movetime 2500');
         });
     }
 
     async initAnalysisEngine() {
-        const numThreads = Math.max(2, navigator.hardwareConcurrency || 4);
+        const numThreads = Math.max(2, Math.min(8, (navigator.hardwareConcurrency || 4)));
         const hashMB = 256;
 
         // Try NNUE engine first
@@ -1530,11 +1505,10 @@ class ChessGame {
                 // Full-strength analysis config (no Skill Level limiting)
                 engine.postMessage(`setoption name Threads value ${numThreads}`);
                 engine.postMessage(`setoption name Hash value ${hashMB}`);
-                engine.postMessage('setoption name Move Overhead value 10');
                 engine.postMessage('isready');
                 await this._waitForUciMessage(engine, msg => msg === 'readyok', 8000);
 
-                console.log(`✅ NNUE analysis engine initialized (Threads=${numThreads}, Hash=${hashMB}MB, Overhead=10ms)`);
+                console.log(`✅ NNUE analysis engine initialized (Threads=${numThreads}, Hash=${hashMB}MB)`);
                 return engine;
             } catch (error) {
                 console.warn('⚠️ NNUE analysis engine init failed, falling back:', error);
