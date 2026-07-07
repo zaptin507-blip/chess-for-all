@@ -33,6 +33,7 @@ function detectGambitOffer(movesArray) {
     if (entry && entry.gambitMove === lastMove) {
         return { ...entry, prefix };
     }
+    
     return null;
 }
 
@@ -2027,6 +2028,14 @@ class ChessGame {
         timeSelect.addEventListener('change', () => this.checkAllSelected());
         colorSelect.addEventListener('change', () => this.checkAllSelected());
         
+        // Also wire up the playSection (left Boss Battle panel) dropdowns
+        const playTimeSelect = document.getElementById('timeSelect');
+        const playColorSelect = document.getElementById('colorSelect');
+        const playStartBtn = document.getElementById('startGameBtn');
+        if (playTimeSelect) playTimeSelect.addEventListener('change', () => this.checkAllSelected());
+        if (playColorSelect) playColorSelect.addEventListener('change', () => this.checkAllSelected());
+        if (playStartBtn) playStartBtn.addEventListener('click', () => this.startGameFromDropdown());
+        
         // Bot selection - Chess.com style cards
         document.querySelectorAll('.bot-option').forEach(botCard => {
             botCard.addEventListener('click', function() {
@@ -2182,7 +2191,7 @@ class ChessGame {
             startBtn = document.getElementById('sidebarStartGameBtn');
         }
         
-        if (this.selectedBot && timeSelect && timeSelect.value) {
+        if (this.selectedBot && timeSelect && timeSelect.value && colorSelect && colorSelect.value) {
             if (startBtn) {
                 startBtn.disabled = false;
                 startBtn.style.opacity = '1';
@@ -2198,12 +2207,17 @@ class ChessGame {
     }
     
     checkAllSelected() {
-        const timeSelect = document.getElementById('sidebarTimeSelect');
-        const colorSelect = document.getElementById('sidebarColorSelect');
-        const startGameBtn = document.getElementById('sidebarStartGameBtn');
+        // Detect which UI panel is active: left playSection or right sidebar
+        const playSection = document.getElementById('playSection');
+        const isPlaySection = playSection && playSection.style.display !== 'none';
+        
+        const timeSelect = document.getElementById(isPlaySection ? 'timeSelect' : 'sidebarTimeSelect');
+        const colorSelect = document.getElementById(isPlaySection ? 'colorSelect' : 'sidebarColorSelect');
+        const startGameBtn = document.getElementById(isPlaySection ? 'startGameBtn' : 'sidebarStartGameBtn');
+        
+        if (!timeSelect || !startGameBtn) return;
         
         // Enable start button only if all selections are made
-        // Check bot selection via selectedBot property instead of dropdown
         const allSelected = timeSelect.value && this.selectedBot && colorSelect.value;
         startGameBtn.disabled = !allSelected;
         
@@ -2217,8 +2231,12 @@ class ChessGame {
     }
     
     startGameFromDropdown() {
-        const timeSelect = document.getElementById('sidebarTimeSelect');
-        const colorSelect = document.getElementById('sidebarColorSelect');
+        // Detect which UI panel is active: left playSection or right sidebar
+        const playSection = document.getElementById('playSection');
+        const isPlaySection = playSection && playSection.style.display !== 'none';
+        
+        const timeSelect = document.getElementById(isPlaySection ? 'timeSelect' : 'sidebarTimeSelect');
+        const colorSelect = document.getElementById(isPlaySection ? 'colorSelect' : 'sidebarColorSelect');
         
         // Set game parameters
         this.timerMode = timeSelect.value;
@@ -6249,6 +6267,11 @@ class ChessGame {
         // Enable start button when time and color are selected
         document.getElementById('sidebarTimeSelect').addEventListener('change', () => this.checkBossBattleReady());
         document.getElementById('sidebarColorSelect').addEventListener('change', () => this.checkBossBattleReady());
+        // Also wire playSection (left Boss Battle panel) dropdowns
+        const playTime = document.getElementById('timeSelect');
+        const playColor = document.getElementById('colorSelect');
+        if (playTime) playTime.addEventListener('change', () => this.checkBossBattleReady());
+        if (playColor) playColor.addEventListener('change', () => this.checkBossBattleReady());
         
         // Rating modal close button
         document.getElementById('closeRatingModal').addEventListener('click', () => {
