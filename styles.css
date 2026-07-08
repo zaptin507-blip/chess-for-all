@@ -18,10 +18,11 @@ body {
     background-size: 150% 150%, 150% 150%, 150% 150%, 150% 150%, 150% 150%, 800% 800%;
     animation: gradientShift 14s ease-in-out infinite;
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 10px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 10px 10px 10px 190px;
     position: relative;
 }
 
