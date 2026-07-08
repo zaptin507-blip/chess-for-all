@@ -1360,8 +1360,21 @@ class ChessGame {
             this.recklessEngine = null;
         }
         
-        // Initialize LCZero — MCTS + neural net engine (runs in parallel with other engines)
-        this.lczero = await this.initLCZero();
+        // Initialize LCZero via WebSocket bridge (native, ~10x faster than WASM)
+        let lc0Bridge = null;
+        try {
+            const lc0 = new RecklessClient();
+            await lc0.connect('ws://localhost:9003');
+            lc0.postMessage('uci');
+            await this._waitForUciMessage(lc0, msg => msg === 'uciok', 10000);
+            lc0.postMessage('isready');
+            await this._waitForUciMessage(lc0, msg => msg === 'readyok', 15000);
+            console.log('✅ Server-side LCZero initialized (native, BLAS backend)');
+            lc0Bridge = lc0;
+        } catch (e) {
+            console.warn('⚠️ LCZero bridge (port 9003) not available, falling back to WASM:', e.message);
+        }
+        this.lczero = lc0Bridge || await this.initLCZero();
         this.lczeroReady = !!this.lczero;
 
         // Initialize Reckless v0.9.0 (~3767 ELO) via WebSocket bridge — stronger than WASM Stockfish
@@ -1662,14 +1675,9 @@ class ChessGame {
         console.log('🏛️ ════════════════════════════════════════');
         console.log(`📌 Position: ${fen}`);
 
-        // Equalized weights (2-2-2) so no engine family dominates.
-        // Each engine gets a different search time for personality diversity:
-        //   Server SF 18 (4s) → deep, principled chess
-        //   Reckless (2s)    → fast, instinctive, tactical
-        //   LCZero (5s)      → more MCTS simulations, creative/positional
         const engines = [
-            { engine: this.recklessEngine,  name: 'Server Stockfish 18', weight: 2, icon: '🖥️', searchMs: 4000 },
-            { engine: this.stockfish,       name: 'Reckless v0.9.0',    weight: 2, icon: '⚡',  searchMs: 2000 },
+            { engine: this.recklessEngine,  name: 'Server Stockfish 18', weight: 2, icon: '🖥️', searchMs: 5000 },
+            { engine: this.stockfish,       name: 'Reckless v0.9.0',    weight: 2, icon: '⚡',  searchMs: 5000 },
             { engine: this.lczero,          name: 'LCZero',             weight: 2, icon: '🌐',  searchMs: 5000 }
         ];
 
@@ -1882,10 +1890,28 @@ class ChessGame {
     }
 
     async initAnalysisEngine() {
+        // Try native Server Stockfish 18 via bridge first (depth 30+ in 1s)
+        try {
+            const engine = new RecklessClient();
+            await engine.connect('ws://localhost:9001');
+            engine.postMessage('uci');
+            await this._waitForUciMessage(engine, msg => msg === 'uciok', 8000);
+            const numThreads = Math.max(2, navigator.hardwareConcurrency || 4);
+            engine.postMessage(`setoption name Threads value ${numThreads}`);
+            engine.postMessage('setoption name Hash value 4096');
+            engine.postMessage('setoption name Move Overhead value 10');
+            engine.postMessage('isready');
+            await this._waitForUciMessage(engine, msg => msg === 'readyok', 8000);
+            console.log(`✅ Native analysis engine initialized (Server Stockfish 18 via bridge, Threads=${numThreads}, Hash=4096MB)`);
+            return engine;
+        } catch (e) {
+            console.warn('⚠️ Native analysis bridge not available, falling back to WASM:', e.message);
+        }
+
         const numThreads = Math.max(2, navigator.hardwareConcurrency || 4);
         const hashMB = 512;
 
-        // Try NNUE engine first
+        // Try NNUE engine first (WASM fallback)
         if (window.NNUE_SUPPORTED && typeof window.Stockfish === 'function') {
             let rawEngine;
             try {
