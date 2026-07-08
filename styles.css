@@ -24,6 +24,7 @@ body {
     justify-content: flex-start;
     padding: 10px 10px 10px 190px;
     position: relative;
+    box-sizing: border-box;
 }
 
 @keyframes gradientShift {
