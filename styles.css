@@ -470,8 +470,8 @@ body::after {
     display: grid;
     grid-template-columns: repeat(8, 1fr);
     grid-template-rows: repeat(8, 1fr);
-    width: min(700px, calc(100vw - 320px), calc(100vh - 200px));
-    height: min(700px, calc(100vw - 320px), calc(100vh - 200px));
+    width: min(700px, calc(100vw - 480px), calc(100vh - 200px));
+    height: min(700px, calc(100vw - 480px), calc(100vh - 200px));
     max-width: 700px;
     max-height: 700px;
     border-radius: 12px;
@@ -1653,8 +1653,8 @@ html {
     }
     
     #chessboard {
-        width: min(500px, calc(100vw - 300px), calc(100vh - 160px));
-        height: min(500px, calc(100vw - 300px), calc(100vh - 160px));
+        width: min(500px, calc(100vw - 460px), calc(100vh - 160px));
+        height: min(500px, calc(100vw - 460px), calc(100vh - 160px));
     }
     
     .player-info h3 {
