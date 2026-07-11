@@ -2793,8 +2793,9 @@ class ChessGame {
         if (learnSection) learnSection.style.display = 'none';
         this.loadPreferences();
         
-        
-        // Start background music (AudioContext is already resumed during user gesture)
+        // Hide sidebar backdrop so board is fully visible and clickable
+        const backdrop = document.getElementById('chessSidebarBackdrop');
+        if (backdrop) backdrop.classList.remove('active');
         this.startGameMusic();
         
         // Initialize timers based on selected mode
@@ -5396,9 +5397,9 @@ class ChessGame {
         // Update opening display
         const openingDisplay = document.getElementById('openingDisplay');
         if (openingDisplay && this.openingName) {
-            openingDisplay.innerHTML = `📖 ${this.openingName}`;
+            openingDisplay.textContent = '📖 ' + this.openingName;
         } else if (openingDisplay) {
-            openingDisplay.innerHTML = '';
+            openingDisplay.textContent = '';
         }
         
         // Update win probability after each move
