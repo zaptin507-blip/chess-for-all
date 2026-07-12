@@ -4,19 +4,19 @@
       ".read": "auth != null",
       ".write": "auth != null",
       "$gameId": {
-        ".read": "auth != null",
-        ".write": "auth != null",
+        ".read": "auth != null && (data.child('players').child('white').child('uid').val() === auth.uid || data.child('players').child('black').child('uid').val() === auth.uid)",
+        ".write": "auth != null && (newData.child('players').child('white').child('uid').val() === auth.uid || data.child('players').child('black').child('uid').val() === auth.uid || (!data.child('players').child('black').exists() && newData.child('players').child('black').child('uid').val() === auth.uid))",
         "moves": {
-          ".read": "auth != null",
-          ".write": "auth != null"
+          ".read": "auth != null && (root.child('online-games').child($gameId).child('players').child('white').child('uid').val() === auth.uid || root.child('online-games').child($gameId).child('players').child('black').child('uid').val() === auth.uid)",
+          ".write": "auth != null && (root.child('online-games').child($gameId).child('players').child('white').child('uid').val() === auth.uid || root.child('online-games').child($gameId).child('players').child('black').child('uid').val() === auth.uid)"
         },
         "chat": {
-          ".read": "auth != null",
-          ".write": "auth != null"
+          ".read": "auth != null && (root.child('online-games').child($gameId).child('players').child('white').child('uid').val() === auth.uid || root.child('online-games').child($gameId).child('players').child('black').child('uid').val() === auth.uid)",
+          ".write": "auth != null && (root.child('online-games').child($gameId).child('players').child('white').child('uid').val() === auth.uid || root.child('online-games').child($gameId).child('players').child('black').child('uid').val() === auth.uid)"
         },
         "drawOffer": {
-          ".read": "auth != null",
-          ".write": "auth != null"
+          ".read": "auth != null && (root.child('online-games').child($gameId).child('players').child('white').child('uid').val() === auth.uid || root.child('online-games').child($gameId).child('players').child('black').child('uid').val() === auth.uid)",
+          ".write": "auth != null && (root.child('online-games').child($gameId).child('players').child('white').child('uid').val() === auth.uid || root.child('online-games').child($gameId).child('players').child('black').child('uid').val() === auth.uid)"
         }
       }
     },
