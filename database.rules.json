@@ -2,10 +2,8 @@
   "rules": {
     "online-games": {
       ".read": "auth != null",
-      ".write": "auth != null",
       "$gameId": {
-        ".read": "auth != null && (data.child('players').child('white').child('uid').val() === auth.uid || data.child('players').child('black').child('uid').val() === auth.uid)",
-        ".write": "auth != null && (newData.child('players').child('white').child('uid').val() === auth.uid || data.child('players').child('black').child('uid').val() === auth.uid || (!data.child('players').child('black').exists() && newData.child('players').child('black').child('uid').val() === auth.uid))",
+        ".write": "auth != null && ((!data.exists() && newData.exists() && newData.child('players').child('white').child('uid').val() === auth.uid) || (data.exists() && !newData.exists() && data.child('players').child('white').child('uid').val() === auth.uid) || (data.exists() && newData.exists() && (data.child('players').child('white').child('uid').val() === auth.uid || (data.child('players').child('black').exists() && data.child('players').child('black').child('uid').val() === auth.uid) || (!data.child('players').child('black').exists() && newData.child('players').child('black').child('uid').val() === auth.uid))))",
         "moves": {
           ".read": "auth != null && (root.child('online-games').child($gameId).child('players').child('white').child('uid').val() === auth.uid || root.child('online-games').child($gameId).child('players').child('black').child('uid').val() === auth.uid)",
           ".write": "auth != null && (root.child('online-games').child($gameId).child('players').child('white').child('uid').val() === auth.uid || root.child('online-games').child($gameId).child('players').child('black').child('uid').val() === auth.uid)"
@@ -17,6 +15,58 @@
         "drawOffer": {
           ".read": "auth != null && (root.child('online-games').child($gameId).child('players').child('white').child('uid').val() === auth.uid || root.child('online-games').child($gameId).child('players').child('black').child('uid').val() === auth.uid)",
           ".write": "auth != null && (root.child('online-games').child($gameId).child('players').child('white').child('uid').val() === auth.uid || root.child('online-games').child($gameId).child('players').child('black').child('uid').val() === auth.uid)"
+        }
+      }
+    },
+    "users": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "usernames": {
+      ".read": "auth != null",
+      "$name": {
+        ".write": "auth != null && (newData.val() === auth.uid || (data.exists() && data.val() === auth.uid))"
+      }
+    },
+    "friends": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$friendUid": {
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === $friendUid)"
+        }
+      }
+    },
+    "friendRequests": {
+      "$toUid": {
+        ".read": "auth != null && auth.uid === $toUid",
+        "$fromUid": {
+          ".write": "auth != null && (auth.uid === $fromUid || auth.uid === $toUid)"
+        }
+      }
+    },
+    "sentRequests": {
+      "$fromUid": {
+        ".read": "auth != null && auth.uid === $fromUid",
+        "$toUid": {
+          ".write": "auth != null && (auth.uid === $fromUid || auth.uid === $toUid)"
+        }
+      }
+    },
+    "challenges": {
+      "$toUid": {
+        ".read": "auth != null && auth.uid === $toUid",
+        "$fromUid": {
+          ".write": "auth != null && (auth.uid === $fromUid || auth.uid === $toUid)"
+        }
+      }
+    },
+    "sentChallenges": {
+      "$fromUid": {
+        ".read": "auth != null && auth.uid === $fromUid",
+        "$toUid": {
+          ".write": "auth != null && (auth.uid === $fromUid || auth.uid === $toUid)"
         }
       }
     },

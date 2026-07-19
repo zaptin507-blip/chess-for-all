@@ -279,6 +279,8 @@ class ChessGame {
                 this.backgroundMusic.pause();
                 this.backgroundMusic = null;
             }
+            // Token guards against overlapping play() promises adopting two tracks at once
+            const token = ++this._playTrackToken;
             try {
                 const audio = new Audio('sounds/' + filename);
                 audio.loop = true;
@@ -286,6 +288,11 @@ class ChessGame {
                 const playPromise = audio.play();
                 if (playPromise !== undefined) {
                     playPromise.then(() => {
+                        if (token !== this._playTrackToken) {
+                            // A newer playTrack call won — discard this stale track
+                            audio.pause();
+                            return;
+                        }
                         this.backgroundMusic = audio;
                         this.musicPlaying = true;
                     }).catch(() => {
@@ -301,7 +308,10 @@ class ChessGame {
                                 delay = 1000; // after that: every 1s for ~40s total
                             }
                             setTimeout(() => {
-                                this.playTrack(filename, volume, retryTimes + 1);
+                                // Stop retrying if another track already started
+                                if (!this.musicPlaying) {
+                                    this.playTrack(filename, volume, retryTimes + 1);
+                                }
                             }, delay);
                         }
                         // Also try on first click as ultimate fallback
@@ -374,6 +384,13 @@ class ChessGame {
         this.analyzer = null;
         this._isImportedGame = false;
         
+        // Search-state guards
+        this._botThinking = false;
+        this._winProbBusy = false;
+        this._analysisEngineInit = null;
+        this._lastMateIn = null;
+        this._playTrackToken = 0;
+
         // Council Mode (Grandmaster Council)
         this.councilMode = false;
         this._councilResults = null;
@@ -660,7 +677,9 @@ class ChessGame {
             }
         }
         
-        const materialDiff = playerPieces.length - opponentPieces.length;
+        const _tipValues = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+        const materialOf = (pieces) => pieces.reduce((sum, p) => sum + (_tipValues[p.type] || 0), 0);
+        const materialDiff = materialOf(playerPieces) - materialOf(opponentPieces);
         
         // Early game tips (moves 1-10)
         if (moveCount < 20) {
@@ -1140,7 +1159,7 @@ class ChessGame {
         return 'Checkmate';
     }
 
-    updateWinProbability() {
+    async updateWinProbability() {
         // Completely hide eval bar for online games (real opponents)
         if (this.isOnlineGame) {
             const container = document.getElementById('evalBarContainer');
@@ -1149,38 +1168,72 @@ class ChessGame {
         }
         // Skip during council deliberation — avoids engine contention with council queries
         if (this.councilMode) return;
-        // Quick evaluation to update probabilities
-        if (!this.stockfish) return;
-        
+        // Eval bar is pointless once the game is decided
+        if (this.gameOver) return;
+        // Serialize: never run two win-prob searches at once, and never fight
+        // full game analysis for the same engine
+        if (this._winProbBusy || this._analyzing) return;
+
+        // Use the dedicated ANALYSIS engine — never the bot engine — so this search
+        // cannot collide with the bot's own 'go' command on the same UCI stream
+        if (!this.analysisEngine) {
+            if (!this._analysisEngineInit) {
+                this._analysisEngineInit = this.initAnalysisEngine();
+            }
+            try {
+                this.analysisEngine = await this._analysisEngineInit;
+            } catch (e) {
+                this._analysisEngineInit = null; // allow retry on the next move
+                return;
+            }
+            if (!this.analysisEngine) return;
+        }
+
+        const engine = this.analysisEngine;
         const fen = this.chess.fen();
         let evalScore = 0;
-        
+        this._winProbBusy = true;
+        let finished = false;
+
+        const finish = (withResult) => {
+            if (finished) return;
+            finished = true;
+            this._winProbBusy = false;
+            engine.removeEventListener('message', listener);
+            if (!withResult) return;
+
+            // Update win probability
+            this.winProbability = this.calculateWinProbability(evalScore);
+
+            // Bot games: show only eval value text (not the bar fill)
+            this.updateEvalBar(evalScore);
+        };
+
         const listener = (event) => {
             const message = event.data;
             const match = message.match(/score cp (-?\d+)/);
             const mateMatch = message.match(/score mate (-?\d+)/);
-            
+
             if (mateMatch) {
                 const mateIn = parseInt(mateMatch[1]);
                 evalScore = mateIn > 0 ? 10000 : -10000;
+                this._lastMateIn = Math.abs(mateIn);
             } else if (match) {
                 evalScore = parseInt(match[1]);
+                this._lastMateIn = null;
             }
-            
+
             if (message.startsWith('bestmove')) {
-                this.stockfish.removeEventListener('message', listener);
-                
-                // Update win probability
-                this.winProbability = this.calculateWinProbability(evalScore);
-                
-                // Bot games: show only eval value text (not the bar fill)
-                this.updateEvalBar(evalScore);
+                finish(true);
             }
         };
-        
-        this.stockfish.addEventListener('message', listener);
-        this.stockfish.postMessage(`position fen ${fen}`);
-        this.stockfish.postMessage('go movetime 1200');
+
+        engine.addEventListener('message', listener);
+        engine.postMessage(`position fen ${fen}`);
+        engine.postMessage('go movetime 1200');
+
+        // Safety net: if bestmove never arrives (engine reset mid-search), release the lock
+        setTimeout(() => finish(false), 6000);
     }
 
     updateEvalBar(evalScore) {
@@ -1193,17 +1246,17 @@ class ChessGame {
         container.classList.add('visible');
         fill.style.display = 'none';
         
-        // Format the value text
+        // Format the value text (always light text — the eval track is dark)
         if (Math.abs(evalScore) >= 10000) {
-            // Mate score
-            const mateIn = evalScore > 0 ? Math.ceil((20000 - evalScore) / 2) : Math.ceil((20000 + evalScore) / 2);
+            // Mate score — use the real mate distance captured during the search
+            const mateIn = this._lastMateIn != null ? this._lastMateIn : '';
             value.textContent = evalScore > 0 ? `M${mateIn}` : `-M${mateIn}`;
-            value.style.color = evalScore > 0 ? '#f0f0f0' : '#1a1a1a';
+            value.style.color = '#f0f0f0';
         } else {
             const absCP = Math.abs(evalScore / 100);
             const sign = evalScore >= 0 ? '+' : '-';
             value.textContent = evalScore === 0 ? '0.0' : `${sign}${absCP.toFixed(1)}`;
-            value.style.color = evalScore >= 0 ? '#f0f0f0' : '#1a1a1a';
+            value.style.color = '#f0f0f0';
         }
     }
 
@@ -1432,7 +1485,7 @@ class ChessGame {
     }
 
     /** Quick blunder check: verify a proposed move isn't tactically unsound */
-    async _quickVerifyMove(currentFen, proposedMove) {
+    async _quickVerifyMove(currentFen, proposedMove, knownScore = 0) {
         // Clone position and make the proposed move
         const board = new Chess(currentFen);
         try {
@@ -1451,8 +1504,13 @@ class ChessGame {
             return { safe: true, reason: 'Checkmate!' };
         }
         if (board.isDraw() || board.isStalemate()) {
-            console.warn(`⚠️ Tactical Alarm: ${proposedMove} leads to draw/stalemate`);
-            return { safe: false, reason: 'Draw or stalemate', details: 'Position is drawn after this move' };
+            // Only flag a draw as unsafe when the mover was clearly winning —
+            // salvaging a draw from a lost position is GOOD chess, not a blunder
+            if (knownScore > 150) {
+                console.warn(`⚠️ Tactical Alarm: ${proposedMove} throws away a winning position (draw)`);
+                return { safe: false, reason: 'Winning position thrown away (draw)', details: 'Position is drawn after this move' };
+            }
+            return { safe: true, reason: 'Draw salvaged' };
         }
 
         // Use native Server Stockfish 18 for tactical alarm (native speed, depth 30+ in 1s)
@@ -1801,7 +1859,10 @@ class ChessGame {
 
         // Verify the winning move isn't a blunder using tactical alarm
         if (this.recklessEngine && topMove && this._councilResults.some(r => r.move === topMove && r.score > -200)) {
-            const verification = await this._quickVerifyMove(fen, topMove);
+            // Pass the engines' score for this move so draw-detection can tell
+            // "threw away a win" apart from "salvaged a draw from a lost game"
+            const topScore = Math.max(...this._councilResults.filter(r => r.move === topMove).map(r => r.score));
+            const verification = await this._quickVerifyMove(fen, topMove, topScore);
             if (!verification.safe) {
                 console.warn(`⚠️ ⚠️ ⚠️ TACTICAL ALARM: ${topMove} FLAGGED — ${verification.reason}`);
                 console.warn(`⚠️  Falling back to second choice...`);
@@ -2089,13 +2150,22 @@ class ChessGame {
         const displayName = safeStorage.get('displayName') || currentUser.email || 'Player';
         const elo = safeStorage.getInt('userELO', 1200);
 
-        // Assign the joining player as black
+        // Assign the joining player as black — atomically, so two simultaneous
+        // joiners can't both take the seat (the loser's transaction aborts)
+        const txResult = await gameRef.child('players/black').transaction((current) => {
+            if (current === null) {
+                return {
+                    uid: currentUser.uid,
+                    displayName: displayName,
+                    elo: elo
+                };
+            }
+            return; // abort — seat already taken
+        });
+        if (!txResult.committed) {
+            throw new Error('That game was just joined by someone else. Try another.');
+        }
         await gameRef.update({
-            'players/black': {
-                uid: currentUser.uid,
-                displayName: displayName,
-                elo: elo
-            },
             status: 'active',
             lastMoveAt: firebase.database.ServerValue.TIMESTAMP
         });
@@ -2145,8 +2215,8 @@ class ChessGame {
             this.onlineOpponent = gameData.players[opponentKey] || { displayName: 'Unknown', elo: '?' };
         }
 
-        // Start the game
-        this.timerMode = gameData.timeControl || 'infinite';
+        // Start the game (gameData can be null if the listing was deleted mid-join)
+        this.timerMode = (gameData && gameData.timeControl) || 'infinite';
         this.startGame();
     }
 
@@ -2180,7 +2250,12 @@ class ChessGame {
         const drawListener = this.onlineGameRef.child('drawOffer').on('value', (snapshot) => {
             if (!this.isOnlineGame) return;
             const offer = snapshot.val();
-            if (offer && offer.from !== currentUser.uid && !this.pendingDrawOffer) {
+            // Offer withdrawn or declined — clear the flag so future offers arrive
+            if (!offer) {
+                this.pendingDrawOffer = false;
+                return;
+            }
+            if (offer.from !== currentUser.uid && !this.pendingDrawOffer) {
                 this.pendingDrawOffer = true;
                 if (confirm(this.onlineOpponent?.displayName + ' offers a draw. Accept?')) {
                     this.respondToDraw(true);
@@ -2199,8 +2274,10 @@ class ChessGame {
         // Reconstruct board from FEN if it changed (opponent's move)
         const currentFen = this.chess.fen();
         if (gameState.fen && gameState.fen !== currentFen) {
-            // Detect if the opponent's move was a capture
-            const wasCapture = currentFen.split(' ')[0].length > gameState.fen.split(' ')[0].length;
+            // Detect if the opponent's move was a capture by counting pieces on the
+            // board field (raw FEN string length is unreliable: empty-square digits vary)
+            const countPieces = (fen) => (fen.split(' ')[0].match(/[a-zA-Z]/g) || []).length;
+            const wasCapture = countPieces(gameState.fen) < countPieces(currentFen);
             
             this.chess.load(gameState.fen);
             this.renderBoard();
@@ -2264,7 +2341,9 @@ class ChessGame {
 
         this.gameOver = true;
         this.updateStatus();
-        this.handleGameOver();
+        // Local player resigned — show the loss directly; never re-derive the
+        // result from the board position (handleGameOver could mislabel it)
+        this.showGameOverModal('resign', 'You resigned');
     }
 
     async offerDraw() {
@@ -2311,7 +2390,10 @@ class ChessGame {
         this.stopTimer();
         this.stopMusic();
         this.showGameOverModal();
-        this.triggerConfetti();
+        // Only celebrate when the local player actually won
+        const localWon = (result.winner === 'white' && this.playerColor === 'w') ||
+                         (result.winner === 'black' && this.playerColor === 'b');
+        if (localWon) this.triggerConfetti();
     }
 
     leaveOnlineGame() {
@@ -2468,8 +2550,10 @@ class ChessGame {
                 // Add selection to clicked bot
                 this.classList.add('selected');
                 
-                // Set the selected bot
+                // Set the selected bot (and leave practice mode — otherwise practice
+                // settings leak into the bot game: wrong engine strength, no greeting)
                 window.chessGame.selectedBot = this.dataset.bot;
+                window.chessGame.gameMode = 'play';
                 
                 // Auto-enable Grandmaster Council for THE ONE ABOVE ALL
                 // Disable for other bots (user can manually re-enable if desired)
@@ -3570,8 +3654,17 @@ class ChessGame {
     }
 
     undoMove() {
-        // Allow undo in all game modes (casual play)
-        
+        // Undo is a local-only convenience — it would desync an online game
+        if (this.isOnlineGame) {
+            this.statusDisplay.textContent = 'Undo is not available in online games';
+            return;
+        }
+        // Block undo while the bot engine is mid-search (its bestmove would land on a stale position)
+        if (this._botThinking) {
+            this.statusDisplay.textContent = 'Wait for the bot to finish moving first';
+            return;
+        }
+
         // Can't undo if no moves have been made
         if (this.moveHistory.length === 0) return;
         
@@ -3719,7 +3812,13 @@ class ChessGame {
             }
             
             this.switchTurn();
-            
+
+            // Online game: sync the promotion to the opponent — never trigger a bot
+            if (this.isOnlineGame) {
+                this.sendOnlineMove(move);
+                return;
+            }
+
             // Bot reaction
             if (this.selectedBot === 'god' && Math.random() < 0.3) {
                 setTimeout(() => {
@@ -3794,7 +3893,7 @@ class ChessGame {
             badgeClass = 'loss';
             badgeIcon = '\u{1F3F3}';
             badgeText = 'Resigned';
-            message = `You resigned. ${botDisplayName} wins.`;
+            message = customMessage || `You resigned. ${botDisplayName} wins.`;
         } else if (result === 'draw') {
             badgeClass = 'draw';
             badgeIcon = '\u{1F91D}';
@@ -3862,24 +3961,16 @@ class ChessGame {
         
         if (this.gameOver || !this.gameStarted) return;
         
-        // Determine whose turn it is visually
-        // If board is flipped, top = bottom perspective and vice versa
-        const topIsPlayer = this.boardFlipped ? 
-            (this.playerColor === 'b') : 
-            (this.playerColor === 'w');
-        
+        // The player's card is at the bottom unless the board is manually flipped
+        // (matches renderBoard: default orientation always puts the player at the bottom)
+        const playerAtTop = this.boardFlipped;
+        const playerCard = playerAtTop ? topPlayer : bottomPlayer;
+        const opponentCard = playerAtTop ? bottomPlayer : topPlayer;
+
         if (this.currentTurn === 'player') {
-            if (topIsPlayer) {
-                topPlayer.classList.add('active-turn');
-            } else {
-                bottomPlayer.classList.add('active-turn');
-            }
+            playerCard.classList.add('active-turn');
         } else {
-            if (topIsPlayer) {
-                bottomPlayer.classList.add('active-turn');
-            } else {
-                topPlayer.classList.add('active-turn');
-            }
+            opponentCard.classList.add('active-turn');
         }
     }
     
@@ -4092,15 +4183,29 @@ class ChessGame {
         if (this.gameOver || !this.gameStarted) {
             return;
         }
-        
+        this._botThinking = true;
+
         // Select engine based on bot's win probability
         const engine = this._getBotEngine();
         
         if (!engine) {
-            console.error('❌ No bot engine available!');
-            this.statusDisplay.textContent = 'Error: Bot engine not initialized!';
+            // Engines may still be booting (or a previous reset tore them down) — retry instead of soft-locking
+            this._engineRetries = (this._engineRetries || 0) + 1;
+            if (this._engineRetries <= 3) {
+                console.warn(`⚠️ No bot engine yet — re-initializing (attempt ${this._engineRetries}/3)...`);
+                this.statusDisplay.textContent = 'Engine is starting, please wait...';
+                this._botThinking = false;
+                this._initEngineAsync().then(() => {
+                    if (!this.gameOver && this.gameStarted) this.makeBotMove();
+                });
+            } else {
+                console.error('❌ No bot engine available after retries!');
+                this.statusDisplay.textContent = 'Error: Bot engine not initialized. Please reload the page.';
+                this._botThinking = false;
+            }
             return;
         }
+        this._engineRetries = 0;
 
         // Set bot name based on selected bot or game mode
         let botName;
@@ -4138,6 +4243,7 @@ class ChessGame {
                 } else {
                     this.handleGameOver();
                 }
+                this._botThinking = false;
             }, 300);
             return;
         }
@@ -4176,6 +4282,7 @@ class ChessGame {
                 // Guard: engine returned '(none)' when no legal moves exist
                 if (bestMove === '(none)') {
                     console.warn('⚠️ Engine returned no valid move — game may be over');
+                    this._botThinking = false;
                     this.handleGameOver();
                     return;
                 }
@@ -4263,6 +4370,7 @@ class ChessGame {
 
     /** Execute a bot move on the board (shared by normal and council paths) */
     _executeBotMove(from, to, promotion) {
+        this._botThinking = false;
         const fenBefore = this.chess.fen();
         const move = this.chess.move({ from, to, promotion });
         if (move) {
@@ -4280,7 +4388,7 @@ class ChessGame {
 
             // ── Gambit offer detection ──
             // Only in boss-battle mode, and only for known gambit positions
-            if (this.gameMode === 'play' && !this.isOnlineGame) {
+            if (this.gameMode !== 'practice' && !this.isOnlineGame) {
                 const gambit = detectGambitOffer(this.chess.history());
                 if (gambit && !_gambitDeclinedThisMove) {
                     this._showGambitOverlay(gambit);
@@ -5413,6 +5521,7 @@ class ChessGame {
     }
 
     async handleGameOver() {
+        this._botThinking = false;
         // ── Guard: ensure playerColor is valid before determining result ──
         if (!this.playerColor || (this.playerColor !== 'w' && this.playerColor !== 'b')) {
             console.warn('[GameOver] ⚠️ Invalid playerColor:', this.playerColor, '— defaulting to w');
@@ -8525,20 +8634,19 @@ class ChessGame {
         // Remove any suggestion arrow
         this.removeSuggestionArrow();
         
-        // Restart engines
-        if (this.stockfish) {
-            this.stockfish.terminate();
-            this.stockfish = null;
+        // Soft-reset engines: keep processes alive (avoids 10–30s WASM/weights reload
+        // and the null-engine race that soft-locked bot games). Just stop any search
+        // and clear hash so the new game starts clean.
+        for (const key of ['stockfish', 'recklessEngine', 'lczero', 'analysisEngine']) {
+            const eng = this[key];
+            if (eng && eng.postMessage) {
+                try { eng.postMessage('stop'); eng.postMessage('ucinewgame'); } catch (_) {}
+            }
         }
-        if (this.recklessEngine) {
-            this.recklessEngine.terminate();
-            this.recklessEngine = null;
-        }
-        this._initEngineAsync();
-        if (this.analysisEngine) {
-            this.analysisEngine.terminate();
-            this.analysisEngine = null;
-            this.analyzer = null;
+        this.analyzer = null; // ChessAnalyzer caches per-game state
+        // Only cold-boot engines if they were never initialized
+        if (!this.stockfish && !this.recklessEngine) {
+            this._initEngineAsync();
         }
         
         // Clear imported game state
@@ -8713,6 +8821,8 @@ if (auth) {
                 window.chessGame.loadPreferences();
                 // Clean up any waiting games this user left behind
                 window.chessGame._cleanupStaleGames();
+                // Friends: presence + live request/challenge listeners
+                window.chessGame.setupFriendsPresence();
             }
             
             // Show admin button only for admins
@@ -8741,8 +8851,11 @@ if (auth) {
             }
             
             // Make sidebar profile clickable → opens Chess.com-style stats modal
+            // (bind ONCE — onAuthStateChanged fires on every login/logout/token refresh,
+            //  re-binding here stacked duplicate listeners that fired the modal N times)
             const sidebarProfileClickable = document.getElementById('sidebarUserProfile');
-            if (sidebarProfileClickable) {
+            if (sidebarProfileClickable && !sidebarProfileClickable._statsBound) {
+                sidebarProfileClickable._statsBound = true;
                 sidebarProfileClickable.addEventListener('click', (e) => {
                     // Don't trigger if user clicked one of the action buttons
                     const excludedButtons = ['#sidebarFriendsBtn', '#sidebarMailBtn', '#sidebarNotifBtn', '#sidebarSettingsBtn'];
@@ -8762,17 +8875,20 @@ if (auth) {
                 console.error('❌ DEBUG: sidebarUserProfile element NOT found in DOM!');
             }
             
-            // Close profile dropdown when clicking outside
-            document.addEventListener('click', (e) => {
-                const dropdown = document.getElementById('profileDropdown');
-                const profile = document.getElementById('sidebarUserProfile');
-                const settingsBtn = document.getElementById('sidebarSettingsBtn');
-                if (dropdown && profile && settingsBtn && 
-                    !dropdown.contains(e.target) && 
-                    !settingsBtn.contains(e.target)) {
-                    closeProfileDropdown();
-                }
-            });
+            // Close profile dropdown when clicking outside (bind once, not per auth change)
+            if (!window._profileDropdownDocBound) {
+                window._profileDropdownDocBound = true;
+                document.addEventListener('click', (e) => {
+                    const dropdown = document.getElementById('profileDropdown');
+                    const profile = document.getElementById('sidebarUserProfile');
+                    const settingsBtn = document.getElementById('sidebarSettingsBtn');
+                    if (dropdown && profile && settingsBtn &&
+                        !dropdown.contains(e.target) &&
+                        !settingsBtn.contains(e.target)) {
+                        closeProfileDropdown();
+                    }
+                });
+            }
             
             // Show tutorial for first-time users
             const tutorialCompleted = safeStorage.get('chessTutorialCompleted');
@@ -9206,6 +9322,618 @@ ChessGame.prototype.switchProfileTab = function(tabName, clickedBtn) {
     if (targetContent) {
         targetContent.style.display = 'block';
     }
+    // Friends tab shows live data
+    if (tabName === 'friends' && typeof this.loadFriendsList === 'function') {
+        this.loadFriendsList();
+    }
+};
+
+// ====== FRIENDS SYSTEM (chess.com style) ======
+// Data model in Firebase Realtime Database:
+//   users/{uid}                       profile + online/lastSeen presence
+//   usernames/{lowercaseName} -> uid  lookup index for search
+//   friends/{uid}/{friendUid}         confirmed friendships (both directions)
+//   friendRequests/{toUid}/{fromUid}  incoming requests (+ sentRequests mirror)
+//   challenges/{toUid}/{fromUid}      incoming game challenges (+ sentChallenges mirror)
+
+ChessGame.prototype._myProfile = function() {
+    const username = safeStorage.get('displayName') ||
+        (currentUser && currentUser.email ? currentUser.email.split('@')[0] : 'Player');
+    return { username: username, elo: safeStorage.getInt('userELO', 1200) };
+};
+
+ChessGame.prototype.setupFriendsPresence = function() {
+    if (typeof db === 'undefined' || !db || !currentUser || currentUser.isAnonymous) return;
+    const uid = currentUser.uid;
+
+    // Detach listeners from a previous account (logout → login as someone else)
+    if (this._presenceUid && this._presenceUid !== uid) {
+        db.ref('friendRequests/' + this._presenceUid).off();
+        db.ref('challenges/' + this._presenceUid).off();
+        db.ref('sentChallenges/' + this._presenceUid).off();
+    }
+    if (this._presenceUid === uid) return; // already set up for this account
+    this._presenceUid = uid;
+    this._friendsCache = this._friendsCache || {};
+
+    const me = this._myProfile();
+
+    // Upsert profile + claim username index (idempotent, safe on every login)
+    db.ref('users/' + uid).update({
+        username: me.username,
+        email: currentUser.email || '',
+        elo: me.elo,
+        lastSeen: firebase.database.ServerValue.TIMESTAMP
+    }).catch(() => {});
+    if (me.username) {
+        db.ref('usernames/' + me.username.toLowerCase()).set(uid).catch(() => {});
+    }
+
+    // Presence: online now, auto-offline when the connection drops
+    const statusRef = db.ref('users/' + uid + '/online');
+    db.ref('.info/connected').on('value', (snap) => {
+        if (snap.val() === true) {
+            statusRef.onDisconnect().set(false);
+            statusRef.set(true).catch(() => {});
+            db.ref('users/' + uid + '/lastSeen').set(firebase.database.ServerValue.TIMESTAMP).catch(() => {});
+        }
+    });
+
+    // Live: incoming friend requests → badge + refresh
+    db.ref('friendRequests/' + uid).on('value', (snap) => {
+        this._incomingRequests = snap.val() || {};
+        this._updateFriendsBadge();
+        if (this._friendsPageOpen()) this.loadFriendRequests();
+    });
+
+    // Live: incoming game challenges → badge + refresh
+    db.ref('challenges/' + uid).on('value', (snap) => {
+        this._incomingChallenges = snap.val() || {};
+        this._updateFriendsBadge();
+        if (this._friendsPageOpen()) this.loadFriendRequests();
+    });
+
+    // Live: watch MY outgoing challenges — a decline flips status and lands here
+    db.ref('sentChallenges/' + uid).on('child_changed', async (snap) => {
+        const ch = snap.val();
+        if (!ch || ch.status !== 'declined') return;
+        const toUid = snap.key;
+        // Clean up: my waiting game listing + both challenge copies
+        if (ch.gameId) {
+            try { await db.ref('online-games/' + ch.gameId).remove(); } catch (_) {}
+        }
+        db.ref('sentChallenges/' + uid + '/' + toUid).remove().catch(() => {});
+        db.ref('challenges/' + toUid + '/' + uid).remove().catch(() => {});
+        this._isWaiting = false;
+        this._detachOnlineListeners();
+        this.setOnlineStatus('Challenge declined');
+        this._friendsToast((ch.toUsername || 'Your friend') + ' declined your challenge');
+    });
+};
+
+ChessGame.prototype._safeElo = function(v) {
+    const n = parseInt(v, 10);
+    return isNaN(n) ? 1200 : n;
+};
+
+ChessGame.prototype._friendsPageOpen = function() {
+    const page = document.getElementById('friendsPage');
+    return page && page.style.display !== 'none';
+};
+
+ChessGame.prototype._updateFriendsBadge = function() {
+    const n = Object.keys(this._incomingRequests || {}).length +
+              Object.keys(this._incomingChallenges || {}).length;
+    const badge = document.getElementById('sidebarFriendsBadge');
+    if (badge) {
+        badge.style.display = n > 0 ? 'block' : 'none';
+        badge.textContent = n;
+    }
+    const tabBadge = document.getElementById('friendsReqCount');
+    if (tabBadge) {
+        tabBadge.style.display = n > 0 ? 'inline-block' : 'none';
+        tabBadge.textContent = n;
+    }
+};
+
+ChessGame.prototype._friendsToast = function(msg) {
+    let toast = document.getElementById('friendsToast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'friendsToast';
+        toast.style.cssText = 'position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #25252a; color: #fff; padding: 12px 22px; border-radius: 8px; border: 1px solid #769656; font-size: 14px; z-index: 10005; display: none; box-shadow: 0 4px 16px rgba(0,0,0,0.5); max-width: 80vw; text-align: center;';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.style.display = 'block';
+    clearTimeout(this._friendsToastTimer);
+    this._friendsToastTimer = setTimeout(() => { toast.style.display = 'none'; }, 3200);
+};
+
+ChessGame.prototype._lastSeenText = function(ts) {
+    if (!ts) return 'Offline';
+    const diff = Date.now() - ts;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Active now';
+    if (mins < 60) return 'Active ' + mins + 'm ago';
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return 'Active ' + hrs + 'h ago';
+    return 'Active ' + Math.floor(hrs / 24) + 'd ago';
+};
+
+// ─── Page open/close ───────────────────────────────────────────────
+
+ChessGame.prototype.showFriendsPage = function() {
+    if (typeof db === 'undefined' || !db || !currentUser || currentUser.isAnonymous) {
+        alert('Please sign in with an account (not anonymous) to use Friends.');
+        return;
+    }
+    this.setupFriendsPresence();
+
+    // Hide board + profile page, show friends full-page (same pattern as profile)
+    const container = document.querySelector('.container');
+    const chessSidebar = document.getElementById('chessSidebar');
+    const profilePage = document.getElementById('profileStatsModal');
+    if (container) container.style.display = 'none';
+    if (chessSidebar) chessSidebar.style.display = 'none';
+    if (profilePage) profilePage.style.display = 'none';
+
+    const isMobile = window.innerWidth <= 768;
+    const page = document.getElementById('friendsPage');
+    if (page) {
+        page.style.left = isMobile ? '0' : '180px';
+        page.style.display = 'block';
+    }
+    const tab = this._friendsActiveTab || 'list';
+    this.switchFriendsTab(tab, document.querySelector('.friendsTab[data-ftab="' + tab + '"]'));
+    this.loadFriendsList();
+    this.loadFriendRequests();
+};
+
+ChessGame.prototype.hideFriendsPage = function() {
+    const page = document.getElementById('friendsPage');
+    if (page) page.style.display = 'none';
+    const container = document.querySelector('.container');
+    if (container) container.style.display = '';
+    const chessSidebar = document.getElementById('chessSidebar');
+    if (chessSidebar) {
+        chessSidebar.style.display = 'block';
+        requestAnimationFrame(() => chessSidebar.classList.add('sidebar-visible'));
+    }
+};
+
+ChessGame.prototype.switchFriendsTab = function(tab, btn) {
+    this._friendsActiveTab = tab;
+    document.querySelectorAll('.friendsTab').forEach(b => {
+        b.style.borderBottomColor = 'transparent';
+        b.style.color = 'rgba(255,255,255,0.45)';
+        b.style.fontWeight = '500';
+    });
+    if (btn) {
+        btn.style.borderBottomColor = '#769656';
+        btn.style.color = '#fff';
+        btn.style.fontWeight = '600';
+    }
+    ['List', 'Requests', 'Add'].forEach(name => {
+        const el = document.getElementById('friendsTab' + name);
+        if (el) el.style.display = 'none';
+    });
+    const target = document.getElementById('friendsTab' + tab.charAt(0).toUpperCase() + tab.slice(1));
+    if (target) target.style.display = 'block';
+    if (tab === 'list') this.loadFriendsList();
+    if (tab === 'requests') this.loadFriendRequests();
+};
+
+// ─── Friends list ──────────────────────────────────────────────────
+
+ChessGame.prototype._friendRowHtml = function(f, compact) {
+    const initial = this._escapeHtml((f.username || 'P').charAt(0).toUpperCase());
+    const name = this._escapeHtml(f.username || 'Player');
+    const status = f.online
+        ? '<span style="color: #4CAF50; font-size: 11px; font-weight: 600;">● Online</span>'
+        : '<span style="color: rgba(255,255,255,0.3); font-size: 11px;">' + this._lastSeenText(f.lastSeen) + '</span>';
+    const actions = compact
+        ? '<button onclick="window.chessGame.showChallengePicker(\'' + f.uid + '\')" title="Challenge to a game" style="background: #769656; border: none; color: #fff; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 5px; cursor: pointer;">⚔</button>'
+        : '<button onclick="window.chessGame.showChallengePicker(\'' + f.uid + '\')" title="Challenge to a game" style="background: #769656; border: none; color: #fff; font-size: 12px; font-weight: 600; padding: 7px 14px; border-radius: 5px; cursor: pointer;" onmouseover="this.style.background=\'#6b8a4e\'" onmouseout="this.style.background=\'#769656\'">⚔ Challenge</button>' +
+          '<button onclick="window.chessGame.removeFriend(\'' + f.uid + '\')" title="Remove friend" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.4); font-size: 12px; padding: 7px 10px; border-radius: 5px; cursor: pointer;" onmouseover="this.style.color=\'#ff6b6b\'; this.style.borderColor=\'rgba(244,67,54,0.3)\'" onmouseout="this.style.color=\'rgba(255,255,255,0.4)\'; this.style.borderColor=\'rgba(255,255,255,0.1)\'">✕</button>';
+    return '<div style="display: flex; align-items: center; gap: 12px; background: #25252a; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 12px 16px; margin-bottom: 8px;">' +
+        '<div style="position: relative; flex-shrink: 0;">' +
+            '<div style="width: 42px; height: 42px; border-radius: 8px; background: #769656; color: #fff; font-size: 18px; font-weight: 700; display: flex; align-items: center; justify-content: center;">' + initial + '</div>' +
+            '<span style="position: absolute; bottom: -2px; right: -2px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #25252a; background: ' + (f.online ? '#4CAF50' : '#555') + ';"></span>' +
+        '</div>' +
+        '<div style="flex: 1; min-width: 0;">' +
+            '<div style="color: #fff; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' + name + ' <span style="color: rgba(255,255,255,0.35); font-weight: 400; font-size: 12px;">(' + this._safeElo(f.elo) + ')</span></div>' +
+            status +
+        '</div>' +
+        '<div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">' + actions + '</div>' +
+    '</div>' +
+    '<div id="cp-' + f.uid + '" style="display: none; background: #1f1f24; border: 1px solid rgba(118,150,86,0.4); border-radius: 8px; padding: 10px 14px; margin: -4px 0 8px; align-items: center; gap: 8px;">' +
+        '<span style="color: rgba(255,255,255,0.5); font-size: 12px; flex: 1;">Time control:</span>' +
+        '<button onclick="window.chessGame._sendChallenge(\'' + f.uid + '\', \'bullet\')" style="background: rgba(255,255,255,0.08); border: none; color: #fff; font-size: 12px; padding: 6px 12px; border-radius: 5px; cursor: pointer;" onmouseover="this.style.background=\'#769656\'" onmouseout="this.style.background=\'rgba(255,255,255,0.08)\'">⚡ Bullet</button>' +
+        '<button onclick="window.chessGame._sendChallenge(\'' + f.uid + '\', \'blitz\')" style="background: rgba(255,255,255,0.08); border: none; color: #fff; font-size: 12px; padding: 6px 12px; border-radius: 5px; cursor: pointer;" onmouseover="this.style.background=\'#769656\'" onmouseout="this.style.background=\'rgba(255,255,255,0.08)\'">🔥 Blitz</button>' +
+        '<button onclick="window.chessGame._sendChallenge(\'' + f.uid + '\', \'rapid\')" style="background: rgba(255,255,255,0.08); border: none; color: #fff; font-size: 12px; padding: 6px 12px; border-radius: 5px; cursor: pointer;" onmouseover="this.style.background=\'#769656\'" onmouseout="this.style.background=\'rgba(255,255,255,0.08)\'">⏱ Rapid</button>' +
+        '<button onclick="window.chessGame.showChallengePicker(\'' + f.uid + '\')" style="background: none; border: none; color: rgba(255,255,255,0.4); font-size: 14px; cursor: pointer; padding: 4px 6px;">✕</button>' +
+    '</div>';
+};
+
+ChessGame.prototype._renderFriendsInto = function(el, rows, compact) {
+    if (!el) return;
+    if (!rows || rows.length === 0) {
+        el.innerHTML = '<div style="color: rgba(255,255,255,0.3); font-size: 13px; text-align: center; padding: 40px 0;">No friends yet — use the <b>+ Add Friend</b> tab to find players!</div>';
+        return;
+    }
+    el.innerHTML = rows.map(f => this._friendRowHtml(f, compact)).join('');
+};
+
+ChessGame.prototype.loadFriendsList = async function() {
+    const listEl = document.getElementById('friendsListMain');
+    const profileEl = document.getElementById('profileFriendsList');
+    if (!db || !currentUser) {
+        this._renderFriendsInto(listEl, [], false);
+        return;
+    }
+    try {
+        const snap = await db.ref('friends/' + currentUser.uid).once('value');
+        const friends = snap.val() || {};
+        const uids = Object.keys(friends);
+
+        // Count on tab + profile header
+        const countEl = document.getElementById('friendsTabCount');
+        if (countEl) countEl.textContent = uids.length > 0 ? '(' + uids.length + ')' : '';
+        const profCount = document.getElementById('profileFriendsCount');
+        if (profCount) profCount.textContent = uids.length;
+
+        if (uids.length === 0) {
+            this._allFriends = [];
+            this._renderFriendsInto(listEl, [], false);
+            this._renderFriendsInto(profileEl, [], true);
+            return;
+        }
+
+        // Enrich with live profile data (online status, current elo)
+        const rows = await Promise.all(uids.map(async (fuid) => {
+            let prof = {};
+            try { prof = (await db.ref('users/' + fuid).once('value')).val() || {}; } catch (_) {}
+            const f = {
+                uid: fuid,
+                username: String(prof.username || friends[fuid].username || 'Player'),
+                elo: prof.elo || friends[fuid].elo || 1200,
+                online: !!prof.online,
+                lastSeen: prof.lastSeen || 0
+            };
+            (this._friendsCache = this._friendsCache || {})[fuid] = f;
+            return f;
+        }));
+
+        // chess.com order: online friends first, then alphabetical
+        rows.sort((a, b) => ((b.online ? 1 : 0) - (a.online ? 1 : 0)) ||
+                            a.username.localeCompare(b.username));
+        this._allFriends = rows;
+
+        const filter = (document.getElementById('friendsFilterInput') || {}).value || '';
+        const visible = filter ? rows.filter(f => f.username.toLowerCase().includes(filter.toLowerCase())) : rows;
+        this._renderFriendsInto(listEl, visible, false);
+        this._renderFriendsInto(profileEl, rows.slice(0, 5), true);
+    } catch (e) {
+        console.error('[Friends] loadFriendsList error:', e);
+        if (listEl) listEl.innerHTML = '<div style="color: #ff6b6b; font-size: 13px; text-align: center; padding: 30px 0;">Could not load friends. Check your connection.</div>';
+    }
+};
+
+ChessGame.prototype.filterFriendsList = function(query) {
+    const listEl = document.getElementById('friendsListMain');
+    const rows = (this._allFriends || []);
+    const q = (query || '').trim().toLowerCase();
+    const visible = q ? rows.filter(f => f.username.toLowerCase().includes(q)) : rows;
+    this._renderFriendsInto(listEl, visible, false);
+};
+
+ChessGame.prototype.removeFriend = async function(fuid) {
+    if (!db || !currentUser) return;
+    const f = (this._friendsCache || {})[fuid];
+    if (!confirm('Remove ' + ((f && f.username) || 'this player') + ' from your friends?')) return;
+    try {
+        await db.ref('friends/' + currentUser.uid + '/' + fuid).remove();
+        await db.ref('friends/' + fuid + '/' + currentUser.uid).remove();
+        this._friendsToast('Friend removed');
+        this.loadFriendsList();
+    } catch (e) {
+        console.error('[Friends] removeFriend error:', e);
+        this._friendsToast('Could not remove friend');
+    }
+};
+
+// ─── Friend requests ───────────────────────────────────────────────
+
+ChessGame.prototype.loadFriendRequests = async function() {
+    const chSection = document.getElementById('friendsChallengeSection');
+    const chEl = document.getElementById('friendsChallenges');
+    const inEl = document.getElementById('friendsRequestsIn');
+    const outEl = document.getElementById('friendsRequestsOut');
+    if (!chEl || !inEl || !outEl || !db || !currentUser) return;
+
+    const emptyNote = (text) => '<div style="color: rgba(255,255,255,0.25); font-size: 12px; padding: 10px 0;">' + text + '</div>';
+
+    // ── Game challenges (incoming) ──
+    const challenges = this._incomingChallenges || {};
+    const chUids = Object.keys(challenges);
+    chSection.style.display = chUids.length > 0 ? 'block' : 'none';
+    chEl.innerHTML = chUids.map((fromUid) => {
+        const c = challenges[fromUid];
+        const name = this._escapeHtml(c.fromUsername || 'Player');
+        const tc = this._escapeHtml(c.timeControl || 'rapid');
+        return '<div style="display: flex; align-items: center; gap: 12px; background: #25252a; border: 1px solid rgba(118,150,86,0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 8px;">' +
+            '<span style="font-size: 20px;">⚔</span>' +
+            '<div style="flex: 1; min-width: 0;">' +
+                '<div style="color: #fff; font-size: 14px; font-weight: 600;">' + name + ' <span style="color: rgba(255,255,255,0.35); font-weight: 400; font-size: 12px;">(' + this._safeElo(c.fromElo) + ')</span></div>' +
+                '<div style="color: rgba(255,255,255,0.4); font-size: 11px;">challenges you to ' + tc + '</div>' +
+            '</div>' +
+            '<button onclick="window.chessGame.acceptChallenge(\'' + fromUid + '\')" style="background: #769656; border: none; color: #fff; font-size: 12px; font-weight: 600; padding: 7px 14px; border-radius: 5px; cursor: pointer;">Accept</button>' +
+            '<button onclick="window.chessGame.declineChallenge(\'' + fromUid + '\')" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); font-size: 12px; padding: 7px 12px; border-radius: 5px; cursor: pointer;">Decline</button>' +
+        '</div>';
+    }).join('');
+
+    // ── Incoming friend requests ──
+    const reqs = this._incomingRequests || {};
+    const reqUids = Object.keys(reqs);
+    inEl.innerHTML = reqUids.length === 0 ? emptyNote('No incoming requests') : reqUids.map((fromUid) => {
+        const r = reqs[fromUid];
+        const name = this._escapeHtml(r.fromUsername || 'Player');
+        return '<div style="display: flex; align-items: center; gap: 12px; background: #25252a; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 12px 16px; margin-bottom: 8px;">' +
+            '<div style="width: 38px; height: 38px; border-radius: 8px; background: #5b8cbf; color: #fff; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">' + this._escapeHtml((r.fromUsername || 'P').charAt(0).toUpperCase()) + '</div>' +
+            '<div style="flex: 1; min-width: 0;">' +
+                '<div style="color: #fff; font-size: 14px; font-weight: 600;">' + name + ' <span style="color: rgba(255,255,255,0.35); font-weight: 400; font-size: 12px;">(' + this._safeElo(r.fromElo) + ')</span></div>' +
+                '<div style="color: rgba(255,255,255,0.4); font-size: 11px;">wants to be your friend</div>' +
+            '</div>' +
+            '<button onclick="window.chessGame.acceptFriendRequest(\'' + fromUid + '\')" style="background: #769656; border: none; color: #fff; font-size: 12px; font-weight: 600; padding: 7px 14px; border-radius: 5px; cursor: pointer;">Accept</button>' +
+            '<button onclick="window.chessGame.declineFriendRequest(\'' + fromUid + '\')" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); font-size: 12px; padding: 7px 12px; border-radius: 5px; cursor: pointer;">Decline</button>' +
+        '</div>';
+    }).join('');
+
+    // ── Outgoing (sent) requests ──
+    try {
+        const snap = await db.ref('sentRequests/' + currentUser.uid).once('value');
+        const sent = snap.val() || {};
+        const sentUids = Object.keys(sent);
+        outEl.innerHTML = sentUids.length === 0 ? emptyNote('No sent requests') : sentUids.map((toUid) => {
+            const r = sent[toUid];
+            const name = this._escapeHtml(r.toUsername || 'Player');
+            return '<div style="display: flex; align-items: center; gap: 12px; background: #25252a; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 12px 16px; margin-bottom: 8px;">' +
+                '<div style="width: 38px; height: 38px; border-radius: 8px; background: #555; color: #fff; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">' + this._escapeHtml((r.toUsername || 'P').charAt(0).toUpperCase()) + '</div>' +
+                '<div style="flex: 1; min-width: 0;">' +
+                    '<div style="color: #fff; font-size: 14px; font-weight: 600;">' + name + '</div>' +
+                    '<div style="color: rgba(255,255,255,0.4); font-size: 11px;">request pending…</div>' +
+                '</div>' +
+                '<button onclick="window.chessGame.cancelFriendRequest(\'' + toUid + '\')" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); font-size: 12px; padding: 7px 12px; border-radius: 5px; cursor: pointer;">Cancel</button>' +
+            '</div>';
+        }).join('');
+    } catch (e) {
+        outEl.innerHTML = emptyNote('Could not load sent requests');
+    }
+};
+
+ChessGame.prototype.sendFriendRequest = async function(toUid) {
+    if (!db || !currentUser || toUid === currentUser.uid) return;
+    const me = this._myProfile();
+    const target = (this._searchResultsCache || {})[toUid];
+    try {
+        await db.ref('friendRequests/' + toUid + '/' + currentUser.uid).set({
+            fromUsername: me.username,
+            fromElo: me.elo,
+            createdAt: firebase.database.ServerValue.TIMESTAMP
+        });
+        await db.ref('sentRequests/' + currentUser.uid + '/' + toUid).set({
+            toUsername: (target && target.username) || '',
+            createdAt: firebase.database.ServerValue.TIMESTAMP
+        });
+        this._friendsToast('Friend request sent to ' + ((target && target.username) || 'player'));
+        (this._sentRequestUids = this._sentRequestUids || {})[toUid] = true;
+        this._renderSearchResults();
+    } catch (e) {
+        console.error('[Friends] sendFriendRequest error:', e);
+        this._friendsToast('Could not send request');
+    }
+};
+
+ChessGame.prototype.acceptFriendRequest = async function(fromUid) {
+    if (!db || !currentUser) return;
+    const req = (this._incomingRequests || {})[fromUid];
+    const me = this._myProfile();
+    const now = firebase.database.ServerValue.TIMESTAMP;
+    try {
+        // Friendship is written in BOTH directions so each user sees it in their list
+        await db.ref('friends/' + currentUser.uid + '/' + fromUid).set({
+            username: (req && req.fromUsername) || 'Player',
+            elo: (req && req.fromElo) || 1200,
+            since: now
+        });
+        await db.ref('friends/' + fromUid + '/' + currentUser.uid).set({
+            username: me.username,
+            elo: me.elo,
+            since: now
+        });
+        await db.ref('friendRequests/' + currentUser.uid + '/' + fromUid).remove();
+        await db.ref('sentRequests/' + fromUid + '/' + currentUser.uid).remove();
+        this._friendsToast('You are now friends with ' + ((req && req.fromUsername) || 'player') + ' 🎉');
+        this.loadFriendRequests();
+        this.loadFriendsList();
+    } catch (e) {
+        console.error('[Friends] acceptFriendRequest error:', e);
+        this._friendsToast('Could not accept request');
+    }
+};
+
+ChessGame.prototype.declineFriendRequest = async function(fromUid) {
+    if (!db || !currentUser) return;
+    try {
+        await db.ref('friendRequests/' + currentUser.uid + '/' + fromUid).remove();
+        await db.ref('sentRequests/' + fromUid + '/' + currentUser.uid).remove();
+    } catch (e) {
+        console.error('[Friends] declineFriendRequest error:', e);
+    }
+};
+
+ChessGame.prototype.cancelFriendRequest = async function(toUid) {
+    if (!db || !currentUser) return;
+    try {
+        await db.ref('sentRequests/' + currentUser.uid + '/' + toUid).remove();
+        await db.ref('friendRequests/' + toUid + '/' + currentUser.uid).remove();
+        this.loadFriendRequests();
+    } catch (e) {
+        console.error('[Friends] cancelFriendRequest error:', e);
+    }
+};
+
+// ─── Challenges (friend → online game) ─────────────────────────────
+
+ChessGame.prototype.showChallengePicker = function(fuid) {
+    const el = document.getElementById('cp-' + fuid);
+    if (!el) return;
+    const opening = el.style.display === 'none';
+    // Close any other open picker
+    document.querySelectorAll('[id^="cp-"]').forEach(p => { p.style.display = 'none'; });
+    if (opening) el.style.display = 'flex';
+};
+
+ChessGame.prototype._sendChallenge = async function(fuid, timeControl) {
+    if (!db || !currentUser) return;
+    const f = (this._friendsCache || {})[fuid] || {};
+    try {
+        // Create a waiting online game (puts us in waiting state), then link it
+        await this.createOnlineGameListing(timeControl);
+        const gameId = this.onlineGameId;
+        if (!gameId) throw new Error('game listing failed');
+
+        const me = this._myProfile();
+        const data = {
+            gameId: gameId,
+            fromUsername: me.username,
+            fromElo: me.elo,
+            toUsername: f.username || '',
+            timeControl: timeControl,
+            status: 'pending',
+            createdAt: firebase.database.ServerValue.TIMESTAMP
+        };
+        await db.ref('challenges/' + fuid + '/' + currentUser.uid).set(data);
+        await db.ref('sentChallenges/' + currentUser.uid + '/' + fuid).set(data);
+        const tcName = timeControl.charAt(0).toUpperCase() + timeControl.slice(1);
+        this._friendsToast('⚔ ' + tcName + ' challenge sent to ' + (f.username || 'your friend'));
+        this.hideFriendsPage(); // back to the board — waiting status shows there
+    } catch (e) {
+        console.error('[Friends] sendChallenge error:', e);
+        this._friendsToast('Could not send challenge');
+    }
+};
+
+ChessGame.prototype.acceptChallenge = async function(fromUid) {
+    if (!db || !currentUser) return;
+    const ch = (this._incomingChallenges || {})[fromUid];
+    if (!ch || !ch.gameId) return;
+    try {
+        // Verify the game still exists and is waiting (challenger may have cancelled)
+        const snap = await db.ref('online-games/' + ch.gameId).once('value');
+        if (!snap.exists() || snap.val().status !== 'waiting') {
+            this._friendsToast('That challenge has expired');
+            await db.ref('challenges/' + currentUser.uid + '/' + fromUid).remove();
+            await db.ref('sentChallenges/' + fromUid + '/' + currentUser.uid).remove();
+            return;
+        }
+        await this.joinOnlineGame(ch.gameId);
+        await db.ref('challenges/' + currentUser.uid + '/' + fromUid).remove();
+        await db.ref('sentChallenges/' + fromUid + '/' + currentUser.uid).remove();
+        this.hideFriendsPage();
+    } catch (e) {
+        console.error('[Friends] acceptChallenge error:', e);
+        this._friendsToast('Could not join: ' + (e.message || 'error'));
+    }
+};
+
+ChessGame.prototype.declineChallenge = async function(fromUid) {
+    if (!db || !currentUser) return;
+    try {
+        // Flip status on both copies — the challenger's sentChallenges listener
+        // sees 'declined', removes their waiting game, and cleans everything up
+        await db.ref('challenges/' + currentUser.uid + '/' + fromUid).update({ status: 'declined' });
+        await db.ref('sentChallenges/' + fromUid + '/' + currentUser.uid).update({ status: 'declined' });
+    } catch (e) {
+        console.error('[Friends] declineChallenge error:', e);
+    }
+};
+
+// ─── User search (Add Friend tab) ──────────────────────────────────
+
+ChessGame.prototype._debounceFriendSearch = function(query) {
+    clearTimeout(this._friendSearchTimer);
+    this._friendSearchTimer = setTimeout(() => this.searchUsers(query), 300);
+};
+
+ChessGame.prototype.searchUsers = async function(query) {
+    const resultsEl = document.getElementById('friendSearchResults');
+    if (!resultsEl || !db || !currentUser) return;
+    const q = (query || '').trim().toLowerCase();
+    if (q.length < 2) {
+        resultsEl.innerHTML = '<div style="color: rgba(255,255,255,0.3); font-size: 13px; text-align: center; padding: 40px 0;">Type at least 2 characters to search for players</div>';
+        return;
+    }
+    resultsEl.innerHTML = '<div style="color: rgba(255,255,255,0.3); font-size: 13px; text-align: center; padding: 30px 0;">Searching…</div>';
+    try {
+        // Prefix search on the lowercase username index
+        const snap = await db.ref('usernames').orderByKey().startAt(q).endAt(q + '￿').limitToFirst(10).once('value'); // ￿ = highest unicode char (prefix-search trick)
+        const matches = snap.val() || {};
+
+        // Refresh relationship state so buttons render correctly
+        const [friendsSnap, sentSnap] = await Promise.all([
+            db.ref('friends/' + currentUser.uid).once('value'),
+            db.ref('sentRequests/' + currentUser.uid).once('value')
+        ]);
+        this._friendUids = friendsSnap.val() || {};
+        this._sentRequestUids = sentSnap.val() || {};
+
+        const uids = Object.keys(matches).map(name => matches[name]).filter(uid => uid !== currentUser.uid);
+        const profiles = await Promise.all(uids.map(async (uid) => {
+            const p = (await db.ref('users/' + uid).once('value')).val() || {};
+            return { uid: uid, username: String(p.username || 'Player'), elo: p.elo || 1200, online: !!p.online };
+        }));
+        this._searchResultsCache = {};
+        profiles.forEach(p => { this._searchResultsCache[p.uid] = p; });
+        this._searchResults = profiles;
+        this._renderSearchResults();
+    } catch (e) {
+        console.error('[Friends] searchUsers error:', e);
+        resultsEl.innerHTML = '<div style="color: #ff6b6b; font-size: 13px; text-align: center; padding: 30px 0;">Search failed. Try again.</div>';
+    }
+};
+
+ChessGame.prototype._renderSearchResults = function() {
+    const resultsEl = document.getElementById('friendSearchResults');
+    if (!resultsEl) return;
+    const profiles = this._searchResults || [];
+    if (profiles.length === 0) {
+        resultsEl.innerHTML = '<div style="color: rgba(255,255,255,0.3); font-size: 13px; text-align: center; padding: 40px 0;">No players found with that username</div>';
+        return;
+    }
+    resultsEl.innerHTML = profiles.map((p) => {
+        const name = this._escapeHtml(p.username);
+        const initial = this._escapeHtml(p.username.charAt(0).toUpperCase());
+        let action;
+        if (this._friendUids && this._friendUids[p.uid]) {
+            action = '<span style="color: #769656; font-size: 12px; font-weight: 600; padding: 7px 12px;">✓ Friends</span>';
+        } else if (this._sentRequestUids && this._sentRequestUids[p.uid]) {
+            action = '<span style="color: rgba(255,255,255,0.35); font-size: 12px; padding: 7px 12px;">Request sent</span>';
+        } else {
+            action = '<button onclick="window.chessGame.sendFriendRequest(\'' + p.uid + '\')" style="background: #769656; border: none; color: #fff; font-size: 12px; font-weight: 600; padding: 7px 14px; border-radius: 5px; cursor: pointer;" onmouseover="this.style.background=\'#6b8a4e\'" onmouseout="this.style.background=\'#769656\'">+ Add Friend</button>';
+        }
+        return '<div style="display: flex; align-items: center; gap: 12px; background: #25252a; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 12px 16px; margin-bottom: 8px;">' +
+            '<div style="position: relative; flex-shrink: 0;">' +
+                '<div style="width: 42px; height: 42px; border-radius: 8px; background: #5b8cbf; color: #fff; font-size: 18px; font-weight: 700; display: flex; align-items: center; justify-content: center;">' + initial + '</div>' +
+                (p.online ? '<span style="position: absolute; bottom: -2px; right: -2px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #25252a; background: #4CAF50;"></span>' : '') +
+            '</div>' +
+            '<div style="flex: 1; min-width: 0;">' +
+                '<div style="color: #fff; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' + name + '</div>' +
+                '<div style="color: rgba(255,255,255,0.35); font-size: 11px;">ELO ' + this._safeElo(p.elo) + (p.online ? ' · <span style="color: #4CAF50;">Online</span>' : '') + '</div>' +
+            '</div>' + action +
+        '</div>';
+    }).join('');
 };
 
 // Apply board theme from profile page
@@ -9262,7 +9990,8 @@ ChessGame.prototype.saveGameToHistory = function(result, message, botDisplayName
     if (result === 'win') {
         const wins = safeStorage.getInt('wins', 0);
         safeStorage.setInt('wins', wins + 1);
-    } else if (result === 'loss') {
+    } else if (result === 'loss' || result === 'resign') {
+        // A resignation is a loss, not a draw
         const losses = safeStorage.getInt('losses', 0);
         safeStorage.setInt('losses', losses + 1);
     } else {
@@ -9663,7 +10392,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!isNaN(val)) {
                 const clamped = Math.max(-100, Math.min(100, val));
                 e.target.value = clamped;
-                contemptSlider.value = clamped;
+                if (contemptSlider) contemptSlider.value = clamped;
                 window.chessGame._setContempt(clamped);
             }
         });

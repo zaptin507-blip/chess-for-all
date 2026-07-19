@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net www.gstatic.com blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://chess-for-school-default-rtdb.firebaseio.com wss://chess-for-school-default-rtdb.firebaseio.com;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net www.gstatic.com blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://chess-for-school-default-rtdb.firebaseio.com wss://chess-for-school-default-rtdb.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.chess.com https://tablebase.lichess.ovh ws://localhost:9001 ws://localhost:9002 ws://localhost:9003;">
     <title>Chess Game - vs THE ONE ABOVE ALL</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chess.js@0.10.3/chess.min.js"></script>
@@ -1125,7 +1125,13 @@
                 
                 <!-- Friends Tab -->
                 <div id="profileTabFriends" class="profileTabContent" style="display: none;">
-                    <div style="color: rgba(255,255,255,0.3); font-size: 13px; text-align: center; padding: 40px 0;">Your friends will appear here</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                        <h3 style="color: #fff; margin: 0; font-size: 15px; font-weight: 600;">Friends</h3>
+                        <button onclick="if(window.chessGame)window.chessGame.showFriendsPage()" style="padding: 8px 16px; background: #769656; border: none; color: #fff; font-size: 12px; font-weight: 600; border-radius: 6px; cursor: pointer;" onmouseover="this.style.background='#6b8a4e'" onmouseout="this.style.background='#769656'">Open Friends Page</button>
+                    </div>
+                    <div id="profileFriendsList">
+                        <div style="color: rgba(255,255,255,0.3); font-size: 13px; text-align: center; padding: 40px 0;">Your friends will appear here</div>
+                    </div>
                 </div>
             </div>
             
@@ -1170,7 +1176,55 @@
             </div>
         </div>
     </div>
-    
+
+    <!-- Friends Page (full-page, chess.com style) -->
+    <div id="friendsPage" style="display: none; position: fixed; left: 180px; top: 0; right: 0; bottom: 0; background: #1a1a1e; z-index: 1000; overflow-y: auto;">
+        <!-- Top Bar -->
+        <div style="display: flex; align-items: center; gap: 14px; padding: 12px 24px; border-bottom: 1px solid rgba(255,255,255,0.06); background: #25252a; position: sticky; top: 0; z-index: 2;">
+            <button onclick="if(window.chessGame)window.chessGame.hideFriendsPage()" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: #fff; font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 6px; cursor: pointer;" onmouseover="this.style.background='rgba(255,255,255,0.14)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">← Back</button>
+            <h1 style="color: #fff; margin: 0; font-size: 20px; font-weight: 700;">👥 Friends</h1>
+        </div>
+
+        <div style="max-width: 720px; margin: 0 auto; padding: 20px;">
+            <!-- Tabs -->
+            <div style="display: flex; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 20px;">
+                <button class="friendsTab" data-ftab="list" style="padding: 10px 18px; background: none; border: none; border-bottom: 3px solid #769656; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;" onclick="window.chessGame.switchFriendsTab('list', this)">Friends <span id="friendsTabCount" style="color: rgba(255,255,255,0.4); font-weight: 500;"></span></button>
+                <button class="friendsTab" data-ftab="requests" style="padding: 10px 18px; background: none; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.45); font-size: 13px; font-weight: 500; cursor: pointer;" onclick="window.chessGame.switchFriendsTab('requests', this)">Requests <span id="friendsReqCount" style="display: none; background: #e53935; color: #fff; font-size: 10px; font-weight: 700; border-radius: 10px; padding: 1px 6px; margin-left: 4px; vertical-align: middle;"></span></button>
+                <button class="friendsTab" data-ftab="add" style="padding: 10px 18px; background: none; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.45); font-size: 13px; font-weight: 500; cursor: pointer;" onclick="window.chessGame.switchFriendsTab('add', this)">+ Add Friend</button>
+            </div>
+
+            <!-- Friends List Tab -->
+            <div id="friendsTabList">
+                <input id="friendsFilterInput" type="text" placeholder="🔍 Search your friends..." oninput="if(window.chessGame)window.chessGame.filterFriendsList(this.value)" style="width: 100%; box-sizing: border-box; padding: 12px 16px; margin-bottom: 14px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; outline: none;" onfocus="this.style.borderColor='#769656'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'">
+                <div id="friendsListMain"></div>
+            </div>
+
+            <!-- Requests Tab -->
+            <div id="friendsTabRequests" style="display: none;">
+                <div id="friendsChallengeSection" style="display: none; margin-bottom: 24px;">
+                    <h3 style="color: rgba(255,255,255,0.5); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 10px;">⚔ Game Challenges</h3>
+                    <div id="friendsChallenges"></div>
+                </div>
+                <div style="margin-bottom: 24px;">
+                    <h3 style="color: rgba(255,255,255,0.5); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 10px;">📩 Incoming Requests</h3>
+                    <div id="friendsRequestsIn"></div>
+                </div>
+                <div>
+                    <h3 style="color: rgba(255,255,255,0.5); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 10px;">📤 Sent Requests</h3>
+                    <div id="friendsRequestsOut"></div>
+                </div>
+            </div>
+
+            <!-- Add Friend Tab -->
+            <div id="friendsTabAdd" style="display: none;">
+                <input id="friendSearchInput" type="text" placeholder="🔍 Search players by username..." oninput="if(window.chessGame)window.chessGame._debounceFriendSearch(this.value)" style="width: 100%; box-sizing: border-box; padding: 12px 16px; margin-bottom: 14px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; outline: none;" onfocus="this.style.borderColor='#769656'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'">
+                <div id="friendSearchResults">
+                    <div style="color: rgba(255,255,255,0.3); font-size: 13px; text-align: center; padding: 40px 0;">Type at least 2 characters to search for players</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Profile Edit Modal -->
     <div id="profileEditModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.85); z-index: 10002; justify-content: center; align-items: center;">
         <div style="max-width: 450px; width: 90%; background: linear-gradient(135deg, #312e2b 0%, #272522 100%); border: 2px solid #769656; border-radius: 12px; padding: 30px; box-shadow: 0 0 30px rgba(118, 150, 86, 0.3);">
@@ -1268,7 +1322,7 @@
             
             <!-- Action icons — horizontal row below profile, icon-only -->
             <div style="display: flex; justify-content: space-around; padding: 2px 0;">
-                <button id="sidebarFriendsBtn" style="background: none; border: none; color: #4CAF50; font-size: 18px; cursor: pointer; padding: 6px 10px; border-radius: 6px; transition: all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'; this.style.color='#fff'" onmouseout="this.style.background='none'; this.style.color='#4CAF50'" title="Friends" onclick="if(window.chessGame) window.chessGame.showProfileStats();">👥</button>
+                <button id="sidebarFriendsBtn" style="background: none; border: none; color: #4CAF50; font-size: 18px; cursor: pointer; padding: 6px 10px; border-radius: 6px; transition: all 0.15s; position: relative;" onmouseover="this.style.background='rgba(255,255,255,0.08)'; this.style.color='#fff'" onmouseout="this.style.background='none'; this.style.color='#4CAF50'" title="Friends" onclick="if(window.chessGame) window.chessGame.showFriendsPage();">👥<span id="sidebarFriendsBadge" style="display: none; position: absolute; top: 0; right: 0; background: #e53935; color: #fff; font-size: 9px; font-weight: 700; border-radius: 8px; min-width: 14px; height: 14px; line-height: 14px; text-align: center; padding: 0 3px;"></span></button>
                 <button id="sidebarMailBtn" style="background: none; border: none; color: rgba(255,255,255,0.35); font-size: 18px; cursor: pointer; padding: 6px 10px; border-radius: 6px; transition: all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'; this.style.color='#fff'" onmouseout="this.style.background='none'; this.style.color='rgba(255,255,255,0.35)'" title="Messages" onclick="if(window.chessGame) window.chessGame.showProfileStats();">✉️</button>
                 <button id="sidebarNotifBtn" style="background: none; border: none; color: rgba(255,255,255,0.35); font-size: 18px; cursor: pointer; padding: 6px 10px; border-radius: 6px; transition: all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'; this.style.color='#fff'" onmouseout="this.style.background='none'; this.style.color='rgba(255,255,255,0.35)'" title="Notifications" onclick="if(window.chessGame) window.chessGame.showProfileStats();">🔔</button>
                 <button id="sidebarSettingsBtn" style="background: none; border: none; color: rgba(255,255,255,0.35); font-size: 18px; cursor: pointer; padding: 6px 10px; border-radius: 6px; transition: all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'; this.style.color='#fff'" onmouseout="this.style.background='none'; this.style.color='rgba(255,255,255,0.35)'" title="Settings" onclick="if(window.chessGame) window.chessGame.toggleProfileDropdown();">⚙️</button>
