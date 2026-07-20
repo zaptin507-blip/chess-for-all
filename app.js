@@ -1500,10 +1500,11 @@ class ChessGame {
         }
 
         // Static checks (instant, no engine needed)
-        if (board.isCheckmate()) {
+        // NOTE: chess.js 0.10.3 API is snake_case (in_checkmate, in_draw, ...)
+        if (board.in_checkmate()) {
             return { safe: true, reason: 'Checkmate!' };
         }
-        if (board.isDraw() || board.isStalemate()) {
+        if (board.in_draw() || board.in_stalemate() || board.in_threefold_repetition()) {
             // Only flag a draw as unsafe when the mover was clearly winning —
             // salvaging a draw from a lost position is GOOD chess, not a blunder
             if (knownScore > 150) {
@@ -1555,11 +1556,12 @@ class ChessGame {
         }
 
         // === Tactical outcomes (highest priority) ===
-        if (board.isCheckmate()) {
+        // NOTE: chess.js 0.10.3 API is snake_case (in_checkmate, in_check, ...)
+        if (board.in_checkmate()) {
             description = `Checkmate! ${move} ends the game — the king has nowhere to run`;
-        } else if (board.isStalemate()) {
+        } else if (board.in_stalemate()) {
             description = `${move} would draw by stalemate — opponent has no legal moves`;
-        } else if (board.isCheck()) {
+        } else if (board.in_check()) {
             if (captured) {
                 description = `${move} is a discovered check — capturing ${pNames[captured.type]} while delivering check`;
             } else {
@@ -1937,7 +1939,13 @@ class ChessGame {
                     clearTimeout(timeout);
                     engine.removeEventListener('message', listener);
                     bestMove = bestMoveMatch[1];
-                    const thought = (label !== 'Tactical Alarm') ? this._describeEngineThought(fen, bestMove, bestScore, scoreDisplay) : '';
+                    // Thought-logging must never deadlock the search — resolve first
+                    let thought = '';
+                    try {
+                        thought = (label !== 'Tactical Alarm') ? this._describeEngineThought(fen, bestMove, bestScore, scoreDisplay) : '';
+                    } catch (e) {
+                        console.warn('⚠️ Engine thought description failed:', e);
+                    }
                     console.log(`✅ ${label} → ${bestMove} (${scoreDisplay}) ${thought}`);
                     resolve({ move: bestMove, score: bestScore, scoreDisplay });
                 }
@@ -4254,21 +4262,32 @@ class ChessGame {
         if (this.councilMode && (this.selectedBot === 'god' || this.selectedBot === 'mrstong')) {
             this.statusDisplay.textContent = 'Grandmaster Council deliberating...';
             this.showCouncilPanel('thinking');
-            await this.consultationBestMove(fen, (result) => {
-                if (!result) {
-                    this.councilMode = false;
-                    this.makeBotMove();
-                    return;
-                }
-                let finalFrom = result.from, finalTo = result.to, finalPromotion = result.promotion;
-                if (this.gameMode === 'practice' && this._blunderSchedule && this._blunderSchedule.has(this._botMoveCount)) {
-                    const blunderUCI = this._makeBlunderMove(result.from + result.to + (result.promotion !== 'q' ? result.promotion : ''));
-                    finalFrom = blunderUCI.substring(0, 2);
-                    finalTo = blunderUCI.substring(2, 4);
-                    finalPromotion = blunderUCI.length > 4 ? blunderUCI[4] : 'q';
-                }
-                this._executeBotMove(finalFrom, finalTo, finalPromotion);
-            });
+            try {
+                await this.consultationBestMove(fen, (result) => {
+                    if (!result) {
+                        this.councilMode = false;
+                        this.makeBotMove();
+                        return;
+                    }
+                    let finalFrom = result.from, finalTo = result.to, finalPromotion = result.promotion;
+                    if (this.gameMode === 'practice' && this._blunderSchedule && this._blunderSchedule.has(this._botMoveCount)) {
+                        const blunderUCI = this._makeBlunderMove(result.from + result.to + (result.promotion !== 'q' ? result.promotion : ''));
+                        finalFrom = blunderUCI.substring(0, 2);
+                        finalTo = blunderUCI.substring(2, 4);
+                        finalPromotion = blunderUCI.length > 4 ? blunderUCI[4] : 'q';
+                    }
+                    this._executeBotMove(finalFrom, finalTo, finalPromotion);
+                });
+            } catch (e) {
+                // Any council failure (engine error, tablebase outage, etc.) must never
+                // soft-lock the game — fall back to the direct single-engine path
+                console.error('❌ Council deliberation failed, falling back to direct engine:', e);
+                this.councilMode = false;
+                this._botThinking = false;
+                const councilToggle = document.getElementById('councilModeToggle');
+                if (councilToggle) councilToggle.checked = false;
+                this.makeBotMove();
+            }
             return;
         }
         
